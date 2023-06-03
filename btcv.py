@@ -39,7 +39,7 @@ valid_dataset = {
 
 
 class BTCVDataSet(data.Dataset):
-    def __init__(self, root, task_name='liver', crop_size=(64, 256, 256), mean=(128, 128, 128), scale=True,
+    def __init__(self, root, crop_size=(64, 256, 256), mean=(128, 128, 128), scale=True,
                  mirror=False, ignore_label=255, Train=True):
         self.root = root
         self.crop_d, self.crop_h, self.crop_w = crop_size
@@ -47,19 +47,9 @@ class BTCVDataSet(data.Dataset):
         self.ignore_label = ignore_label
         self.mean = mean
         self.Train = Train
-        self.task_name = task_name
-        self.task_id = valid_dataset[self.task_name]
 
-        spacing = {
-            0: [0.8, 0.8, 1.5],
-            1: [0.8, 0.8, 1.5],
-            2: [0.8, 0.8, 1.5],
-            3: [0.8, 0.8, 1.5]
-        }
+        spacing = [0.8, 0.8, 1.5]
 
-        # spacing = {0: [3.0, 1.5, 1.5]} for test
-        # crop_size=(64, 256, 256) for test
-        # crop_size와 spacing 관계?
 
         print("Start preprocessing....")
         # load data
@@ -77,9 +67,7 @@ class BTCVDataSet(data.Dataset):
                 "image": img_file,
                 "label": label_file,
                 "name": item,
-                "task_id": self.task_id,
-                "spacing": spacing[self.task_id],
-            })
+                })
 
         # split train-test set
         train_X, val_X = train_test_split(all_files, test_size=0.20, shuffle=True, random_state=0)
@@ -92,12 +80,7 @@ class BTCVDataSet(data.Dataset):
     def __len__(self):
         return len(self.files)
 
-    def truncate(self, CT):  # 목적?
-        # min_HU = -200
-        # max_HU = 250
-        # subtract = 37.5
-        # divide = 250-37.5
-        # in btcv, they use
+    def truncate(self, CT):
         min_HU = -325
         max_HU = 325
         subtract = 0

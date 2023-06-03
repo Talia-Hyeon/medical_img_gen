@@ -9,11 +9,11 @@ from unet3D import UNet3D
 from loss_functions.score import *
 
 
-def evaluate(model, test_data_loader, test_dataset, device):
+def evaluate(model, test_data_loader, num_class, device):
     path = os.path.join('./fig', 'prediction_map')
     os.makedirs(path, exist_ok=True)
 
-    metrics = Score(test_dataset.n_classes)
+    metrics = Score(num_class)
 
     with torch.no_grad():
         model.eval()
@@ -65,5 +65,5 @@ if __name__ == '__main__':
     model.load_state_dict(torch.load(f'./save_model/best_model.pth'))
 
     # evaluation
-    miou = evaluate(model, test_loader, test_data, device=device)
+    miou = evaluate(model, test_loader, n_classes, device=device)
     print(f'MIoU Score: {miou}')
