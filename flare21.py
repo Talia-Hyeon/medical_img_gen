@@ -3,6 +3,10 @@ import os.path as osp
 import numpy as np
 import random
 import collections
+import math
+from glob import glob
+
+from sklearn.model_selection import train_test_split
 import torch
 import torchvision
 import cv2
@@ -11,104 +15,66 @@ import matplotlib.pyplot as plt
 import nibabel as nib
 from skimage.transform import resize
 import SimpleITK as sitk
-import math
 from batchgenerators.transforms.spatial_transforms import SpatialTransform, MirrorTransform
 from batchgenerators.transforms.color_transforms import BrightnessMultiplicativeTransform, GammaTransform, \
     BrightnessTransform, ContrastAugmentationTransform
 from batchgenerators.transforms.noise_transforms import GaussianNoiseTransform, GaussianBlurTransform
 from batchgenerators.transforms.resample_transforms import SimulateLowResolutionTransform
 from batchgenerators.transforms.abstract_transforms import Compose
-# from batchgenerators.transforms import Compose
-# from torchvision.transforms import Compose
-
-from glob import glob
 
 
-def modify_task_id(task_id):
-    # use 0,1,3,6 tasks only
-    if task_id == 3:
-        task_id = 2
-    elif task_id == 6:
-        task_id = 3
-    return task_id
-
-
-class MOTSDataSet(data.Dataset):
-    def __init__(self, root, list_path, max_iters=None, crop_size=(64, 192, 192), mean=(128, 128, 128), scale=True,
-                 mirror=True, ignore_label=255, target_task=0, distill_path=None, n_img_per_task=800):
+class FLAREDataSet(data.Dataset):
+    def __init__(self, root, crop_size=(64, 192, 192), mean=(128, 128, 128), scale=True,
+                 mirror=True, ignore_label=255, split='train'):
         self.root = root
-        self.list_path = list_path
         self.crop_d, self.crop_h, self.crop_w = crop_size
-        self.scale = scale
-        self.ignore_label = ignore_label
         self.mean = mean
+        self.scale = scale
         self.is_mirror = mirror
-        self.img_ids = [i_id.strip().split() for i_id in open(self.root + self.list_path)]
-        self.distill_img_ids = glob(f"{distill_path}/*img.nii.gz")
-        self.distill_img_ids = [e for e in self.distill_img_ids \
-                                if int(e.split("_")[-1].split("img")[0]) < n_img_per_task]
-        print(f"{len(self.distill_img_ids)} images for dataset distillation.")
-
-        # if not max_iters == None:
-        #     img_ids * int(np.ceil(float(max_iters) / len(self.img_ids)))
+        self.ignore_label = ignore_label
+        self.split = split
         self.files = []
-        ## sample for fast code check
-        # self.img_ids = random.sample(self.img_ids,15)
 
-        spacing = {
-            0: [0.8, 0.8, 1.5],
-            1: [0.8, 0.8, 1.5],
-            2: [0.8, 0.8, 1.5],
-            3: [0.8, 0.8, 1.5],
-            4: [0.8, 0.8, 1.5],
-            5: [0.8, 0.8, 1.5],
-            6: [0.8, 0.8, 1.5],
-        }
+        spacing = [0.8, 0.8, 1.5]
 
-        print(f"Target Task is {target_task}")
         print("Start preprocessing....")
-        for i, item in enumerate(self.img_ids):
-            print(f"{i}/{len(self.img_ids)}", end='\r')
-            image_path, label_path = item
-            task_id = int(image_path[16 + 5])
+        # load data
+        image_path = osp.join(self.root, 'TrainingImg')
+        label_path = osp.join(self.root, 'TrainingMask')
 
-            ## use only single task data
-            if task_id != target_task:
-                continue
+        img_list = os.listdir(os.path.join(self.root, 'img'))
+        all_files = []
+        for i, item in enumerate(img_list):
+            img_file = osp.join(image_path, item)
+            label_item = item.replace('_0000', '')
+            label_file = osp.join(label_path, label_item)
 
-            if task_id != 1:
-                name = osp.splitext(osp.basename(label_path))[0]
-            else:
-                name = label_path[31 + 5:41 + 5]
-
-            ## use modified version of datset
-            image_path_spl = image_path.split("/")
-            image_path_spl[0] = "0123456_spacing_same_modify_half"
-            image_path = "/".join(image_path_spl)
-            label_path_spl = label_path.split("/")
-            label_path_spl[0] = "0123456_spacing_same_modify_half"
-            label_path = "/".join(label_path_spl)
-
-            img_file = osp.join(self.root, image_path)
-            label_file = osp.join(self.root, label_path)
             label = nib.load(label_file).get_data()
-            if task_id == 1:
-                label = label.transpose((1, 2, 0))
+            # if task_id == 1:
+            #     label = label.transpose((1, 2, 0))
             boud_h, boud_w, boud_d = np.where(label >= 1)  # background 아닌
-            self.files.append({
+
+            all_files.append({
                 "image": img_file,
                 "label": label_file,
-                "name": name,
-                "task_id": task_id,
-                "spacing": spacing[task_id],
+                "name": item,
+                "spacing": spacing,
                 "bbx": [boud_h, boud_w, boud_d]
             })
-        print('{} images are loaded!'.format(len(self.files)))
+
+            # split train/val set
+            train_X, val_X = train_test_split(all_files, test_size=0.20, shuffle=True, random_state=0)
+            if self.split == 'train':
+                self.files = train_X
+            else:
+                self.files = val_X
+
+            print('{} images are loaded!'.format(len(self.files)))
 
     def __len__(self):
         return len(self.files)
 
-    def truncate(self, CT, task_id):
+    def truncate(self, CT):
         min_HU = -325
         max_HU = 325
         subtract = 0
@@ -121,35 +87,10 @@ class MOTSDataSet(data.Dataset):
         CT = CT / divide
         return CT
 
-    def id2trainId(self, label, task_id):
-        if task_id == 0 or task_id == 1 or task_id == 3:
-            organ = (label >= 1)
-            tumor = (label == 2)
-        elif task_id == 2:
-            organ = (label == 1)
-            tumor = (label == 2)
-        elif task_id == 4 or task_id == 5:
-            organ = None
-            tumor = (label == 1)
-        elif task_id == 6:
-            organ = (label == 1)
-            tumor = None
-        else:
-            print("Error, No such task!")
-            return None
-
+    def id2trainId(self, label):
         shape = label.shape
-        results_map = np.zeros((2, shape[0], shape[1], shape[2])).astype(np.float32)
-
-        if organ is None:
-            results_map[0, :, :, :] = results_map[0, :, :, :] - 1
-        else:
-            results_map[0, :, :, :] = np.where(organ, 1, 0)
-        if tumor is None:
-            results_map[1, :, :, :] = results_map[1, :, :, :] - 1
-        else:
-            results_map[1, :, :, :] = np.where(tumor, 1, 0)
-
+        results_map = np.zeros((1, shape[0], shape[1], shape[2])).astype(np.float32)
+        results_map[0, :, :, :] = label
         return results_map
 
     def locate_bbx(self, label, scaler, bbx):
@@ -159,7 +100,6 @@ class MOTSDataSet(data.Dataset):
         scale_w = int(self.crop_w * scaler)
 
         img_h, img_w, img_d = label.shape
-        # boud_h, boud_w, boud_d = np.where(label >= 1)
         boud_h, boud_w, boud_d = bbx
         margin = 32  # pixels
 
@@ -247,11 +187,11 @@ class MOTSDataSet(data.Dataset):
         image = imageNII.get_data()
         label = labelNII.get_data()
         name = datafiles["name"]
-        task_id = datafiles["task_id"]
 
-        if task_id == 1:
-            image = image.transpose((1, 2, 0))
-            label = label.transpose((1, 2, 0))
+        # task_id = datafiles["task_id"]
+        # if task_id == 1:
+        #     image = image.transpose((1, 2, 0))
+        #     label = label.transpose((1, 2, 0))
 
         if self.scale and np.random.uniform() < 0.2:
             scaler = np.random.uniform(0.7, 1.4)
@@ -261,19 +201,18 @@ class MOTSDataSet(data.Dataset):
         image = self.pad_image(image, [self.crop_h * scaler, self.crop_w * scaler, self.crop_d * scaler])
         label = self.pad_image(label, [self.crop_h * scaler, self.crop_w * scaler, self.crop_d * scaler])
 
-        # print(datafiles["label"])
         [h0, h1, w0, w1, d0, d1] = self.locate_bbx(label, scaler, datafiles["bbx"])
 
         image = image[h0: h1, w0: w1, d0: d1]
         label = label[h0: h1, w0: w1, d0: d1]
 
-        image = self.truncate(image, task_id)
-        label = self.id2trainId(label, task_id)
+        image = self.truncate(image)
+        label = self.id2trainId(label)
 
         image = image[np.newaxis, :]
 
         image = image.transpose((0, 3, 1, 2))  # Channel x Depth x H x W
-        label = label.transpose((0, 3, 1, 2))  # Depth x H x W
+        label = label.transpose((0, 3, 1, 2))  # Channel x Depth x H x W
 
         ## read distilled image
         if len(self.distill_img_ids) == 0:
@@ -320,7 +259,7 @@ class MOTSDataSet(data.Dataset):
         return image.copy(), label.copy(), name, task_id, distill_img.copy(), distill_tid
 
 
-class MOTSValDataSet(data.Dataset):
+class FLAREValDataSet(data.Dataset):
     def __init__(self, root, list_path, max_iters=None, crop_size=(64, 256, 256), mean=(128, 128, 128), scale=False,
                  mirror=False, ignore_label=255, target_task=0):
         self.root = root

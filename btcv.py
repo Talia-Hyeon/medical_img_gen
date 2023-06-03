@@ -7,7 +7,6 @@ import sys
 import numpy as np
 from torch.utils import data
 import nibabel as nib
-from sklearn.model_selection import train_test_split
 
 from batchgenerators.transforms.color_transforms import BrightnessMultiplicativeTransform, GammaTransform, \
     BrightnessTransform, ContrastAugmentationTransform
@@ -28,35 +27,38 @@ BTCV_label_num = {
     'inferior vena cava*': 9,
     'portal vein and splenic vein*': 10,
     'pancreas': 11,
+    'right adrenal gland': 12,
+    'left adrenal gland': 13
 }
 
 valid_dataset = {
-    'liver': 0,
-    'spleen': 1,
-    'pancreas': 2,
-    'kidney': 3
-}  # background class 없앰??
+    'background': 0,
+    'liver': 1,
+    'kidney': 2,
+    'spleen': 3,
+    'pancreas': 4,
+}
 
 
 class BTCVDataSet(data.Dataset):
     def __init__(self, root, crop_size=(64, 256, 256), mean=(128, 128, 128), scale=True,
-                 mirror=False, ignore_label=255, Train=True):
+                 mirror=False, ignore_label=255, is_transform=False):
         self.root = root
         self.crop_d, self.crop_h, self.crop_w = crop_size
         self.scale = scale
         self.ignore_label = ignore_label
         self.mean = mean
-        self.Train = Train
+        self.is_transform = is_transform
+        self.void_classes = [4, 5, 7, 8, 9, 10, 12, 13]
 
         spacing = [0.8, 0.8, 1.5]
 
-
         print("Start preprocessing....")
         # load data
-        image_path = os.path.join(self.root, 'img')
-        label_path = os.path.join(self.root, 'label')
+        image_path = osp.join(self.root, 'img')
+        label_path = osp.join(self.root, 'label')
 
-        img_list = os.listdir(os.path.join(self.root, 'img'))
+        img_list = os.listdir(image_path)
         all_files = []
         for i, item in enumerate(img_list):
             img_file = osp.join(image_path, item)
@@ -66,15 +68,10 @@ class BTCVDataSet(data.Dataset):
             all_files.append({
                 "image": img_file,
                 "label": label_file,
-                "name": item,
-                })
+                "name": item
+            })
 
-        # split train-test set
-        train_X, val_X = train_test_split(all_files, test_size=0.20, shuffle=True, random_state=0)
-        if self.Train == True:
-            self.files = train_X
-        else:
-            self.files = val_X
+        self.files=all_files
         print('{} images are loaded!'.format(len(self.files)))
 
     def __len__(self):
@@ -176,32 +173,16 @@ class BTCVDataSet(data.Dataset):
         labelNII = nib.load(datafiles["label"])
         image = imageNII.get_fdata()
         label = labelNII.get_fdata()
+        name = datafiles["name"]
 
         # boud_h, boud_w, boud_d = np.where(label >= 1)  # background 아닌
         # self.files[index].setdefault("bbx", [boud_h, boud_w, boud_d])
-
-        name = datafiles["name"]
-        task_id = datafiles["task_id"]
-        organ_name = [k for k, v in valid_dataset.items() if v == task_id][0]
-
-        # new class of organ: 1(학습 중) , not: 0
-        # merge right-left kidney into same label
-        if organ_name != 'kidney':
-            label_id = BTCV_label_num[organ_name]
-            # np.set_printoptions(threshold=sys.maxsize)
-            label[np.where(label != label_id)] = 0
-
-        else:
-            label_id1 = BTCV_label_num['right kidney']  # 2
-            label_id2 = BTCV_label_num['left kidney']  # 3
-            label[np.where((label != label_id1) & (label != label_id2))] = 0
-        label[np.where(label != 0)] = 1
 
         image = self.pad_image(image, [self.crop_h, self.crop_w, self.crop_d])
         label = self.pad_image(label, [self.crop_h, self.crop_w, self.crop_d])
 
         image = self.truncate(image)
-        label = self.id2trainId(label, task_id)  # original has tumor label
+        label = self.id2trainId(label)
 
         image = image[np.newaxis, :]
 
@@ -211,13 +192,26 @@ class BTCVDataSet(data.Dataset):
         image = image.astype(np.float32)
         label = label.astype(np.float32)
 
-        return image.copy(), label.copy(), name, task_id, labelNII.affine
+        return image.copy(), label.copy(), name, labelNII.affine
 
-    def id2trainId(self, label, task_id):
+    def id2trainId(self, label):
+        # void_class to background
+        for void_class in self.void_classes:
+            label[np.where(label == void_class)] = 0
+
+        # left kidney to kidney(2)
+        label[np.where(label == 3)] = 2
+        # spleen to 3
+        label[np.where(label == 1)] = 3
+        # liver to 1
+        label[np.where(label == 6)] = 1
+        # pancreas to 4
+        label[np.where(label == 11)] = 4
+
         shape = label.shape
-        results_map = np.zeros((2, shape[0], shape[1], shape[2])).astype(np.float32)
+        results_map = np.zeros((1, shape[0], shape[1], shape[2])).astype(np.float32)
         results_map[0, :, :, :] = label
-        results_map[1, :, :, :] = results_map[1, :, :, :] - 1
+        # results_map[1, :, :, :] = results_map[1, :, :, :] - 1
         return results_map
 
 
@@ -243,12 +237,11 @@ def get_train_transform():
 
 
 def my_collate(batch):  # dataset이 variable length(shape)이면 collate_fn을 꼭 사용
-    image, label, name, task_id = zip(*batch)
+    image, label, name = zip(*batch)
     image = np.stack(image, 0)
     label = np.stack(label, 0)
     name = np.stack(name, 0)
-    task_id = np.stack(task_id, 0)
-    data_dict = {'image': image, 'label': label, 'name': name, 'task_id': task_id}
+    data_dict = {'image': image, 'label': label, 'name': name}
     tr_transforms = get_train_transform()
     data_dict = tr_transforms(**data_dict)
     return data_dict
