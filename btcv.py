@@ -7,6 +7,7 @@ import sys
 import numpy as np
 from torch.utils import data
 import nibabel as nib
+from sklearn.model_selection import train_test_split
 
 from batchgenerators.transforms.color_transforms import BrightnessMultiplicativeTransform, GammaTransform, \
     BrightnessTransform, ContrastAugmentationTransform
@@ -41,9 +42,10 @@ valid_dataset = {
 
 
 class BTCVDataSet(data.Dataset):
-    def __init__(self, root, crop_size=(64, 256, 256), mean=(128, 128, 128), scale=True,
-                 mirror=False, ignore_label=255, is_transform=False):
+    def __init__(self, root, split='test', crop_size=(64, 256, 256), mean=(128, 128, 128), scale=True,
+                 ignore_label=255, is_transform=False):
         self.root = root
+        self.split = split  # test: BTCV, val: FLARE21
         self.crop_d, self.crop_h, self.crop_w = crop_size
         self.scale = scale
         self.ignore_label = ignore_label
@@ -51,27 +53,51 @@ class BTCVDataSet(data.Dataset):
         self.is_transform = is_transform
         self.void_classes = [4, 5, 7, 8, 9, 10, 12, 13]
 
-        spacing = [0.8, 0.8, 1.5]
-
         print("Start preprocessing....")
-        # load data
-        image_path = osp.join(self.root, 'img')
-        label_path = osp.join(self.root, 'label')
+        if self.split == 'test':
+            # load data
+            image_path = osp.join(self.root, 'img')
+            label_path = osp.join(self.root, 'label')
 
-        img_list = os.listdir(image_path)
-        all_files = []
-        for i, item in enumerate(img_list):
-            img_file = osp.join(image_path, item)
-            label_item = item.replace('img', 'label')
-            label_file = osp.join(label_path, label_item)
+            img_list = os.listdir(image_path)
+            all_files = []
+            for i, item in enumerate(img_list):
+                img_file = osp.join(image_path, item)
+                label_item = item.replace('img', 'label')
+                label_file = osp.join(label_path, label_item)
 
-            all_files.append({
-                "image": img_file,
-                "label": label_file,
-                "name": item
-            })
+                all_files.append({
+                    "image": img_file,
+                    "label": label_file,
+                    "name": item
+                })
 
-        self.files=all_files
+            self.files = all_files
+
+        if self.split == 'val':
+            # load data
+            image_path = osp.join(self.root, 'TrainingImg')
+            label_path = osp.join(self.root, 'TrainingMask')
+
+            img_list = os.listdir(os.path.join(self.root, 'img'))
+            all_files = []
+            for i, item in enumerate(img_list):
+                img_file = osp.join(image_path, item)
+                label_item = item.replace('_0000', '')
+                label_file = osp.join(label_path, label_item)
+
+                all_files.append({
+                    "image": img_file,
+                    "label": label_file,
+                    "name": item})
+
+                # split train/val set
+                train_X, val_X = train_test_split(all_files, test_size=0.20, shuffle=True, random_state=0)
+                if self.split == 'train':
+                    self.files = train_X
+                elif self.split == 'val':
+                    self.files = val_X
+
         print('{} images are loaded!'.format(len(self.files)))
 
     def __len__(self):
@@ -90,65 +116,6 @@ class BTCVDataSet(data.Dataset):
         CT = CT - subtract
         CT = CT / divide
         return CT
-
-    def locate_bbx(self, label, scaler, bbx):  # for patch 단위?
-        scale_d = int(self.crop_d * scaler)  # crop 기준 위치
-        scale_h = int(self.crop_h * scaler)
-        scale_w = int(self.crop_w * scaler)
-
-        img_h, img_w, img_d = label.shape
-        boud_h, boud_w, boud_d = bbx
-        margin = 32  # pixels
-
-        bbx_h_min = boud_h.min()
-        bbx_h_max = boud_h.max()
-        bbx_w_min = boud_w.min()
-        bbx_w_max = boud_w.max()
-        bbx_d_min = boud_d.min()
-        bbx_d_max = boud_d.max()
-        if (bbx_h_max - bbx_h_min) <= scale_h:
-            bbx_h_maxt = bbx_h_max + math.ceil((scale_h - (bbx_h_max - bbx_h_min)) / 2)
-            bbx_h_mint = bbx_h_min - math.ceil((scale_h - (bbx_h_max - bbx_h_min)) / 2)
-            if bbx_h_mint < 0:
-                bbx_h_maxt -= bbx_h_mint
-                bbx_h_mint = 0
-            bbx_h_max = bbx_h_maxt
-            bbx_h_min = bbx_h_mint
-        if (bbx_w_max - bbx_w_min) <= scale_w:
-            bbx_w_maxt = bbx_w_max + math.ceil((scale_w - (bbx_w_max - bbx_w_min)) / 2)
-            bbx_w_mint = bbx_w_min - math.ceil((scale_w - (bbx_w_max - bbx_w_min)) / 2)
-            if bbx_w_mint < 0:
-                bbx_w_maxt -= bbx_w_mint
-                bbx_w_mint = 0
-            bbx_w_max = bbx_w_maxt
-            bbx_w_min = bbx_w_mint
-        if (bbx_d_max - bbx_d_min) <= scale_d:
-            bbx_d_maxt = bbx_d_max + math.ceil((scale_d - (bbx_d_max - bbx_d_min)) / 2)
-            bbx_d_mint = bbx_d_min - math.ceil((scale_d - (bbx_d_max - bbx_d_min)) / 2)
-            if bbx_d_mint < 0:
-                bbx_d_maxt -= bbx_d_mint
-                bbx_d_mint = 0
-            bbx_d_max = bbx_d_maxt
-            bbx_d_min = bbx_d_mint
-        bbx_h_min = np.max([bbx_h_min - margin, 0])
-        bbx_h_max = np.min([bbx_h_max + margin, img_h])
-        bbx_w_min = np.max([bbx_w_min - margin, 0])
-        bbx_w_max = np.min([bbx_w_max + margin, img_w])
-        bbx_d_min = np.max([bbx_d_min - margin, 0])
-        bbx_d_max = np.min([bbx_d_max + margin, img_d])
-
-        if random.random() < 0.8:
-            d0 = random.randint(bbx_d_min, np.max([bbx_d_max - scale_d, bbx_d_min]))
-            h0 = random.randint(bbx_h_min, np.max([bbx_h_max - scale_h, bbx_h_min]))
-            w0 = random.randint(bbx_w_min, np.max([bbx_w_max - scale_w, bbx_w_min]))
-        else:
-            d0 = random.randint(0, img_d - scale_d)
-            h0 = random.randint(0, img_h - scale_h)
-            w0 = random.randint(0, img_w - scale_w)
-        d1 = d0 + scale_d
-        h1 = h0 + scale_h
-        w1 = w0 + scale_w
-        return [h0, h1, w0, w1, d0, d1]
 
     def pad_image(self, img, target_size):
         """Pad an image up to the target size."""
@@ -175,9 +142,6 @@ class BTCVDataSet(data.Dataset):
         label = labelNII.get_fdata()
         name = datafiles["name"]
 
-        # boud_h, boud_w, boud_d = np.where(label >= 1)  # background 아닌
-        # self.files[index].setdefault("bbx", [boud_h, boud_w, boud_d])
-
         image = self.pad_image(image, [self.crop_h, self.crop_w, self.crop_d])
         label = self.pad_image(label, [self.crop_h, self.crop_w, self.crop_d])
 
@@ -195,18 +159,19 @@ class BTCVDataSet(data.Dataset):
         return image.copy(), label.copy(), name, labelNII.affine
 
     def id2trainId(self, label):
-        # void_class to background
-        for void_class in self.void_classes:
-            label[np.where(label == void_class)] = 0
+        if self.split == 'test':
+            # void_class to background
+            for void_class in self.void_classes:
+                label[np.where(label == void_class)] = 0
 
-        # left kidney to kidney(2)
-        label[np.where(label == 3)] = 2
-        # spleen to 3
-        label[np.where(label == 1)] = 3
-        # liver to 1
-        label[np.where(label == 6)] = 1
-        # pancreas to 4
-        label[np.where(label == 11)] = 4
+            # left kidney to kidney(2)
+            label[np.where(label == 3)] = 2
+            # spleen to 3
+            label[np.where(label == 1)] = 3
+            # liver to 1
+            label[np.where(label == 6)] = 1
+            # pancreas to 4
+            label[np.where(label == 11)] = 4
 
         shape = label.shape
         results_map = np.zeros((1, shape[0], shape[1], shape[2])).astype(np.float32)
@@ -237,13 +202,13 @@ def get_train_transform():
 
 
 def my_collate(batch):  # dataset이 variable length(shape)이면 collate_fn을 꼭 사용
-    image, label, name = zip(*batch)
+    image, label, name = zip(*batch)  # if self.split==(test or val): labelNII.affine?
     image = np.stack(image, 0)
     label = np.stack(label, 0)
     name = np.stack(name, 0)
     data_dict = {'image': image, 'label': label, 'name': name}
     tr_transforms = get_train_transform()
-    data_dict = tr_transforms(**data_dict)
+    data_dict = tr_transforms(**data_dict)  # if self.split==(test or val): is_transform==False
     return data_dict
 
 
