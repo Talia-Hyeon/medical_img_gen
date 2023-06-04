@@ -215,7 +215,7 @@ def get_train_transform():
 
 
 def my_collate(batch):  # dataset이 variable length(shape)이면 collate_fn을 꼭 사용
-    image, label, name = zip(*batch)  # if self.split==(test or val): labelNII.affine?
+    image, label, name, label_affine = zip(*batch)  # if self.split==(test or val): labelNII.affine?
     image = np.stack(image, 0)
     label = np.stack(label, 0)
     name = np.stack(name, 0)
