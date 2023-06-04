@@ -226,7 +226,7 @@ class FLAREDataSet(data.Dataset):
             label = resize(label, (2, self.crop_d, self.crop_h, self.crop_w), order=0, mode='edge', cval=0, clip=True,
                            preserve_range=True)
 
-        label = self.extend_channel_classes(label)
+        # label = self.extend_channel_classes(label)
 
         image = image.astype(np.float32)
         label = label.astype(np.float32)
@@ -293,12 +293,12 @@ if __name__ == '__main__':
     # print("img's shape: {}\nlabel's shape: {}".format(img_.shape, label_.shape))
 
     flare = FLAREDataSet(root='./dataset/FLARE21', split='train')
-    train_loader = data.DataLoader(dataset=flare, batch_size=1, shuffle=False, num_workers=0, collate_fn=my_collate)
+    train_loader = data.DataLoader(dataset=flare, batch_size=2, shuffle=False, num_workers=0, collate_fn=my_collate)
     for train_iter, pack in enumerate(train_loader):
         img_ = pack['image']
         label_ = pack['label']
         name_ = pack['name']
-        # print("img_shape: {}\nlabel_shape: {}".format(img_.shape, label_.shape))
-        if label_.shape != (1, 5, 64, 192, 192):
-            print("label's shape is incorrect")
-            sys.exit(1)
+        # print("label_shape: {}".format(label_.shape))
+        # if label_.shape != (1, 5, 64, 192, 192):
+        #     print("label's shape is incorrect")
+        #     sys.exit(1)
