@@ -273,10 +273,9 @@ def get_train_transform():
 
 def my_collate(batch):
     image, label, name = zip(*batch)
-    print("img tuple's len: {}".format(len(image)))
     print("img's shape: {}".format(image[0].shape))
+    print("img's shape: {}".format(image[1].shape))
     image = np.stack(image, 0)
-    print("label tuple's len: {}".format(len(label)))
     print("label 0's shape: {}".format(label[0].shape))
     print("label 1's shape: {}".format(label[1].shape))
     label = np.stack(label, 0)
@@ -295,7 +294,7 @@ if __name__ == '__main__':
     # print("img's shape: {}\nlabel's shape: {}".format(img_.shape, label_.shape))
 
     flare = FLAREDataSet(root='./dataset/FLARE21', split='train')
-    train_loader = data.DataLoader(dataset=flare, batch_size=2, shuffle=False, num_workers=2, collate_fn=my_collate)
+    train_loader = data.DataLoader(dataset=flare, batch_size=2, shuffle=False, num_workers=0, collate_fn=my_collate)
     for train_iter, pack in enumerate(train_loader):
         img_ = pack['image']
         label_ = pack['label']
