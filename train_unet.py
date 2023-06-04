@@ -11,7 +11,6 @@ from unet3D import UNet3D
 from loss_functions.loss import *
 from loss_functions.score import *
 from flare21 import my_collate
-from btcv import my_collate
 
 
 def main():
