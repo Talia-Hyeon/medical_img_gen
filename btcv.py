@@ -215,3 +215,4 @@ def my_collate(batch):  # dataset이 variable length(shape)이면 collate_fn을 
 if __name__ == '__main__':
     btcv = BTCVDataSet(root='../dataset/BTCV/Trainset')
     sample = btcv[0]
+    print("sample's type: {}".format(type(sample)))
