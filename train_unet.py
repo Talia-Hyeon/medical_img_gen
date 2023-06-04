@@ -67,7 +67,7 @@ def main():
 
             if (train_iter + 1) % (len(train_loader) // 5) == 0:
                 iter_end = time()            
-                print(f'Epoch: {epoch + 1}/{num_epochs} | Iters: {train_iter + 1} | Train loss: {loss.item():.4f} | Time: {(iter_end-iter_start:.4f)}')
+                print(f'Epoch: {epoch + 1}/{num_epochs} | Iters: {train_iter + 1} | Train loss: {loss.item():.4f} | Time: {(iter_end-iter_start):.4f}')
                 # newly check iter. start time
                 iter_start = time()
 
