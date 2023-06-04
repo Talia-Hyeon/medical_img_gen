@@ -184,8 +184,8 @@ class FLAREDataSet(data.Dataset):
         # read nii file
         imageNII = nib.load(datafiles["image"])
         labelNII = nib.load(datafiles["label"])
-        image = imageNII.get_data()
-        label = labelNII.get_data()
+        image = imageNII.get_fdata()
+        label = labelNII.get_fdata()
         name = datafiles["name"]
 
         if self.scale and np.random.uniform() < 0.2:
