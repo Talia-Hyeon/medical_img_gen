@@ -4,6 +4,7 @@ import random
 import math
 import sys
 
+import torch
 import numpy as np
 from torch.utils import data
 import nibabel as nib
@@ -153,6 +154,8 @@ class BTCVDataSet(data.Dataset):
         image = image.transpose((0, 3, 1, 2))  # Channel x Depth x H x W
         label = label.transpose((0, 3, 1, 2))
 
+        label = self.extend_channel_classes(label)
+
         image = image.astype(np.float32)
         label = label.astype(np.float32)
 
@@ -178,6 +181,18 @@ class BTCVDataSet(data.Dataset):
         results_map[0, :, :, :] = label
         # results_map[1, :, :, :] = results_map[1, :, :, :] - 1
         return results_map
+
+    def extend_channel_classes(self, label):
+        label = torch.squeeze(label)
+
+        tensor_list = []
+        for i in range(5):
+            stack_i = label.clone().detach()
+            stack_i[label == i] = 1
+            stack_i[label != i] = 0
+            tensor_list.append(stack_i)
+        stacked_tensor = torch.stack(tensor_list)
+        return stacked_tensor
 
 
 def get_train_transform():
