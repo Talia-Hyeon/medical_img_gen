@@ -227,10 +227,23 @@ class FLAREDataSet(data.Dataset):
             label = resize(label, (2, self.crop_d, self.crop_h, self.crop_w), order=0, mode='edge', cval=0, clip=True,
                            preserve_range=True)
 
+        label = self.extend_channel_classes(label)
+
         image = image.astype(np.float32)
         label = label.astype(np.float32)
 
         return image.copy(), label.copy(), name
+
+    def extend_channel_classes(self, label):
+        label_list = []
+        for i in range(5):
+            label_i = label.copy()
+            label_i[label == i] = 1
+            label_i[label != i] = 0
+            label_list.append(label_i)
+        stacked_label = np.stack(label_list, axis=1)
+        stacked_label = np.squeeze(stacked_label)
+        return stacked_label
 
 
 def get_train_transform():
