@@ -70,7 +70,6 @@ class NoBottleneck(nn.Module):
 
 class unet3D(nn.Module):
     def __init__(self, layers, num_classes=1, weight_std=False, bch=32):
-        self.inplanes = bch * 4
         self.weight_std = weight_std
         super(unet3D, self).__init__()
 
@@ -98,7 +97,8 @@ class unet3D(nn.Module):
         self.precls_conv = nn.Sequential(
             nn.BatchNorm3d(bch),
             nn.ReLU(inplace=in_place),
-            nn.Conv3d(bch, 1, kernel_size=1)
+            # nn.Conv3d(bch, 1, kernel_size=1)
+            nn.Conv3d(bch, num_classes, kernel_size=1) # newly added 2023.06.04
         )
 
         self._init_weights()
@@ -123,7 +123,7 @@ class unet3D(nn.Module):
         generate_multi_grid = lambda index, grids: grids[index % len(grids)] if isinstance(grids, tuple) else 1
         layers.append(block(inplanes, planes, stride, dilation=dilation, downsample=downsample,
                             multi_grid=generate_multi_grid(0, multi_grid), weight_std=self.weight_std))
-        # self.inplanes = planes
+        
         for i in range(1, blocks):
             layers.append(
                 block(planes, planes, dilation=dilation, multi_grid=generate_multi_grid(i, multi_grid),
@@ -179,8 +179,9 @@ class unet3D(nn.Module):
         x = self.x1_resb(x)
 
         logits = self.precls_conv(x)
-        # logits = self.head(head_inputs)
-        return logits, feat
+        
+        # return logits, feat
+        return logits
 
 
 def UNet3D(num_classes=1, weight_std=False):

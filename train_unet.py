@@ -1,4 +1,5 @@
 import os
+from time import time
 
 import torch
 from torch.utils.data import DataLoader
@@ -17,7 +18,8 @@ def main():
 
     # Hyper-parameters
     num_epochs = 100
-    n_classes = 4
+    n_classes = 5
+    train_batch_size = 2
 
     model = UNet3D(num_classes=n_classes)
     model.to(device)
@@ -25,12 +27,15 @@ def main():
     optimizer = torch.optim.Adam(model.parameters(), lr=0.0001)  # weight_decay=0.0001
     lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=10, gamma=0.9)
 
+    loss_function = CELoss4MOTS(num_classes=n_classes)
+    loss_function.to(device)
+
     # data loader
     data_path = './dataset/BTCV/Trainset'
     train_data = BTCVDataSet(root=data_path, Train=True)
     valid_data = BTCVDataSet(root=data_path, Train=False)
 
-    train_loader = DataLoader(dataset=train_data, batch_size=1, shuffle=True, num_workers=0)
+    train_loader = DataLoader(dataset=train_data, batch_size=train_batch_size, shuffle=True, num_workers=train_batch_size)
     valid_loader = DataLoader(dataset=valid_data, batch_size=1, shuffle=False, num_workers=0)
 
     # setup metrics
@@ -44,20 +49,27 @@ def main():
     val_loss_l = []
     epoch_l = []
     for epoch in range(num_epochs):
+
+        epoch_start = time()
+        iter_start = time()
+
         for train_iter, pack in enumerate(train_loader):
             img = pack[0].to(device)
             label = pack[1].to(device)
             pred = model(img)
 
-            loss = CELoss4MOTS(pred, label)
-            train_loss_meter.update(loss.item())
+            loss = loss_function(pred, label)
+            train_loss_meter.update(loss.item(), train_batch_size)
 
             optimizer.zero_grad()
             loss.backward()
             optimizer.step()
 
             if (train_iter + 1) % (len(train_loader) // 5) == 0:
-                print(f'Epoch: {epoch + 1}/{num_epochs} | Iters: {train_iter + 1} | Train loss: {loss.item():.4f}')
+                iter_end = time()            
+                print(f'Epoch: {epoch + 1}/{num_epochs} | Iters: {train_iter + 1} | Train loss: {loss.item():.4f} | Time: {(iter_end-iter_start:.4f)}')
+                # newly check iter. start time
+                iter_start = time()
 
         train_loss_l.append(train_loss_meter.avg)
         epoch_l.append(epoch)
@@ -65,21 +77,22 @@ def main():
 
         with torch.no_grad():
             model.eval()
+            val_start = time()
             for valid_iter, pack in enumerate(valid_loader):
                 img_val = pack[0].to(device)
                 label_val = pack[1].to(device)
 
                 pred_val = model(img_val)
-                val_loss = CELoss4MOTS(pred_val, label_val)
-
-                pred_val = torch.argmax(pred, dim=1).cpu().numpy()
-                gt = label_val.data.cpu().numpy()
-
-                metrics.update(gt, pred_val)
+                val_loss = loss_function(pred_val, label_val)
                 val_loss_meter.update(val_loss.item())
 
+                ours = torch.argmax(pred_val, dim=1).cpu().numpy()
+                gt = torch.argmax(label_val, dim=1).cpu().numpy()
+                metrics.update(gt, ours)
+
             val_loss_l.append(val_loss_meter.avg)
-            print(f'Epoch: {epoch + 1} | Valid loss: {val_loss.item():.4f}')
+            val_end = time()
+            print(f'Epoch: {epoch + 1} | Valid loss: {val_loss.item():.4f} | Time: {(val_end-val_start):.4f}')
 
         lr_scheduler.step()
 
@@ -90,7 +103,10 @@ def main():
         if score_dic['Mean IoU'] >= best_iou:
             best_iou = score_dic['Mean IoU']
             torch.save(model.state_dict(), f'./save_model/best_model.pth')
-        print('Epoch: {} | Best MIoU: {}'.format(epoch + 1, best_iou))
+        
+        epoch_end = time()
+
+        print('Epoch: {} | Best MIoU: {} | Total Time: {:.4f}'.format(epoch + 1, best_iou, epoch_end-epoch_start))
 
     plt.plot(epoch_l, train_loss_l, 'ro--', label='train')
     plt.plot(epoch_l, val_loss_l, 'bo--', label='validation')
