@@ -283,5 +283,5 @@ def my_collate(batch):
 
 if __name__ == '__main__':
     flare = FLAREDataSet(root='./dataset/FLARE21', split='train')
-    img_, label_, name_, label_aff = flare[0]
+    img_, label_, name_ = flare[0]
     print("img's shape: {}\nlabel's shape: {}".format(img_.shape, label_.shape))
