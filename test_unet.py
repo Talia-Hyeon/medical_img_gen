@@ -1,8 +1,10 @@
 import os
+
 import torch
 from torch.utils.data import DataLoader
 import numpy as np
 from matplotlib import pyplot as plt
+from skimage.transform import resize
 
 from btcv import BTCVDataSet
 from unet3D import UNet3D
@@ -25,18 +27,28 @@ def evaluate(model, test_data_loader, num_class, device):
             pred = model(img)
 
             pred = torch.argmax(pred, dim=1).cpu().numpy()
-            gt = label.data.cpu().numpy()
+            gt = torch.argmax(label, dim=1).cpu().numpy()
             metrics.update(gt, pred)
 
             # visualization
-            # pred = np.copy(pred)[0, :, :]  # pred: 각 픽셀의 class
-            # pred = pred.astype(int)
-            # plt.figure()
-            # plt.imshow(pred)
-            # plt.title('Prediction Map')
-            #
-            # plt.savefig(f'{path}/{name}.png')
-            # plt.close()
+            d1, d2, d3 = pred.shape
+            max_score = 0
+            max_score_idx = 0
+            for i in range(d1):
+                sagital_pred = pred[i,:,:]
+                classes = np.unique(sagital_pred)
+                if classes.size >= num_class-1:
+                    counts = np.array([max(np.where(sagital_pred == c)[0].size, 1e-8) for c in range(num_class)])
+                    score = np.exp( np.sum(np.log(counts)) - 5 * np.log(np.sum(counts)) )
+                    if score > max_score:
+                        max_score = score
+                        max_score_idx = i
+
+            plt.figure()
+            plt.imshow(resize(pred[:,max_score_idx,:], (256, 128)))
+            plt.title('Prediction Map')
+            plt.savefig(f'{path}/{name}.png')
+            plt.close()
 
     score_dic, cls_iu = metrics.get_scores()
     for k, v in score_dic.items():
@@ -51,7 +63,7 @@ def evaluate(model, test_data_loader, num_class, device):
 
 
 if __name__ == '__main__':
-    n_classes = 4
+    n_classes = 5
 
     # dataloader
     data_path = './dataset/BTCV/Trainset'
