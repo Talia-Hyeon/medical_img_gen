@@ -2,17 +2,16 @@ import argparse
 import os, sys
 import timeit
 
-sys.path.append("..")
-
 import torch
 import torch.nn as nn
-import numpy as np
 import torch.backends.cudnn as cudnn
 from torch.utils.tensorboard import SummaryWriter  # tensorboardX
+import numpy as np
 import nibabel as nib
 from apex.apex import amp
 
-import unet3D_singlehead_bn_organ
+from unet3D import UNet3D
+
 from data.MOTSDataset_btcv import MOTSValDataSet, my_collate
 from data.MOTSDataset_distill import MOTSDataSet
 from loss_functions import loss
@@ -93,10 +92,8 @@ def get_arguments():
     parser.add_argument("--train_list", type=str, default='list/MOTS/MOTS_train.txt')
     parser.add_argument("--itrs_each_epoch", type=int, default=250)
 
-    parser.add_argument("--sample_dir", type=str, default='sample', help="")
     parser.add_argument("--snapshot_dir", type=str, default='snapshots/fold1/')
     parser.add_argument('--local_rank', type=int, default=0)
-    parser.add_argument('--target_task', type=int, default=0)
     parser.add_argument("--FP16", type=str2bool, default=False)
     parser.add_argument("--num_imgs", type=int, default=500)
     parser.add_argument("--num_epochs", type=int, default=500)
@@ -137,7 +134,6 @@ def main():
     print(parser)
 
     args = parser.parse_args()
-    writer = SummaryWriter(f"./snapshots/{args.sample_dir}")
 
     if not args.gpu == 'None':
         os.environ["CUDA_VISIBLE_DEVICES"] = args.gpu
@@ -153,18 +149,16 @@ def main():
 
     device = torch.device('cuda:{}'.format(args.local_rank))
 
-    os.makedirs(f"./sample/{args.sample_dir}", exist_ok=True)
+    os.makedirs(f"./sample", exist_ok=True)
     cnt = 0
     n_runs = args.num_imgs // args.batch_size
     n_iters = args.num_epochs  # 500
-    tid = args.target_task  # 0
 
     ### load pretrained local models ###
     print("Generate pseudo images using pretrained models.")
-    pretrained_dir = "2000epoch"
-    path = f"./pretrained/{pretrained_dir}/t{tid}.pth"
+    path = f"./save_model/best_model.pth"
     print(f"Loading checkpoint {path}")
-    pretrained = unet3D_singlehead_bn_organ.UNet3D(num_classes=args.num_classes, weight_std=args.weight_std)
+    pretrained = UNet3D(num_classes=args.num_classes, weight_std=args.weight_std)
     checkpoint = torch.load(path, map_location=torch.device('cpu'))  # GPU에서 저장한 모델을 CPU에서 불러오기
     pretrained.load_state_dict(checkpoint['model'], strict=False)
 

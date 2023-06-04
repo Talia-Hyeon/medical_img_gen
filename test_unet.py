@@ -35,17 +35,17 @@ def evaluate(model, test_data_loader, num_class, device):
             max_score = 0
             max_score_idx = 0
             for i in range(d1):
-                sagital_pred = pred[i,:,:]
+                sagital_pred = pred[i, :, :]
                 classes = np.unique(sagital_pred)
-                if classes.size >= num_class-1:
+                if classes.size >= num_class - 1:
                     counts = np.array([max(np.where(sagital_pred == c)[0].size, 1e-8) for c in range(num_class)])
-                    score = np.exp( np.sum(np.log(counts)) - 5 * np.log(np.sum(counts)) )
+                    score = np.exp(np.sum(np.log(counts)) - 5 * np.log(np.sum(counts)))
                     if score > max_score:
                         max_score = score
                         max_score_idx = i
 
             plt.figure()
-            plt.imshow(resize(pred[:,max_score_idx,:], (256, 128)))
+            plt.imshow(resize(pred[:, max_score_idx, :], (256, 128)))
             plt.title('Prediction Map')
             plt.savefig(f'{path}/{name}.png')
             plt.close()

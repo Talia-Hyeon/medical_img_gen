@@ -6,6 +6,7 @@ import sys
 
 import torch
 from torch.utils import data
+from torchvision.transforms import CenterCrop
 import numpy as np
 import nibabel as nib
 from sklearn.model_selection import train_test_split
@@ -160,6 +161,9 @@ class BTCVDataSet(data.Dataset):
 
         image = torch.from_numpy(image)
         label = torch.from_numpy(label)
+
+        image = CenterCrop((self.crop_d, self.crop_h, self.crop_w))(image)
+        label = CenterCrop((self.crop_d, self.crop_h, self.crop_w))(label)
 
         return image, label, name, labelNII.affine
 
