@@ -8,7 +8,6 @@ import torch.backends.cudnn as cudnn
 from torch.utils.tensorboard import SummaryWriter  # tensorboardX
 import numpy as np
 import nibabel as nib
-from apex.apex import amp
 
 from unet3D import UNet3D
 
@@ -88,32 +87,17 @@ def save_nii(a, p):  # img_data, path
 
 def get_arguments():
     parser = argparse.ArgumentParser(description="unet3D_multihead")
-    parser.add_argument("--data_dir", type=str, default='../dataset/')
-    parser.add_argument("--train_list", type=str, default='list/MOTS/MOTS_train.txt')
     parser.add_argument("--itrs_each_epoch", type=int, default=250)
-
-    parser.add_argument("--snapshot_dir", type=str, default='snapshots/fold1/')
-    parser.add_argument('--local_rank', type=int, default=0)
-    parser.add_argument("--FP16", type=str2bool, default=False)
     parser.add_argument("--num_imgs", type=int, default=500)
     parser.add_argument("--num_epochs", type=int, default=500)
     parser.add_argument("--input_size", type=str, default='64,64,64')
-    parser.add_argument("--batch_size", type=int, default=2)
-
+    parser.add_argument("--batch_size", type=int, default=1)
     parser.add_argument("--learning_rate", type=float, default=1e-3)
-    parser.add_argument("--num_classes", type=int, default=1)
+    parser.add_argument("--num_classes", type=int, default=5)
     parser.add_argument("--num_workers", type=int, default=1)
     parser.add_argument("--weight_std", type=str2bool, default=True)
-    parser.add_argument("--momentum", type=float, default=0.9)
-    parser.add_argument("--power", type=float, default=0.9)
-    parser.add_argument("--weight_decay", type=float, default=0.0005)
-    parser.add_argument("--ignore_label", type=int, default=255)
-    parser.add_argument("--is_training", action="store_true")
-    parser.add_argument("--random_mirror", type=str2bool, default=True)
-    parser.add_argument("--random_scale", type=str2bool, default=True)
     parser.add_argument("--random_seed", type=int, default=1234)
-    parser.add_argument("--gpu", type=str, default='None')
-
+    parser.add_argument("--power", type=float, default=0.9)
     return parser
 
 
@@ -135,9 +119,6 @@ def main():
 
     args = parser.parse_args()
 
-    if not args.gpu == 'None':
-        os.environ["CUDA_VISIBLE_DEVICES"] = args.gpu
-
     d, h, w = map(int, args.input_size.split(','))
     input_size = (d, h, w)
 
@@ -147,7 +128,7 @@ def main():
     if torch.cuda.is_available():
         torch.cuda.manual_seed(seed)
 
-    device = torch.device('cuda:{}'.format(args.local_rank))
+    device = torch.device('cuda:0')
 
     os.makedirs(f"./sample", exist_ok=True)
     cnt = 0
@@ -174,15 +155,12 @@ def main():
         fake_x = torch.randn([args.batch_size, 1] + list(input_size), requires_grad=True, device="cuda")
         print(fake_x.is_leaf)
         optimizer = torch.optim.Adam([fake_x], lr=0.1)
-        if args.FP16:
-            print("Note: Using FP16 during training************")
-            pretrained, optimizer = amp.initialize(pretrained, optimizer, opt_level="O1")
 
         for iter_idx in range(n_iters):
             lr = adjust_learning_rate(optimizer, iter_idx, 0.1, n_iters, args.power)
             optimizer.zero_grad()
             pretrained.zero_grad()
-            output, feat = pretrained(fake_x, None)
+            output = pretrained(fake_x, None)
             prob = torch.sigmoid(output)
 
             # R_prior losses
@@ -192,27 +170,22 @@ def main():
             bn_diff = [mod.r_feature * rescale[idx] for (idx, mod) in enumerate(loss_r_feature_layers)]
             loss_bn = sum(bn_diff) / len(loss_r_feature_layers)
             loss = loss_bn * 10 + loss_var_l1 * 10 + loss_var_l2 * 1  # + frac
-
-            if args.FP16:
-                with amp.scale_loss(loss, optimizer) as scaled_loss:
-                    scaled_loss.backward()
-            else:
-                loss.backward()
+            loss.backward()
 
             optimizer.step()
-            print(f"{tid}, {iter_idx}/{n_iters}, {loss_var_l1:.2f}, {loss_var_l2:.2f}, {loss_bn:.2f},", end='\r')
+            print(f"{iter_idx}/{n_iters}, {loss_var_l1:.2f}, {loss_var_l2:.2f}, {loss_bn:.2f},", end='\r')
 
         fake_x = fake_x.detach().cpu().numpy()
         prob = prob.detach().cpu().numpy()
         for img_idx in range(args.batch_size):
-            save_preds(args, cnt, tid, fake_x, prob, img_idx)
+            save_preds(args, cnt, fake_x, prob, img_idx)
             print(f"img{cnt} is saved.")
             cnt += 1
 
 
-def save_preds(args, cnt, tid, fake_x, prob, img_idx):
-    save_nii(fake_x[img_idx, 0], f"./sample/{args.sample_dir}/task{tid}_{cnt}img.nii.gz")
-    save_nii(prob[img_idx, 0], f"./sample/{args.sample_dir}/task{tid}_{cnt}pred.nii.gz")
+def save_preds(args, cnt, fake_x, prob, img_idx):
+    save_nii(fake_x[img_idx, 0], f"./sample/{args.sample_dir}/{cnt}img.nii.gz")
+    save_nii(prob[img_idx, 0], f"./sample/{args.sample_dir}/{cnt}pred.nii.gz")
     print(f"img{cnt} is saved.")
 
 

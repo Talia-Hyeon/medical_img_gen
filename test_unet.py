@@ -34,8 +34,8 @@ def evaluate(model, test_data_loader, num_class, device):
             d1, d2, d3 = pred.shape
             max_score = 0
             max_score_idx = 0
-            for i in range(d1):
-                sagital_pred = pred[i, :, :]
+            for i in range(d2):
+                sagital_pred = pred[:, i, :]
                 classes = np.unique(sagital_pred)
                 if classes.size >= num_class - 1:
                     counts = np.array([max(np.where(sagital_pred == c)[0].size, 1e-8) for c in range(num_class)])
@@ -67,7 +67,7 @@ if __name__ == '__main__':
 
     # dataloader
     data_path = './dataset/BTCV/Trainset'
-    test_data = BTCVDataSet(root=data_path, Train=False)
+    test_data = BTCVDataSet(root=data_path, split='test')
     test_loader = DataLoader(dataset=test_data, batch_size=1, shuffle=False, num_workers=0)
 
     # model
