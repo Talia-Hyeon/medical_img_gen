@@ -49,7 +49,7 @@ class FLAREDataSet(data.Dataset):
             label_item = item.replace('_0000', '')
             label_file = osp.join(label_path, label_item)
 
-            label = nib.load(label_file).get_data()
+            label = nib.load(label_file).get_fdata()
             # if task_id == 1:
             #     label = label.transpose((1, 2, 0))
             boud_h, boud_w, boud_d = np.where(label >= 1)  # background 아닌
