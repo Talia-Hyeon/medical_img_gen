@@ -183,16 +183,15 @@ class BTCVDataSet(data.Dataset):
         return results_map
 
     def extend_channel_classes(self, label):
-        label = torch.squeeze(label)
-
-        tensor_list = []
+        label_list = []
         for i in range(5):
-            stack_i = label.clone().detach()
-            stack_i[label == i] = 1
-            stack_i[label != i] = 0
-            tensor_list.append(stack_i)
-        stacked_tensor = torch.stack(tensor_list)
-        return stacked_tensor
+            label_i = label.copy()
+            label_i[label == i] = 1
+            label_i[label != i] = 0
+            label_list.append(label_i)
+        stacked_label = np.stack(label_list, axis=1)
+        stacked_label = np.squeeze(stacked_label)
+        return stacked_label
 
 
 def get_train_transform():
