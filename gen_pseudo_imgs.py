@@ -1,8 +1,7 @@
 import argparse
 import os
 import sys
-
-sys.path.append("..")
+import timeit
 
 import torch
 import torch.nn as nn
@@ -10,21 +9,18 @@ from torch.utils import data
 import numpy as np
 import torch.backends.cudnn as cudnn
 import torch.nn.functional as F
-
-import unet3D_singlehead_bn_organ
-
-from data.MOTSDataset_btcv import my_collate
-from data.MOTSDataset_distill import MOTSDataSet
-import timeit
 from torch.utils.tensorboard import SummaryWriter  # tensorboardX
-
 import nibabel as nib
 from apex.apex import amp
+
+from unet3D import UNet3D
+from data.MOTSDataset_btcv import my_collate
+from data.MOTSDataset_distill import MOTSDataSet
+from flare21 import *
 
 start = timeit.default_timer()
 
 
-#
 # code from https://github.com/NVlabs/DeepInversion
 class DeepInversionFeatureHook():
     '''
@@ -83,16 +79,6 @@ def get_image_prior_losses(img):
     d12 = img[:, :, 1:, :-1, :-1] - img[:, :, :-1, 1:, 1:]
     d13 = img[:, :, 1:, 1:, 1:] - img[:, :, :-1, :-1, :-1]
 
-    # d7 = img[:, :, :-1, :-1, 1:] - img[:, :, 1:, 1:, :-1]
-    # d8 = img[:, :, :-1, 1:, :-1] - img[:, :, 1:, :-1, 1:]
-    # d9 = img[:, :, 1:, :-1, :-1] - img[:, :, :-1, 1:, 1:]
-
-    # diff1 = img[:, :, :, :-1] - img[:, :, :, 1:]
-    # diff2 = img[:, :, :-1, :] - img[:, :, 1:, :]
-    # diff3 = img[:, :, 1:, :-1] - img[:, :, :-1, 1:]
-    # diff4 = img[:, :, :-1, :-1] - img[:, :, 1:, 1:]
-    # set_trace()
-    # diff_list = [d1,d2,d3]
     diff_list = [d1, d2, d3, d4, d5, d6, d7, d8, d9, d10, d11, d12, d13]
     loss_var_l2 = sum([torch.norm(e) for e in diff_list])
     loss_var_l1 = sum([e.abs().mean() for e in diff_list])
@@ -109,42 +95,14 @@ def get_image_prior_losses_v1(inputs_jit):
     d4 = inputs_jit[:, :, :, 1:, 1:] - inputs_jit[:, :, :, :-1, :-1]
     d5 = inputs_jit[:, :, 1:, :, 1:] - inputs_jit[:, :, :-1, :, :-1]
     d6 = inputs_jit[:, :, 1:, 1:, :] - inputs_jit[:, :, :-1, :-1, :]
-    # d7 = inputs_jit[:, :, :, :-1, 1:] - inputs_jit[:, :, :, 1:, :-1]
-    # d8 = inputs_jit[:, :, :-1, :, 1:] - inputs_jit[:, :, 1:, :, :-1]
-    # d9 = inputs_jit[:, :, :-1, 1:, :] - inputs_jit[:, :, 1:, :-1, :]
-
-    # d10 = inputs_jit[:, :, :-1, :-1, :-1] - inputs_jit[:, :, 1:, 1:, 1:]
 
     d7 = inputs_jit[:, :, :-1, :-1, 1:] - inputs_jit[:, :, 1:, 1:, :-1]
     d8 = inputs_jit[:, :, :-1, 1:, :-1] - inputs_jit[:, :, 1:, :-1, 1:]
     d9 = inputs_jit[:, :, 1:, :-1, :-1] - inputs_jit[:, :, :-1, 1:, 1:]
 
-    # diff1 = inputs_jit[:, :, :, :-1] - inputs_jit[:, :, :, 1:]
-    # diff2 = inputs_jit[:, :, :-1, :] - inputs_jit[:, :, 1:, :]
-    # diff3 = inputs_jit[:, :, 1:, :-1] - inputs_jit[:, :, :-1, 1:]
-    # diff4 = inputs_jit[:, :, :-1, :-1] - inputs_jit[:, :, 1:, 1:]
-    # set_trace()
-    # print(locals().keys())
-    # print(locals()['diff1'])
-    # diff_list = [locals()[f'diff{i}'] for i in range(1,13+1)]
     diff_list = [d1, d2, d3, d4, d5, d6, d7, d8, d9]
     loss_var_l2 = sum([torch.norm(e) for e in diff_list])
     loss_var_l1 = sum([e.abs().mean() for e in diff_list])
-
-    # loss_var_l2 = torch.norm(diff1) + \
-    #             torch.norm(diff2) + \
-    #             torch.norm(diff3) + \
-    #             torch.norm(diff4) + \
-    #             torch.norm(diff5) + \
-    #             torch.norm(diff6) + \
-    #             torch.norm(diff7)
-
-    # loss_var_l1 = (diff1.abs() / 255.0).mean() + (diff2.abs() / 255.0).mean() + \
-    #                 (diff3.abs() / 255.0).mean() + (diff4.abs() / 255.0).mean() + \
-    #                 (diff5.abs() / 255.0).mean() + (diff6.abs() / 255.0).mean() + \
-    #                 (diff7.abs() / 255.0).mean()
-
-    # loss_var_l1 = loss_var_l1 * 255.0
 
     return loss_var_l1, loss_var_l2
 
@@ -157,7 +115,6 @@ def save_nii(a, p):
 def get_arguments():
     parser = argparse.ArgumentParser(description="unet3D_multihead")
     parser.add_argument("--data_dir", type=str, default='../dataset/')
-    parser.add_argument("--train_list", type=str, default='list/MOTS/MOTS_train.txt')
     parser.add_argument("--itrs_each_epoch", type=int, default=250)
 
     parser.add_argument("--sample_dir", type=str, default='sample', help="")
