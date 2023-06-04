@@ -42,7 +42,7 @@ class FLAREDataSet(data.Dataset):
         image_path = osp.join(self.root, 'TrainingImg')
         label_path = osp.join(self.root, 'TrainingMask')
 
-        img_list = os.listdir(os.path.join(self.root, 'img'))
+        img_list = os.listdir(image_path)
         all_files = []
         for i, item in enumerate(img_list):
             img_file = osp.join(image_path, item)
