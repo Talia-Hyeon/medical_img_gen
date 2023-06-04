@@ -91,12 +91,12 @@ class BTCVDataSet(data.Dataset):
                     "label": label_file,
                     "name": item})
 
-                # split train/val set
-                train_X, val_X = train_test_split(all_files, test_size=0.20, shuffle=True, random_state=0)
-                if self.split == 'train':
-                    self.files = train_X
-                elif self.split == 'val':
-                    self.files = val_X
+            # split train/val set
+            train_X, val_X = train_test_split(all_files, test_size=0.20, shuffle=True, random_state=0)
+            if self.split == 'train':
+                self.files = train_X
+            elif self.split == 'val':
+                self.files = val_X
 
         print('{} images are loaded!'.format(len(self.files)))
 
@@ -213,6 +213,6 @@ def my_collate(batch):  # dataset이 variable length(shape)이면 collate_fn을 
 
 
 if __name__ == '__main__':
-    btcv = BTCVDataSet(root='../dataset/BTCV/Trainset')
-    sample = btcv[0]
-    print("sample's type: {}".format(type(sample)))
+    btcv = BTCVDataSet(root='./dataset/BTCV/Trainset', split='test')
+    img_, label_, name_, label_aff = btcv[0]
+    print("label's shape: {}".format(label_.shape))
