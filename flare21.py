@@ -231,8 +231,8 @@ class FLAREDataSet(data.Dataset):
         image = image.astype(np.float32)
         label = label.astype(np.float32)
 
-        image = torch.from_numpy(image)
-        label = torch.from_numpy(label)
+        # image = torch.from_numpy(image)
+        # label = torch.from_numpy(label)
 
         return image, label, name
 
