@@ -6,7 +6,7 @@ import sys
 
 import torch
 from torch.utils import data
-from torchvision.transforms import CenterCrop
+
 import numpy as np
 import nibabel as nib
 from sklearn.model_selection import train_test_split
@@ -162,9 +162,9 @@ class BTCVDataSet(data.Dataset):
         image = torch.from_numpy(image)
         label = torch.from_numpy(label)
 
-        image = CenterCrop((self.crop_d, self.crop_h, self.crop_w))(image)
-        label = CenterCrop((self.crop_d, self.crop_h, self.crop_w))(label)
-
+        C, D, H, W = image.shape
+        image = image[:, (D - self.crop_d) // 2:(D + self.crop_d) // 2, (H - self.crop_h) // 2:(H + self.crop_d) // 2,(W - self.crop_w) // 2:(W + self.crop_w) // 2]
+        label = label[:, (D - self.crop_d) // 2:(D + self.crop_d) // 2, (H - self.crop_h) // 2:(H + self.crop_d) // 2,(W - self.crop_w) // 2:(W + self.crop_w) // 2]
         return image, label, name, labelNII.affine
 
     def id2trainId(self, label):
