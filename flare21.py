@@ -232,7 +232,10 @@ class FLAREDataSet(data.Dataset):
         image = image.astype(np.float32)
         label = label.astype(np.float32)
 
-        return image.copy(), label.copy(), name
+        image = torch.from_numpy(image)
+        label = torch.from_numpy(label)
+
+        return image, label, name
 
     def extend_channel_classes(self, label):
         label_list = []
@@ -282,6 +285,14 @@ def my_collate(batch):
 
 
 if __name__ == '__main__':
+    # flare = FLAREDataSet(root='./dataset/FLARE21', split='train')
+    # img_, label_, name_ = flare[0]
+    # print("img's shape: {}\nlabel's shape: {}".format(img_.shape, label_.shape))
+
     flare = FLAREDataSet(root='./dataset/FLARE21', split='train')
-    img_, label_, name_ = flare[0]
-    print("img's shape: {}\nlabel's shape: {}".format(img_.shape, label_.shape))
+    train_loader = data.DataLoader(dataset=flare, batch_size=2, shuffle=False, num_workers=2, collate_fn=my_collate)
+    for train_iter, pack in enumerate(train_loader):
+        img_ = pack['image']
+        label_ = pack['label']
+        name_ = pack['name']
+        print("img_shape: {}\nlabel_shape: {}".format(img_.shape, label_.shape))

@@ -229,13 +229,14 @@ class BTCVDataSet(data.Dataset):
 
 
 if __name__ == '__main__':
-    # btcv = BTCVDataSet(root='./dataset/BTCV/Trainset', split='test')
-    # img_, label_, name_, label_aff = btcv[0]
-    flare = BTCVDataSet(root='./dataset/FLARE21', split='val')
-    valid_loader = data.DataLoader(dataset=flare, batch_size=1, shuffle=False, num_workers=0)
-    for train_iter, pack in enumerate(valid_loader):
-        img_ = pack[0]
-        label_ = pack[1]
-        name_ = pack[2]
-        label_affine = pack[3]
-        print("img_shape: {}\nlabel_shape: {}\naffine's type: {}".format(img_.shape, label_.shape, type(label_affine)))
+    btcv = BTCVDataSet(root='./dataset/BTCV/Trainset', split='test')
+    img_, label_, name_, label_aff = btcv[0]
+    print("affine's type: {}".format(type(label_aff)))
+    # flare = BTCVDataSet(root='./dataset/FLARE21', split='val')
+    # valid_loader = data.DataLoader(dataset=flare, batch_size=1, shuffle=False, num_workers=0)
+    # for train_iter, pack in enumerate(valid_loader):
+    #     img_ = pack[0]
+    #     label_ = pack[1]
+    #     name_ = pack[2]
+    #     label_affine = pack[3]
+    #     print("img_shape: {}\nlabel_shape: {}\naffine's type: {}".format(img_.shape, label_.shape, type(label_affine)))
