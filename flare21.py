@@ -298,7 +298,7 @@ if __name__ == '__main__':
         img_ = pack['image']
         label_ = pack['label']
         name_ = pack['name']
-        print("img's shape: {}\nlabel's shape: {}".format(img_.shape, label_.shape))
+        print("img's shape: {}\nlabel's shape: {}".format(img_.shape, label_.shape)) #jo
         # print("label_shape: {}".format(label_.shape))
         # if label_.shape != (1, 5, 64, 192, 192):
         #     print("label's shape is incorrect")
