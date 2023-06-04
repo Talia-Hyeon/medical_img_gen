@@ -162,9 +162,16 @@ class BTCVDataSet(data.Dataset):
         image = torch.from_numpy(image)
         label = torch.from_numpy(label)
 
-        C, D, H, W = image.shape
-        image = image[:, (D - self.crop_d) // 2:(D + self.crop_d) // 2, (H - self.crop_h) // 2:(H + self.crop_d) // 2,(W - self.crop_w) // 2:(W + self.crop_w) // 2]
-        label = label[:, (D - self.crop_d) // 2:(D + self.crop_d) // 2, (H - self.crop_h) // 2:(H + self.crop_d) // 2,(W - self.crop_w) // 2:(W + self.crop_w) // 2]
+        if self.split == 'val':
+            C, D, H, W = image.shape
+            d0 = (D - self.crop_d) // 2
+            d1 = (D + self.crop_d) // 2
+            h0 = (H - self.crop_h) // 2
+            h1 = (H + self.crop_d) // 2
+            w0 = (W - self.crop_w) // 2
+            w1 = (W + self.crop_w) // 2
+            image = image[:, d0:d1, h0:h1, w0:w1]
+            label = label[:, d0:d1, h0:h1, w0:w1]
         return image, label, name, labelNII.affine
 
     def id2trainId(self, label):
