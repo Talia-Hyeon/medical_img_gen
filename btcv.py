@@ -196,38 +196,6 @@ class BTCVDataSet(data.Dataset):
         return stacked_label
 
 
-# def get_train_transform():
-#     tr_transforms = []
-#
-#     tr_transforms.append(GaussianNoiseTransform(p_per_sample=0.1, data_key="image"))
-#     tr_transforms.append(GaussianBlurTransform(blur_sigma=(0.5, 1.), different_sigma_per_channel=True,
-#                                                p_per_channel=0.5, p_per_sample=0.2, data_key="image"))
-#     tr_transforms.append(BrightnessMultiplicativeTransform((0.75, 1.25), p_per_sample=0.15, data_key="image"))
-#     tr_transforms.append(BrightnessTransform(0.0, 0.1, True, p_per_sample=0.15, p_per_channel=0.5, data_key="image"))
-#     tr_transforms.append(ContrastAugmentationTransform(p_per_sample=0.15, data_key="image"))
-#     tr_transforms.append(SimulateLowResolutionTransform(zoom_range=(0.5, 1), per_channel=True,
-#                                                         p_per_channel=0.5, order_downsample=0,
-#                                                         order_upsample=3, p_per_sample=0.25,
-#                                                         ignore_axes=None, data_key="image"))
-#     tr_transforms.append(GammaTransform(gamma_range=(0.7, 1.5), invert_image=False,
-#                                         per_channel=True, retain_stats=True,
-#                                         p_per_sample=0.15, data_key="image"))
-#
-#     tr_transforms = Compose(tr_transforms)
-#     return tr_transforms
-#
-#
-# def my_collate(batch):  # dataset이 variable length(shape)이면 collate_fn을 꼭 사용
-#     image, label, name, label_affine = zip(*batch)  # if self.split==(test or val): labelNII.affine?
-#     image = np.stack(image, 0)
-#     label = np.stack(label, 0)
-#     name = np.stack(name, 0)
-#     data_dict = {'image': image, 'label': label, 'name': name}
-#     tr_transforms = get_train_transform()
-#     data_dict = tr_transforms(**data_dict)  # if self.split==(test or val): is_transform==False
-#     return data_dict
-
-
 if __name__ == '__main__':
     btcv = BTCVDataSet(root='./dataset/BTCV/Trainset', split='test')
     img_, label_, name_, label_aff = btcv[0]

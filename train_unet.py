@@ -20,7 +20,7 @@ def main():
     device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
 
     # Hyper-parameters
-    num_epochs = 100
+    num_epochs = 2
     n_classes = 5
     train_batch_size = 2
 
@@ -84,8 +84,8 @@ def main():
             model.eval()
             val_start = time()
             for valid_iter, pack in enumerate(valid_loader):
-                img_val = pack[0].to(device)
-                label_val = pack[1].to(device)
+                img_val = pack['image'].to(device)
+                label_val = pack['label'].to(device)
 
                 pred_val = model(img_val)
                 val_loss = loss_function(pred_val, label_val)
