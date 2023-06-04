@@ -131,7 +131,7 @@ class unet3D(nn.Module):
 
         return nn.Sequential(*layers)
 
-    def forward(self, input, task_id):
+    def forward(self, input):
 
         x = self.conv1(input)
         x = self.layer0(x)
