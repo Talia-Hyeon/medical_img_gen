@@ -279,3 +279,9 @@ def my_collate(batch):
     tr_transforms = get_train_transform()
     data_dict = tr_transforms(**data_dict)
     return data_dict
+
+
+if __name__ == '__main__':
+    flare = FLAREDataSet(root='./dataset/FLARE21', split='train')
+    img_, label_, name_, label_aff = flare[0]
+    print("img's shape: {}\nlabel's shape: {}".format(img_.shape, label_.shape))

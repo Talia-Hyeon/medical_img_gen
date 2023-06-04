@@ -227,6 +227,8 @@ def my_collate(batch):  # dataset이 variable length(shape)이면 collate_fn을 
 
 
 if __name__ == '__main__':
-    btcv = BTCVDataSet(root='./dataset/BTCV/Trainset', split='test')
-    img_, label_, name_, label_aff = btcv[0]
-    print("label's shape: {}".format(label_.shape))
+    # btcv = BTCVDataSet(root='./dataset/BTCV/Trainset', split='test')
+    # img_, label_, name_, label_aff = btcv[0]
+    flare = BTCVDataSet(root='./dataset/FLARE21', split='val')
+    img_, label_, name_, label_aff = flare[0]
+    print("img's shape: {}\nlabel's shape: {}".format(img_.shape, label_.shape))
