@@ -274,6 +274,7 @@ def get_train_transform():
 def my_collate(batch):
     image, label, name = zip(*batch)
     image = np.stack(image, 0)
+    print("label's shape: {}".format(label.shape))
     label = np.stack(label, 0)
     name = np.stack(name, 0)
     data_dict = {'image': image,

@@ -40,8 +40,7 @@ def main():
 
     train_loader = DataLoader(dataset=train_data, batch_size=train_batch_size, shuffle=True,
                               num_workers=train_batch_size, collate_fn=my_collate)
-    valid_loader = DataLoader(dataset=valid_data, batch_size=1, shuffle=False,
-                              num_workers=0, collate_fn=my_collate)
+    valid_loader = DataLoader(dataset=valid_data, batch_size=1, shuffle=False, num_workers=0)
 
     # setup metrics
     metrics = Score(n_classes)
