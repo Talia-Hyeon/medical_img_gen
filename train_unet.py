@@ -57,8 +57,8 @@ def main():
         iter_start = time()
 
         for train_iter, pack in enumerate(train_loader):
-            img = pack[0].to(device)
-            label = pack[1].to(device)
+            img = pack['image'].to(device)
+            label = pack['label'].to(device)
             pred = model(img)
 
             loss = loss_function(pred, label)
@@ -83,8 +83,8 @@ def main():
             model.eval()
             val_start = time()
             for valid_iter, pack in enumerate(valid_loader):
-                img_val = pack['image'].to(device)
-                label_val = pack['label'].to(device)
+                img_val = pack[0].to(device)
+                label_val = pack[1].to(device)
 
                 pred_val = model(img_val)
                 val_loss = loss_function(pred_val, label_val)
