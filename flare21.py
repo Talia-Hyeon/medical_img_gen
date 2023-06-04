@@ -1,20 +1,19 @@
 import os
 import os.path as osp
-import numpy as np
+import sys
 import random
 import collections
 import math
 from glob import glob
 
+import numpy as np
 from sklearn.model_selection import train_test_split
 import torch
 import torchvision
-import cv2
 from torch.utils import data
 import matplotlib.pyplot as plt
 import nibabel as nib
 from skimage.transform import resize
-import SimpleITK as sitk
 from batchgenerators.transforms.spatial_transforms import SpatialTransform, MirrorTransform
 from batchgenerators.transforms.color_transforms import BrightnessMultiplicativeTransform, GammaTransform, \
     BrightnessTransform, ContrastAugmentationTransform
@@ -273,11 +272,11 @@ def get_train_transform():
 
 def my_collate(batch):
     image, label, name = zip(*batch)
-    print("img's shape: {}".format(image[0].shape))
-    print("img's shape: {}".format(image[1].shape))
+    # print("img's shape: {}".format(image[0].shape))
+    # print("img's shape: {}".format(image[1].shape))
     image = np.stack(image, 0)
-    print("label 0's shape: {}".format(label[0].shape))
-    print("label 1's shape: {}".format(label[1].shape))
+    # print("label 0's shape: {}".format(label[0].shape))
+    # print("label 1's shape: {}".format(label[1].shape))
     label = np.stack(label, 0)
     name = np.stack(name, 0)
     data_dict = {'image': image,
@@ -294,9 +293,12 @@ if __name__ == '__main__':
     # print("img's shape: {}\nlabel's shape: {}".format(img_.shape, label_.shape))
 
     flare = FLAREDataSet(root='./dataset/FLARE21', split='train')
-    train_loader = data.DataLoader(dataset=flare, batch_size=2, shuffle=False, num_workers=0, collate_fn=my_collate)
+    train_loader = data.DataLoader(dataset=flare, batch_size=1, shuffle=False, num_workers=0, collate_fn=my_collate)
     for train_iter, pack in enumerate(train_loader):
         img_ = pack['image']
         label_ = pack['label']
         name_ = pack['name']
-        print("img_shape: {}\nlabel_shape: {}".format(img_.shape, label_.shape))
+        # print("img_shape: {}\nlabel_shape: {}".format(img_.shape, label_.shape))
+        if label_.shape != (1, 5, 64, 192, 192):
+            print("label's shape is incorrect")
+            sys.exit(1)
