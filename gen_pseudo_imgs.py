@@ -210,7 +210,7 @@ def main():
     print("Generate pseudo images using pretrained models.")
     path = f"./pretrained/{pretrained_dir}/t{tid}.pth"
     print(f"Loading checkpoint {path}")
-    pretrained = unet3D_singlehead_bn_organ.UNet3D(num_classes=args.num_classes, weight_std=args.weight_std)
+    pretrained = UNet3D(num_classes=args.num_classes, weight_std=args.weight_std)
     checkpoint = torch.load(path, map_location=torch.device('cpu'))
     pretrained.load_state_dict(checkpoint['model'], strict=False)
 

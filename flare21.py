@@ -274,7 +274,7 @@ def my_collate(batch):
     image, label, name = zip(*batch)
     image = torch.stack(image, 0)
     label = torch.stack(label, 0)
-    name = torch.stack(name, 0)
+    name = np.stack(name, 0)
     data_dict = {'image': image,
                  'label': label,
                  'name': name}
