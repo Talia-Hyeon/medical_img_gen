@@ -62,14 +62,14 @@ class FLAREDataSet(data.Dataset):
                 "bbx": [boud_h, boud_w, boud_d]
             })
 
-            # split train/val set
-            train_X, val_X = train_test_split(all_files, test_size=0.20, shuffle=True, random_state=0)
-            if self.split == 'train':
-                self.files = train_X
-            else:
-                self.files = val_X
+        # split train/val set
+        train_X, val_X = train_test_split(all_files, test_size=0.20, shuffle=True, random_state=0)
+        if self.split == 'train':
+            self.files = train_X
+        else:
+            self.files = val_X
 
-            print('{} images are loaded!'.format(len(self.files)))
+        print('{} images are loaded!'.format(len(self.files)))
 
     def __len__(self):
         return len(self.files)
