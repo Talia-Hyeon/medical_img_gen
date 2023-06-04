@@ -57,8 +57,10 @@ def main():
         iter_start = time()
 
         for train_iter, pack in enumerate(train_loader):
-            img = pack['image'].to(device)
-            label = pack['label'].to(device)
+            img = pack['image']
+            img = torch.tensor(img).to(device)
+            label = pack['label']
+            label = torch.tensor(label).to(device)
             pred = model(img)
 
             loss = loss_function(pred, label)

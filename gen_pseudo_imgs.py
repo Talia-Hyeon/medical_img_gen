@@ -142,19 +142,6 @@ def get_arguments():
     parser.add_argument("--random_seed", type=int, default=1234)
     parser.add_argument("--gpu", type=str, default='None')
 
-    # federated arguments
-    parser.add_argument('--num_users', type=int, default=7, help="number of users: K")
-    parser.add_argument('--shard_per_user', type=int, default=2, help="classes per user")
-    parser.add_argument('--frac', type=float, default=0.1, help="the fraction of clients: C")
-    parser.add_argument('--local_ep', type=int, default=1, help="the number of local epochs: E")
-    parser.add_argument('--local_min_update', type=int, default=80, help="the number of local update")
-    parser.add_argument('--local_bs', type=int, default=2, help="local batch size: B")
-    parser.add_argument('--transition_step', type=int, default=1000, help="")
-    parser.add_argument('--n_sample', type=int, default=1, help="")
-    parser.add_argument('--split', type=str, default='user', help="train-test split type, user or sample")
-    parser.add_argument('--grad_norm', action='store_true', help='use_gradnorm_avging')
-    parser.add_argument('--local_ep_pretrain', type=int, default=0, help="the number of pretrain local ep")
-    parser.add_argument('--lr_decay', type=str2bool, default=True, help="learning rate decay")
     return parser
 
 
@@ -197,14 +184,6 @@ def main():
     n_runs = args.num_imgs // args.batch_size
     n_iters = args.num_epochs  # 00
     tid = args.target_task
-
-    if args.img_type == 'noise':  # generate noise inputs
-        print("generate noisy images....")
-        for i in range(args.num_imgs):
-            noise_input = torch.rand(list(input_size)).numpy() * 2 - 1
-            save_nii(noise_input, f"./sample/{args.sample_dir}/noise_{i}img.nii.gz")
-            print(f"{i}/{args.num_imgs}", end='\r')
-        exit(0)
 
     ### load pretrained local models ###
     print("Generate pseudo images using pretrained models.")
