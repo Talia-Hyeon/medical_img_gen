@@ -6,9 +6,12 @@ from torch.utils.data import DataLoader
 import matplotlib.pyplot as plt
 
 from btcv import BTCVDataSet
+from flare21 import FLAREDataSet
 from unet3D import UNet3D
 from loss_functions.loss import *
 from loss_functions.score import *
+from flare21 import my_collate
+from btcv import my_collate
 
 
 def main():
@@ -31,12 +34,14 @@ def main():
     loss_function.to(device)
 
     # data loader
-    data_path = './dataset/BTCV/Trainset'
-    train_data = BTCVDataSet(root=data_path, Train=True)
-    valid_data = BTCVDataSet(root=data_path, Train=False)
+    train_path = './dataset/FLARE21'
+    train_data = FLAREDataSet(root=train_path, split='train')
+    valid_data = BTCVDataSet(root=train_path, split='val')
 
-    train_loader = DataLoader(dataset=train_data, batch_size=train_batch_size, shuffle=True, num_workers=train_batch_size)
-    valid_loader = DataLoader(dataset=valid_data, batch_size=1, shuffle=False, num_workers=0)
+    train_loader = DataLoader(dataset=train_data, batch_size=train_batch_size, shuffle=True,
+                              num_workers=train_batch_size, collate_fn=my_collate)
+    valid_loader = DataLoader(dataset=valid_data, batch_size=1, shuffle=False,
+                              num_workers=0, collate_fn=my_collate)
 
     # setup metrics
     metrics = Score(n_classes)
@@ -66,8 +71,9 @@ def main():
             optimizer.step()
 
             if (train_iter + 1) % (len(train_loader) // 5) == 0:
-                iter_end = time()            
-                print(f'Epoch: {epoch + 1}/{num_epochs} | Iters: {train_iter + 1} | Train loss: {loss.item():.4f} | Time: {(iter_end-iter_start):.4f}')
+                iter_end = time()
+                print(
+                    f'Epoch: {epoch + 1}/{num_epochs} | Iters: {train_iter + 1} | Train loss: {loss.item():.4f} | Time: {(iter_end - iter_start):.4f}')
                 # newly check iter. start time
                 iter_start = time()
 
@@ -92,7 +98,7 @@ def main():
 
             val_loss_l.append(val_loss_meter.avg)
             val_end = time()
-            print(f'Epoch: {epoch + 1} | Valid loss: {val_loss.item():.4f} | Time: {(val_end-val_start):.4f}')
+            print(f'Epoch: {epoch + 1} | Valid loss: {val_loss.item():.4f} | Time: {(val_end - val_start):.4f}')
 
         lr_scheduler.step()
 
@@ -103,10 +109,10 @@ def main():
         if score_dic['Mean IoU'] >= best_iou:
             best_iou = score_dic['Mean IoU']
             torch.save(model.state_dict(), f'./save_model/best_model.pth')
-        
+
         epoch_end = time()
 
-        print('Epoch: {} | Best MIoU: {} | Total Time: {:.4f}'.format(epoch + 1, best_iou, epoch_end-epoch_start))
+        print('Epoch: {} | Best MIoU: {} | Total Time: {:.4f}'.format(epoch + 1, best_iou, epoch_end - epoch_start))
 
     plt.plot(epoch_l, train_loss_l, 'ro--', label='train')
     plt.plot(epoch_l, val_loss_l, 'bo--', label='validation')

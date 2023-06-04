@@ -5,11 +5,10 @@ import math
 import sys
 
 import torch
-import numpy as np
 from torch.utils import data
+import numpy as np
 import nibabel as nib
 from sklearn.model_selection import train_test_split
-
 from batchgenerators.transforms.color_transforms import BrightnessMultiplicativeTransform, GammaTransform, \
     BrightnessTransform, ContrastAugmentationTransform
 from batchgenerators.transforms.noise_transforms import GaussianNoiseTransform, GaussianBlurTransform
@@ -230,5 +229,7 @@ if __name__ == '__main__':
     # btcv = BTCVDataSet(root='./dataset/BTCV/Trainset', split='test')
     # img_, label_, name_, label_aff = btcv[0]
     flare = BTCVDataSet(root='./dataset/FLARE21', split='val')
-    img_, label_, name_, label_aff = flare[0]
-    print("img's shape: {}\nlabel's shape: {}".format(img_.shape, label_.shape))
+    valid_loader = data.DataLoader(dataset=flare, batch_size=1, shuffle=False,
+                                   num_workers=0, collate_fn=my_collate)
+    for train_iter, pack in enumerate(valid_loader):
+        print("pack's type{}".format(type(pack)))
