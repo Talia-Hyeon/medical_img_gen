@@ -183,7 +183,7 @@ def main():
 
 def save_preds(cnt, fake_x, fake_label, img_idx):
     save_nii(fake_x[img_idx, 0], f"./sample/Img/{cnt}img.nii.gz")
-    save_nii(fake_label[img_idx, 0], f"./sample/Pred/{cnt}pred.nii.gz")
+    save_nii(fake_label[img_idx], f"./sample/Pred/{cnt}pred.nii.gz")
     print(f"img{cnt} is saved.")
 
 

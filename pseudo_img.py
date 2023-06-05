@@ -6,6 +6,7 @@ import math
 
 import numpy as np
 from sklearn.model_selection import train_test_split
+import matplotlib.pyplot as plt
 import torch
 import torchvision
 from torch.utils import data
@@ -187,8 +188,8 @@ def get_train_transform():
 
 
 if __name__ == '__main__':
-    img_path = './sample/Img/1img.nii.gz'
-    pred_path = './sample/Pred/1pred.nii.gz'
+    img_path = './sample/Img/0img.nii.gz'
+    pred_path = './sample/Pred/0pred.nii.gz'
     imageNII = nib.load(img_path)
     labelNII = nib.load(pred_path)
     image = imageNII.get_fdata()
@@ -200,23 +201,23 @@ if __name__ == '__main__':
     d1, d2, d3 = image.shape
     max_score = 0
     max_score_idx = 0
-    for i in range(d3):
-        sagital_label = label[:, :, i]
-        classes = np.unique(sagital_label)
-        if classes.size >= 1:
-            counts = np.array([max(np.where(sagital_label == c)[0].size, 1e-8) for c in range(5)])
-            score = np.exp(np.sum(np.log(counts)) - 5 * np.log(np.sum(counts)))
-            if score > max_score:
-                max_score = score
-                max_score_idx = i
+    # for i in range(d3):
+    #     sagital_label = label[:, :, i]
+    #     classes = np.unique(sagital_label)
+    #     if classes.size >= 1:
+    #         counts = np.array([max(np.where(sagital_label == c)[0].size, 1e-8) for c in range(5)])
+    #         score = np.exp(np.sum(np.log(counts)) - 5 * np.log(np.sum(counts)))
+    #         if score > max_score:
+    #             max_score = score
+    #             max_score_idx = i
 
     plt.figure()
-    plt.subplot(1, 2, 1)
-    plt.imshow(image[:, :, max_score_idx])
+    # plt.subplot(1, 2, 1)
+    plt.imshow(image[30, :, :], cmap='gray')
     plt.title('Image')
-    plt.subplot(1, 2, 2)
-    plt.imshow(label[:, :, max_score_idx])
-    plt.title('Ground Truth')
+    # plt.subplot(1, 2, 2)
+    # plt.imshow(label[:, :, max_score_idx])
+    # plt.title('Ground Truth')
     plt.show()
 
     # fake_data = FAKEDataSet(root='./sample', split='train')
