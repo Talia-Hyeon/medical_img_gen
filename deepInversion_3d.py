@@ -11,10 +11,6 @@ import nibabel as nib
 
 from unet3D import UNet3D
 
-from data.MOTSDataset_btcv import MOTSValDataSet, my_collate
-from data.MOTSDataset_distill import MOTSDataSet
-from loss_functions import loss
-
 start = timeit.default_timer()
 
 
