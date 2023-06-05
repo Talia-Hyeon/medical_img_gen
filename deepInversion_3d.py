@@ -5,7 +5,6 @@ import timeit
 import torch
 import torch.nn as nn
 import torch.backends.cudnn as cudnn
-from torch.utils.tensorboard import SummaryWriter  # tensorboardX
 import numpy as np
 import nibabel as nib
 
@@ -137,7 +136,7 @@ def main():
     print(f"Loading checkpoint {path}")
     pretrained = UNet3D(num_classes=args.num_classes, weight_std=args.weight_std)
     checkpoint = torch.load(path, map_location=torch.device('cpu'))  # GPU에서 저장한 모델을 CPU에서 불러오기
-    pretrained.load_state_dict(checkpoint['model'], strict=False)
+    pretrained.load_state_dict(torch.load(f'./save_model/best_model.pth'), strict=False)
 
     loss_r_feature_layers = []
     for module in pretrained.modules():
@@ -156,7 +155,7 @@ def main():
             lr = adjust_learning_rate(optimizer, iter_idx, 0.1, n_iters, args.power)
             optimizer.zero_grad()
             pretrained.zero_grad()
-            output = pretrained(fake_x, None)
+            output = pretrained(fake_x)
             prob = torch.sigmoid(output)
 
             # R_prior losses
@@ -180,8 +179,8 @@ def main():
 
 
 def save_preds(args, cnt, fake_x, prob, img_idx):
-    save_nii(fake_x[img_idx, 0], f"./sample/{args.sample_dir}/{cnt}img.nii.gz")
-    save_nii(prob[img_idx, 0], f"./sample/{args.sample_dir}/{cnt}pred.nii.gz")
+    save_nii(fake_x[img_idx, 0], f"./sample/{cnt}img.nii.gz")
+    save_nii(prob[img_idx, 0], f"./sample/{cnt}pred.nii.gz")
     print(f"img{cnt} is saved.")
 
 
