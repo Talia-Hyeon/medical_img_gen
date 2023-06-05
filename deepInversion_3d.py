@@ -149,7 +149,7 @@ def main():
 
     for i_run in range(n_runs):
         fake_x = torch.randn([args.batch_size, 1] + list(input_size), requires_grad=True, device="cuda:1")
-        print(fake_x.is_leaf)
+        print(fake_x.is_leaf)  # 텐서가 그래프의 말단 노드인지
         optimizer = torch.optim.Adam([fake_x], lr=0.1)
 
         for iter_idx in range(n_iters):
@@ -159,6 +159,7 @@ def main():
             output = pretrained(fake_x)
             prob = torch.sigmoid(output)
             fake_label = torch.argmax(prob, dim=1)
+            fake_label = fake_label.to(torch.uint8)
 
             # R_prior losses
             loss_var_l1, loss_var_l2 = get_image_prior_losses(fake_x)
@@ -171,6 +172,7 @@ def main():
 
             optimizer.step()
             print(f"{iter_idx}/{n_iters}, {loss_var_l1:.2f}, {loss_var_l2:.2f}, {loss_bn:.2f},", end='\r')
+            # loss 값이 nan이 대부분
 
         fake_x = fake_x.detach().cpu().numpy()
         fake_label = fake_label.detach().cpu().numpy()
