@@ -48,7 +48,7 @@ def main():
     valid_data = FAKEDataSet(root=train_path, split='val')
 
     train_loader = DataLoader(dataset=train_data, batch_size=1, shuffle=True,
-                              num_workers=4, collate_fn=my_collate())
+                              num_workers=4, collate_fn=my_collate)
     valid_loader = DataLoader(dataset=valid_data, batch_size=1, shuffle=False, num_workers=4)
 
     # setup metrics
