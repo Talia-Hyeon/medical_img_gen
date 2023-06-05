@@ -42,14 +42,10 @@ class FAKEDataSet(data.Dataset):
             label_item = item.replace('img', 'pred')
             label_file = osp.join(label_path, label_item)
 
-            label = nib.load(label_file).get_fdata()
-            boud_h, boud_w, boud_d = np.where(label >= 1)  # background 아닌
-
             all_files.append({
                 "image": img_file,
                 "label": label_file,
-                "name": item,
-                "bbx": [boud_h, boud_w, boud_d]
+                "name": item
             })
 
         # split train/val set
@@ -83,77 +79,6 @@ class FAKEDataSet(data.Dataset):
         results_map[0, :, :, :] = label
         return results_map
 
-    def locate_bbx(self, label, scaler, bbx):
-
-        scale_d = int(self.crop_d * scaler)
-        scale_h = int(self.crop_h * scaler)
-        scale_w = int(self.crop_w * scaler)
-
-        img_h, img_w, img_d = label.shape
-        boud_h, boud_w, boud_d = bbx
-        margin = 32  # pixels
-
-        bbx_h_min = boud_h.min()
-        bbx_h_max = boud_h.max()
-        bbx_w_min = boud_w.min()
-        bbx_w_max = boud_w.max()
-        bbx_d_min = boud_d.min()
-        bbx_d_max = boud_d.max()
-        if (bbx_h_max - bbx_h_min) <= scale_h:
-            bbx_h_maxt = bbx_h_max + math.ceil((scale_h - (bbx_h_max - bbx_h_min)) / 2)
-            bbx_h_mint = bbx_h_min - math.ceil((scale_h - (bbx_h_max - bbx_h_min)) / 2)
-            if bbx_h_mint < 0:
-                bbx_h_maxt -= bbx_h_mint
-                bbx_h_mint = 0
-            bbx_h_max = bbx_h_maxt
-            bbx_h_min = bbx_h_mint
-        if (bbx_w_max - bbx_w_min) <= scale_w:
-            bbx_w_maxt = bbx_w_max + math.ceil((scale_w - (bbx_w_max - bbx_w_min)) / 2)
-            bbx_w_mint = bbx_w_min - math.ceil((scale_w - (bbx_w_max - bbx_w_min)) / 2)
-            if bbx_w_mint < 0:
-                bbx_w_maxt -= bbx_w_mint
-                bbx_w_mint = 0
-            bbx_w_max = bbx_w_maxt
-            bbx_w_min = bbx_w_mint
-        if (bbx_d_max - bbx_d_min) <= scale_d:
-            bbx_d_maxt = bbx_d_max + math.ceil((scale_d - (bbx_d_max - bbx_d_min)) / 2)
-            bbx_d_mint = bbx_d_min - math.ceil((scale_d - (bbx_d_max - bbx_d_min)) / 2)
-            if bbx_d_mint < 0:
-                bbx_d_maxt -= bbx_d_mint
-                bbx_d_mint = 0
-            bbx_d_max = bbx_d_maxt
-            bbx_d_min = bbx_d_mint
-        bbx_h_min = np.max([bbx_h_min - margin, 0])
-        bbx_h_max = np.min([bbx_h_max + margin, img_h])
-        bbx_w_min = np.max([bbx_w_min - margin, 0])
-        bbx_w_max = np.min([bbx_w_max + margin, img_w])
-        bbx_d_min = np.max([bbx_d_min - margin, 0])
-        bbx_d_max = np.min([bbx_d_max + margin, img_d])
-
-        # if random.random() < 0.8:
-        #     d0 = random.randint(bbx_d_min, np.max([bbx_d_max - scale_d, bbx_d_min]))
-        #     h0 = random.randint(bbx_h_min, np.max([bbx_h_max - scale_h, bbx_h_min]))
-        #     w0 = random.randint(bbx_w_min, np.max([bbx_w_max - scale_w, bbx_w_min]))
-        # else:
-        #     d0 = random.randint(0, img_d - scale_d)
-        #     h0 = random.randint(0, img_h - scale_h)
-        #     w0 = random.randint(0, img_w - scale_w)
-
-        # more BG patch crop
-        # d0 = random.randint(0, img_d - 20)
-        # h0 = random.randint(0, img_h - 20)
-        # w0 = random.randint(0, img_w - 20)
-
-        # no patch outside the image
-        d0 = random.randint(0, img_d - scale_d)
-        h0 = random.randint(0, img_h - scale_h)
-        w0 = random.randint(0, img_w - scale_w)
-
-        d1 = d0 + scale_d
-        h1 = h0 + scale_h
-        w1 = w0 + scale_w
-        return [h0, h1, w0, w1, d0, d1]
-
     def pad_image(self, img, target_size):
         """Pad an image up to the target size."""
         rows_missing = math.ceil(target_size[0] - img.shape[0])
@@ -186,11 +111,6 @@ class FAKEDataSet(data.Dataset):
         image = self.pad_image(image, [self.crop_h * scaler, self.crop_w * scaler, self.crop_d * scaler])
         label = self.pad_image(label, [self.crop_h * scaler, self.crop_w * scaler, self.crop_d * scaler])
 
-        if self.split == 'train':
-            [h0, h1, w0, w1, d0, d1] = self.locate_bbx(label, scaler, datafiles["bbx"])
-            image = image[h0: h1, w0: w1, d0: d1]
-            label = label[h0: h1, w0: w1, d0: d1]
-
         image = self.truncate(image)
         label = self.id2trainId(label)
 
@@ -222,8 +142,13 @@ class FAKEDataSet(data.Dataset):
         image = image.astype(np.float32)
         label = label.astype(np.float32)
 
-        # image = torch.from_numpy(image)
-        # label = torch.from_numpy(label)
+        if self.split == 'train':
+            tr_transforms = get_train_transform()
+            image = tr_transforms(image)
+            label = tr_transforms(label)
+
+        image = torch.from_numpy(image)
+        label = torch.from_numpy(label)
 
         return image, label, name
 
@@ -261,28 +186,43 @@ def get_train_transform():
     return tr_transforms
 
 
-def my_collate(batch):
-    image, label, name = zip(*batch)
-    image = np.stack(image, 0)
-    label = np.stack(label, 0)
-    name = np.stack(name, 0)
-    data_dict = {'image': image,
-                 'label': label,
-                 'name': name}
-    tr_transforms = get_train_transform()
-    data_dict = tr_transforms(**data_dict)
-    return data_dict
-
-
 if __name__ == '__main__':
-    # fake_data = FAKEDataSet(root='./dataset/FAKE21', split='train')
-    # img_, label_, name_ = FAKE[0]
-    # print("img's shape: {}\nlabel's shape: {}".format(img_.shape, label_.shape))
+    img_path = './sample/Img/1img.nii.gz'
+    pred_path = './sample/Pred/1pred.nii.gz'
+    imageNII = nib.load(img_path)
+    labelNII = nib.load(pred_path)
+    image = imageNII.get_fdata()
+    label = labelNII.get_fdata()
+    print("label's type: {}".format(type(label)))
+    print("img's shape: {}\nlabel's shape: {}".format(image.shape, label.shape))
+    # print("img\n{}".format(image))
 
-    fake_data = FAKEDataSet(root='./sample', split='train')
-    train_loader = data.DataLoader(dataset=fake_data, batch_size=2, shuffle=False, num_workers=0, collate_fn=my_collate)
-    for train_iter, pack in enumerate(train_loader):
-        img_ = pack['image']
-        label_ = pack['label']
-        name_ = pack['name']
-        print("img's shape: {}\nlabel's shape: {}".format(img_.shape, label_.shape))
+    d1, d2, d3 = image.shape
+    max_score = 0
+    max_score_idx = 0
+    for i in range(d3):
+        sagital_label = label[:, :, i]
+        classes = np.unique(sagital_label)
+        if classes.size >= 1:
+            counts = np.array([max(np.where(sagital_label == c)[0].size, 1e-8) for c in range(5)])
+            score = np.exp(np.sum(np.log(counts)) - 5 * np.log(np.sum(counts)))
+            if score > max_score:
+                max_score = score
+                max_score_idx = i
+
+    plt.figure()
+    plt.subplot(1, 2, 1)
+    plt.imshow(image[:, :, max_score_idx])
+    plt.title('Image')
+    plt.subplot(1, 2, 2)
+    plt.imshow(label[:, :, max_score_idx])
+    plt.title('Ground Truth')
+    plt.show()
+
+    # fake_data = FAKEDataSet(root='./sample', split='train')
+    # train_loader = data.DataLoader(dataset=fake_data, batch_size=2, shuffle=False, num_workers=0)
+    # for train_iter, pack in enumerate(train_loader):
+    #     img_ = pack[0]
+    #     label_ = pack[1]
+    #     name_ = pack[2]
+    #     print("img's shape: {}\nlabel's shape: {}".format(img_.shape, label_.shape))

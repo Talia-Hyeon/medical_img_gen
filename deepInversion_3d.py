@@ -83,7 +83,7 @@ def save_nii(a, p):  # img_data, path
 def get_arguments():
     parser = argparse.ArgumentParser(description="unet3D_multihead")
     parser.add_argument("--itrs_each_epoch", type=int, default=250)
-    parser.add_argument("--num_imgs", type=int, default=500)
+    parser.add_argument("--num_imgs", type=int, default=1)  # 500
     parser.add_argument("--num_epochs", type=int, default=500)
     parser.add_argument("--input_size", type=str, default='64,192,192')
     parser.add_argument("--batch_size", type=int, default=1)
@@ -123,7 +123,7 @@ def main():
     if torch.cuda.is_available():
         torch.cuda.manual_seed(seed)
 
-    device = torch.device('cuda:0')
+    device = torch.device('cuda:1')
 
     os.makedirs(f"./sample", exist_ok=True)
     os.makedirs(f"./sample/Img", exist_ok=True)
@@ -158,6 +158,7 @@ def main():
             pretrained.zero_grad()
             output = pretrained(fake_x)
             prob = torch.sigmoid(output)
+            fake_label = torch.argmax(prob, dim=1)
 
             # R_prior losses
             loss_var_l1, loss_var_l2 = get_image_prior_losses(fake_x)
@@ -172,16 +173,16 @@ def main():
             print(f"{iter_idx}/{n_iters}, {loss_var_l1:.2f}, {loss_var_l2:.2f}, {loss_bn:.2f},", end='\r')
 
         fake_x = fake_x.detach().cpu().numpy()
-        prob = prob.detach().cpu().numpy()
+        fake_label = fake_label.detach().cpu().numpy()
         for img_idx in range(args.batch_size):
-            save_preds(cnt, fake_x, prob, img_idx)
+            save_preds(cnt, fake_x, fake_label, img_idx)
             print(f"img{cnt} is saved.")
             cnt += 1
 
 
-def save_preds(cnt, fake_x, prob, img_idx):
+def save_preds(cnt, fake_x, fake_label, img_idx):
     save_nii(fake_x[img_idx, 0], f"./sample/Img/{cnt}img.nii.gz")
-    save_nii(prob[img_idx, 0], f"./sample/Pred/{cnt}pred.nii.gz")
+    save_nii(fake_label[img_idx, 0], f"./sample/Pred/{cnt}pred.nii.gz")
     print(f"img{cnt} is saved.")
 
 

@@ -62,6 +62,7 @@ def main():
             label = pack['label']
             label = torch.tensor(label).to(device)
             pred = model(img)
+            pred = torch.sigmoid(pred)
 
             loss = loss_function(pred, label)
             train_loss_meter.update(loss.item(), train_batch_size)
@@ -89,6 +90,7 @@ def main():
                 label_val = pack[1].to(device)
 
                 pred_val = model(img_val)
+                pred_val = torch.sigmoid(pred_val)
                 val_loss = loss_function(pred_val, label_val)
                 val_loss_meter.update(val_loss.item())
 

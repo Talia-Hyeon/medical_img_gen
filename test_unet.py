@@ -25,6 +25,7 @@ def evaluate(model, test_data_loader, num_class, device):
             name = pack[2][0]
 
             pred = model(img)
+            pred = torch.sigmoid(pred)
 
             img = img.cpu().numpy()
             pred = torch.argmax(pred, dim=1).cpu().numpy()
