@@ -16,14 +16,14 @@ from flare21 import my_collate
 def main():
     os.makedirs('./save_model', exist_ok=True)
     os.makedirs('./fig', exist_ok=True)
-    device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
+    device = torch.device('cuda:2') if torch.cuda.is_available() else torch.device('cpu')
 
     # Hyper-parameters
     num_epochs = 100
     n_classes = 5
     train_batch_size = 2
 
-    model = UNet3D(num_classes=n_classes)
+    model = UNet3D(num_classes=n_classes,weight_std=True)
     model.to(device)
 
     optimizer = torch.optim.Adam(model.parameters(), lr=0.0001)  # weight_decay=0.0001
@@ -110,7 +110,7 @@ def main():
 
         if score_dic['Mean IoU'] >= best_iou:
             best_iou = score_dic['Mean IoU']
-            torch.save(model.state_dict(), f'./save_model/best_model.pth')
+            torch.save(model.state_dict(), f'./save_model/best_model_wieght_std_true.pth')
 
         epoch_end = time()
 

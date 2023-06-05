@@ -134,9 +134,9 @@ def main():
 
     ## load pretrained local models ##
     print("Generate pseudo images using pretrained models.")
-    path = f"./save_model/best_model.pth"
+    path = f"./save_model/best_model_wieght_std_true.pth"
     print(f"Loading checkpoint {path}")
-    pretrained = UNet3D(num_classes=args.num_classes)
+    pretrained = UNet3D(num_classes=args.num_classes, weight_std=True)
     pretrained.load_state_dict(torch.load(path), strict=False)
 
     loss_r_feature_layers = []
