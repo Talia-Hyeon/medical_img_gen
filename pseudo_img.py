@@ -18,7 +18,7 @@ from batchgenerators.transforms.resample_transforms import SimulateLowResolution
 from batchgenerators.transforms.abstract_transforms import Compose
 
 
-class FLAREDataSet(data.Dataset):
+class FAKEDataSet(data.Dataset):
     def __init__(self, root, crop_size=(64, 192, 192), mean=(128, 128, 128), scale=True,
                  mirror=True, ignore_label=255, split='train'):
         self.root = root
@@ -30,18 +30,16 @@ class FLAREDataSet(data.Dataset):
         self.split = split
         self.files = []
 
-        spacing = [0.8, 0.8, 1.5]
-
         print("Start preprocessing....")
         # load data
-        image_path = osp.join(self.root, 'TrainingImg')
-        label_path = osp.join(self.root, 'TrainingMask')
+        image_path = osp.join(self.root, 'Img')
+        label_path = osp.join(self.root, 'Pred')
 
         img_list = os.listdir(image_path)
         all_files = []
         for i, item in enumerate(img_list):
             img_file = osp.join(image_path, item)
-            label_item = item.replace('_0000', '')
+            label_item = item.replace('img', 'pred')
             label_file = osp.join(label_path, label_item)
 
             label = nib.load(label_file).get_fdata()
@@ -51,7 +49,6 @@ class FLAREDataSet(data.Dataset):
                 "image": img_file,
                 "label": label_file,
                 "name": item,
-                "spacing": spacing,
                 "bbx": [boud_h, boud_w, boud_d]
             })
 
@@ -278,12 +275,12 @@ def my_collate(batch):
 
 
 if __name__ == '__main__':
-    # flare = FLAREDataSet(root='./dataset/FLARE21', split='train')
-    # img_, label_, name_ = flare[0]
+    # fake_data = FAKEDataSet(root='./dataset/FAKE21', split='train')
+    # img_, label_, name_ = FAKE[0]
     # print("img's shape: {}\nlabel's shape: {}".format(img_.shape, label_.shape))
 
-    flare = FLAREDataSet(root='./dataset/FLARE21', split='train')
-    train_loader = data.DataLoader(dataset=flare, batch_size=2, shuffle=False, num_workers=0, collate_fn=my_collate)
+    fake_data = FAKEDataSet(root='./sample', split='train')
+    train_loader = data.DataLoader(dataset=fake_data, batch_size=2, shuffle=False, num_workers=0, collate_fn=my_collate)
     for train_iter, pack in enumerate(train_loader):
         img_ = pack['image']
         label_ = pack['label']

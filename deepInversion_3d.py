@@ -173,12 +173,12 @@ def main():
         fake_x = fake_x.detach().cpu().numpy()
         prob = prob.detach().cpu().numpy()
         for img_idx in range(args.batch_size):
-            save_preds(args, cnt, fake_x, prob, img_idx)
+            save_preds(cnt, fake_x, prob, img_idx)
             print(f"img{cnt} is saved.")
             cnt += 1
 
 
-def save_preds(args, cnt, fake_x, prob, img_idx):
+def save_preds(cnt, fake_x, prob, img_idx):
     save_nii(fake_x[img_idx, 0], f"./sample/{cnt}img.nii.gz")
     save_nii(prob[img_idx, 0], f"./sample/{cnt}pred.nii.gz")
     print(f"img{cnt} is saved.")
