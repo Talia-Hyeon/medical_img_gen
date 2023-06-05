@@ -201,27 +201,28 @@ if __name__ == '__main__':
     d1, d2, d3 = image.shape
     max_score = 0
     max_score_idx = 0
-    # for i in range(d3):
-    #     sagital_label = label[:, :, i]
-    #     classes = np.unique(sagital_label)
-    #     if classes.size >= 1:
-    #         counts = np.array([max(np.where(sagital_label == c)[0].size, 1e-8) for c in range(5)])
-    #         score = np.exp(np.sum(np.log(counts)) - 5 * np.log(np.sum(counts)))
-    #         if score > max_score:
-    #             max_score = score
-    #             max_score_idx = i
+    for i in range(d3):
+        sagital_label = label[:, :, i]
+        classes = np.unique(sagital_label)
+        if classes.size >= 1:
+            counts = np.array([max(np.where(sagital_label == c)[0].size, 1e-8) for c in range(5)])
+            score = np.exp(np.sum(np.log(counts)) - 5 * np.log(np.sum(counts)))
+            if score > max_score:
+                max_score = score
+                max_score_idx = i
 
     plt.figure()
-    # plt.subplot(1, 2, 1)
+    plt.subplot(1, 2, 1)
     plt.imshow(image[30, :, :], cmap='gray')
     plt.title('Image')
-    # plt.subplot(1, 2, 2)
-    # plt.imshow(label[:, :, max_score_idx])
-    # plt.title('Ground Truth')
+    plt.subplot(1, 2, 2)
+    plt.imshow(label[:, :, max_score_idx])
+    plt.title('Ground Truth')
     plt.show()
 
-    # fake_data = FAKEDataSet(root='./sample', split='train')
-    # train_loader = data.DataLoader(dataset=fake_data, batch_size=2, shuffle=False, num_workers=0)
+    # train_path = './sample'
+    # train_data = FAKEDataSet(root=train_path, split='train')
+    # train_loader = data.DataLoader(dataset=train_data, batch_size=1, shuffle=True, num_workers=4)
     # for train_iter, pack in enumerate(train_loader):
     #     img_ = pack[0]
     #     label_ = pack[1]

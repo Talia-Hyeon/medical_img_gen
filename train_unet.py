@@ -7,6 +7,7 @@ import matplotlib.pyplot as plt
 
 from btcv import BTCVDataSet
 from flare21 import FLAREDataSet
+from pseudo_img import FAKEDataSet
 from unet3D import UNet3D
 from loss_functions.loss import *
 from loss_functions.score import *
@@ -32,13 +33,21 @@ def main():
     loss_function = CELoss4MOTS(num_classes=n_classes)
     loss_function.to(device)
 
-    # data loader
-    train_path = './dataset/FLARE21'
-    train_data = FLAREDataSet(root=train_path, split='train')
-    valid_data = BTCVDataSet(root=train_path, split='val')
+    # # real data loader
+    # train_path = './dataset/FLARE21'
+    # train_data = FLAREDataSet(root=train_path, split='train')
+    # valid_data = BTCVDataSet(root=train_path, split='val')
+    #
+    # train_loader = DataLoader(dataset=train_data, batch_size=1, shuffle=True,
+    #                           num_workers=4, collate_fn=my_collate)
+    # valid_loader = DataLoader(dataset=valid_data, batch_size=1, shuffle=False, num_workers=4)
 
-    train_loader = DataLoader(dataset=train_data, batch_size=1, shuffle=True,
-                              num_workers=4, collate_fn=my_collate)
+    # fake data loader
+    train_path = './sample'
+    train_data = FAKEDataSet(root=train_path, split='train')
+    valid_data = FAKEDataSet(root=train_path, split='val')
+
+    train_loader = DataLoader(dataset=train_data, batch_size=1, shuffle=True, num_workers=4)
     valid_loader = DataLoader(dataset=valid_data, batch_size=1, shuffle=False, num_workers=4)
 
     # setup metrics
@@ -57,10 +66,15 @@ def main():
         iter_start = time()
 
         for train_iter, pack in enumerate(train_loader):
-            img = pack['image']
-            img = torch.tensor(img).to(device)
-            label = pack['label']
-            label = torch.tensor(label).to(device)
+            # # real
+            # img = pack['image']
+            # img = torch.tensor(img).to(device)
+            # label = pack['label']
+            # label = torch.tensor(label).to(device)
+            # fake
+            img = pack[0].to(device)
+            label = pack[1].to(device)
+
             pred = model(img)
             pred = torch.sigmoid(pred)
 
@@ -110,7 +124,8 @@ def main():
 
         if score_dic['Mean IoU'] >= best_iou:
             best_iou = score_dic['Mean IoU']
-            torch.save(model.state_dict(), f'./save_model/best_model.pth')
+            # torch.save(model.state_dict(), f'./save_model/best_model.pth')
+            torch.save(model.state_dict(), f'./save_model/best_model_fake.pth')
 
         epoch_end = time()
 

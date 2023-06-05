@@ -84,7 +84,7 @@ if __name__ == '__main__':
     test_loader = DataLoader(dataset=test_data, batch_size=1, shuffle=False, num_workers=0)
 
     # model
-    device = torch.device('cuda:1') if torch.cuda.is_available() else torch.device('cpu')
+    device = torch.device('cuda:0') if torch.cuda.is_available() else torch.device('cpu')
     model = UNet3D(num_classes=n_classes)
     model.to(device)
     model.load_state_dict(torch.load(f'./save_model/best_model.pth'))
