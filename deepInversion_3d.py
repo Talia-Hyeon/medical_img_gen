@@ -90,7 +90,7 @@ def get_arguments():
     parser.add_argument("--learning_rate", type=float, default=1e-3)
     parser.add_argument("--num_classes", type=int, default=5)
     parser.add_argument("--num_workers", type=int, default=1)
-    parser.add_argument("--weight_std", type=str2bool, default=True)
+    parser.add_argument("--weight_std", type=str2bool, default=False)
     parser.add_argument("--random_seed", type=int, default=1234)
     parser.add_argument("--power", type=float, default=0.9)
     return parser
@@ -134,9 +134,9 @@ def main():
 
     ## load pretrained local models ##
     print("Generate pseudo images using pretrained models.")
-    path = f"./save_model/best_model_wieght_std_true.pth"
+    path = f"./save_model/best_model.pth"
     print(f"Loading checkpoint {path}")
-    pretrained = UNet3D(num_classes=args.num_classes, weight_std=True)
+    pretrained = UNet3D(num_classes=args.num_classes)
     pretrained.load_state_dict(torch.load(path), strict=False)
 
     loss_r_feature_layers = []

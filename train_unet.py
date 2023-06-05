@@ -23,7 +23,7 @@ def main():
     n_classes = 5
     train_batch_size = 2
 
-    model = UNet3D(num_classes=n_classes,weight_std=True)
+    model = UNet3D(num_classes=n_classes)
     model.to(device)
 
     optimizer = torch.optim.Adam(model.parameters(), lr=0.0001)  # weight_decay=0.0001
@@ -110,7 +110,7 @@ def main():
 
         if score_dic['Mean IoU'] >= best_iou:
             best_iou = score_dic['Mean IoU']
-            torch.save(model.state_dict(), f'./save_model/best_model_wieght_std_true.pth')
+            torch.save(model.state_dict(), f'./save_model/best_model.pth')
 
         epoch_end = time()
 
