@@ -148,7 +148,7 @@ def main():
     pretrained.eval()
 
     for i_run in range(n_runs):
-        fake_x = torch.randn([args.batch_size, 1] + list(input_size), requires_grad=True, device="cuda")
+        fake_x = torch.randn([args.batch_size, 1] + list(input_size), requires_grad=True, device="cuda:1")
         print(fake_x.is_leaf)
         optimizer = torch.optim.Adam([fake_x], lr=0.1)
 
