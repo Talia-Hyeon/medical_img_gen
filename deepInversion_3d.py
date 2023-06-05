@@ -136,7 +136,7 @@ def main():
     print("Generate pseudo images using pretrained models.")
     path = f"./save_model/best_model.pth"
     print(f"Loading checkpoint {path}")
-    pretrained = UNet3D(num_classes=args.num_classes, weight_std=args.weight_std)
+    pretrained = UNet3D(num_classes=args.num_classes)
     pretrained.load_state_dict(torch.load(path), strict=False)
 
     loss_r_feature_layers = []
@@ -172,7 +172,6 @@ def main():
 
             optimizer.step()
             print(f"{iter_idx}/{n_iters}, {loss_var_l1:.2f}, {loss_var_l2:.2f}, {loss_bn:.2f},", end='\r')
-            # loss 값이 nan이 대부분
 
         fake_x = fake_x.detach().cpu().numpy()
         fake_label = fake_label.detach().cpu().numpy()
