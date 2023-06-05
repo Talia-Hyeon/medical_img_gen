@@ -31,6 +31,7 @@ def evaluate(model, test_data_loader, num_class, device):
             metrics.update(gt, pred)
 
             # visualization
+            print("pred's shape: {}".format(pred.shape))
             d1, d2, d3 = pred.shape
             max_score = 0
             max_score_idx = 0
