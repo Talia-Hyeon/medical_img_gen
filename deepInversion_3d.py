@@ -132,7 +132,7 @@ def main():
     n_runs = args.num_imgs // args.batch_size
     n_iters = args.num_epochs  # 500
 
-    ### load pretrained local models ###
+    ## load pretrained local models ##
     print("Generate pseudo images using pretrained models.")
     path = f"./save_model/best_model.pth"
     print(f"Loading checkpoint {path}")
