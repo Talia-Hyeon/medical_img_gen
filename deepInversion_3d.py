@@ -126,6 +126,8 @@ def main():
     device = torch.device('cuda:0')
 
     os.makedirs(f"./sample", exist_ok=True)
+    os.makedirs(f"./sample/Img", exist_ok=True)
+    os.makedirs(f"./sample/Pred", exist_ok=True)
     cnt = 0
     n_runs = args.num_imgs // args.batch_size
     n_iters = args.num_epochs  # 500
@@ -135,8 +137,7 @@ def main():
     path = f"./save_model/best_model.pth"
     print(f"Loading checkpoint {path}")
     pretrained = UNet3D(num_classes=args.num_classes, weight_std=args.weight_std)
-    checkpoint = torch.load(path, map_location=torch.device('cpu'))  # GPU에서 저장한 모델을 CPU에서 불러오기
-    pretrained.load_state_dict(torch.load(f'./save_model/best_model.pth'), strict=False)
+    pretrained.load_state_dict(torch.load(path), strict=False)
 
     loss_r_feature_layers = []
     for module in pretrained.modules():
@@ -179,8 +180,8 @@ def main():
 
 
 def save_preds(cnt, fake_x, prob, img_idx):
-    save_nii(fake_x[img_idx, 0], f"./sample/{cnt}img.nii.gz")
-    save_nii(prob[img_idx, 0], f"./sample/{cnt}pred.nii.gz")
+    save_nii(fake_x[img_idx, 0], f"./sample/Img/{cnt}img.nii.gz")
+    save_nii(prob[img_idx, 0], f"./sample/Pred/{cnt}pred.nii.gz")
     print(f"img{cnt} is saved.")
 
 
