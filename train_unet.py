@@ -47,7 +47,8 @@ def main():
     train_data = FAKEDataSet(root=train_path, split='train')
     valid_data = FAKEDataSet(root=train_path, split='val')
 
-    train_loader = DataLoader(dataset=train_data, batch_size=1, shuffle=True, num_workers=4)
+    train_loader = DataLoader(dataset=train_data, batch_size=1, shuffle=True,
+                              num_workers=4, collate_fn=my_collate())
     valid_loader = DataLoader(dataset=valid_data, batch_size=1, shuffle=False, num_workers=4)
 
     # setup metrics
@@ -66,14 +67,10 @@ def main():
         iter_start = time()
 
         for train_iter, pack in enumerate(train_loader):
-            # # real
-            # img = pack['image']
-            # img = torch.tensor(img).to(device)
-            # label = pack['label']
-            # label = torch.tensor(label).to(device)
-            # fake
-            img = pack[0].to(device)
-            label = pack[1].to(device)
+            img = pack['image']
+            img = torch.tensor(img).to(device)
+            label = pack['label']
+            label = torch.tensor(label).to(device)
 
             pred = model(img)
             pred = torch.sigmoid(pred)

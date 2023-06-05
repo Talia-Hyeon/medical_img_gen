@@ -143,14 +143,6 @@ class FAKEDataSet(data.Dataset):
         image = image.astype(np.float32)
         label = label.astype(np.float32)
 
-        if self.split == 'train':
-            tr_transforms = get_train_transform()
-            image = tr_transforms(image)
-            label = tr_transforms(label)
-
-        image = torch.from_numpy(image)
-        label = torch.from_numpy(label)
-
         return image, label, name
 
     def extend_channel_classes(self, label):
@@ -187,19 +179,35 @@ def get_train_transform():
     return tr_transforms
 
 
+def my_collate(batch):
+    image, label, name = zip(*batch)
+    image = np.stack(image, 0)
+    label = np.stack(label, 0)
+    name = np.stack(name, 0)
+    data_dict = {'image': image,
+                 'label': label,
+                 'name': name}
+    tr_transforms = get_train_transform()
+    data_dict = tr_transforms(**data_dict)
+    return data_dict
+
+
 if __name__ == '__main__':
-    # img_path = './sample/Img/5img.nii.gz'
-    # pred_path = './sample/Pred/5pred.nii.gz'
+    # img_path = './sample/Img/0img.nii.gz'
+    # pred_path = './sample/Pred/0pred.nii.gz'
     # imageNII = nib.load(img_path)
     # labelNII = nib.load(pred_path)
     # image = imageNII.get_fdata()
     # label = labelNII.get_fdata()
+    # print("label's type: {}".format(type(label)))
+    # print("img's shape: {}\nlabel's shape: {}".format(image.shape, label.shape))
+    # # print("img\n{}".format(image))
     #
     # d1, d2, d3 = image.shape
     # max_score = 0
     # max_score_idx = 0
-    # for i in range(d1):
-    #     sagital_label = label[i, :, :]
+    # for i in range(d3):
+    #     sagital_label = label[:, :, i]
     #     classes = np.unique(sagital_label)
     #     if classes.size >= 1:
     #         counts = np.array([max(np.where(sagital_label == c)[0].size, 1e-8) for c in range(5)])
@@ -210,18 +218,19 @@ if __name__ == '__main__':
     #
     # plt.figure()
     # plt.subplot(1, 2, 1)
-    # plt.imshow(image[max_score_idx, :, :], cmap='gray')
+    # plt.imshow(image[30, :, :], cmap='gray')
     # plt.title('Image')
     # plt.subplot(1, 2, 2)
-    # plt.imshow(label[max_score_idx, :, :])
+    # plt.imshow(label[:, :, max_score_idx])
     # plt.title('Ground Truth')
     # plt.show()
 
     train_path = './sample'
     train_data = FAKEDataSet(root=train_path, split='train')
-    train_loader = data.DataLoader(dataset=train_data, batch_size=1, shuffle=True, num_workers=4)
+    train_loader = data.DataLoader(dataset=train_data, batch_size=1, shuffle=True,
+                                   collate_fn=my_collate, num_workers=4)
     for train_iter, pack in enumerate(train_loader):
-        img_ = pack[0]
-        label_ = pack[1]
-        name_ = pack[2]
+        img_ = pack['image']
+        label_ = pack['label']
+        name_ = pack['name']
         print("img's shape: {}\nlabel's shape: {}".format(img_.shape, label_.shape))
