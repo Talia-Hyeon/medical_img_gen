@@ -19,7 +19,7 @@ def main():
     device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
 
     # Hyper-parameters
-    num_epochs = 2
+    num_epochs = 100
     n_classes = 5
     train_batch_size = 2
 
@@ -38,8 +38,8 @@ def main():
     valid_data = BTCVDataSet(root=train_path, split='val')
 
     train_loader = DataLoader(dataset=train_data, batch_size=1, shuffle=True,
-                              num_workers=0, collate_fn=my_collate)
-    valid_loader = DataLoader(dataset=valid_data, batch_size=1, shuffle=False, num_workers=0)
+                              num_workers=4, collate_fn=my_collate)
+    valid_loader = DataLoader(dataset=valid_data, batch_size=1, shuffle=False, num_workers=4)
 
     # setup metrics
     metrics = Score(n_classes)

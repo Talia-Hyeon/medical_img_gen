@@ -26,19 +26,23 @@ def evaluate(model, test_data_loader, num_class, device):
 
             pred = model(img)
 
+            img = img.cpu().numpy()
             pred = torch.argmax(pred, dim=1).cpu().numpy()
             gt = torch.argmax(label, dim=1).cpu().numpy()
             metrics.update(gt, pred)
 
             # visualization
-            print("pred's shape: {}".format(pred.shape))
+            img = np.squeeze(img, axis=0)
+            img = np.squeeze(img, axis=0)
+            pred = np.squeeze(pred, axis=0)
+            gt = np.squeeze(gt, axis=0)
             d1, d2, d3 = pred.shape
             max_score = 0
             max_score_idx = 0
-            for i in range(d2):
-                sagital_pred = pred[:, i, :]
+            for i in range(d3):
+                sagital_pred = pred[:, :, i]
                 classes = np.unique(sagital_pred)
-                if classes.size >= num_class - 1:
+                if classes.size >= 1:
                     counts = np.array([max(np.where(sagital_pred == c)[0].size, 1e-8) for c in range(num_class)])
                     score = np.exp(np.sum(np.log(counts)) - 5 * np.log(np.sum(counts)))
                     if score > max_score:
@@ -46,8 +50,15 @@ def evaluate(model, test_data_loader, num_class, device):
                         max_score_idx = i
 
             plt.figure()
-            plt.imshow(resize(pred[:, max_score_idx, :], (256, 128)))
+            plt.subplot(1, 3, 1)
+            plt.imshow(resize(img[:, :, max_score_idx], (256, 128)), cmap='gray')
+            plt.title("Image")
+            plt.subplot(1, 3, 2)
+            plt.imshow(resize(pred[:, :, max_score_idx], (256, 128)))
             plt.title('Prediction Map')
+            plt.subplot(1, 3, 3)
+            plt.imshow(resize(gt[:, :, max_score_idx], (256, 128)))
+            plt.title('Ground Truth')
             plt.savefig(f'{path}/{name}.png')
             plt.close()
 
