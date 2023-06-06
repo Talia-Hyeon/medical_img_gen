@@ -11,18 +11,34 @@ from unet3D import UNet3D
 from loss_functions.score import *
 
 
-def evaluate(model, test_data_loader, num_class, device):
+def evaluate(model, test_data_loader, num_class, device, crops=(100, 480, 480)):
     path = os.path.join('./fig', 'prediction_map')
     os.makedirs(path, exist_ok=True)
 
     metrics = Score(num_class)
 
+    crop_d, crop_h, crop_w = crops
+
     with torch.no_grad():
         model.eval()
         for valid_iter, pack in enumerate(test_data_loader):
-            img = pack[0].to(device)
-            label = pack[1].to(device)
+            img = pack[0]
+            label = pack[1]
             name = pack[2][0]
+
+            B, C, D, H, W = img.shape
+            d0 = (D - crop_d) // 2
+            d1 = (D + crop_d) // 2
+            h0 = (H - crop_h) // 2
+            h1 = (H + crop_d) // 2
+            w0 = (W - crop_w) // 2
+            w1 = (W + crop_w) // 2
+
+            img = img[:, :, d0:d1, h0:h1, w0:w1]
+            label = label[:, :, d0:d1, h0:h1, w0:w1]
+
+            img = img.to(device)
+            label = label.to(device)
 
             pred = model(img)
             pred = torch.sigmoid(pred)
@@ -52,13 +68,13 @@ def evaluate(model, test_data_loader, num_class, device):
 
             plt.figure()
             plt.subplot(1, 3, 1)
-            plt.imshow(resize(img[:, :, max_score_idx], (256, 128)), cmap='gray')
+            plt.imshow(img[:, :, max_score_idx], cmap='gray')
             plt.title("Image")
             plt.subplot(1, 3, 2)
-            plt.imshow(resize(pred[:, :, max_score_idx], (256, 128)))
+            plt.imshow(pred[:, :, max_score_idx])
             plt.title('Prediction Map')
             plt.subplot(1, 3, 3)
-            plt.imshow(resize(gt[:, :, max_score_idx], (256, 128)))
+            plt.imshow(gt[:, :, max_score_idx])
             plt.title('Ground Truth')
             plt.savefig(f'{path}/{name}.png')
             plt.close()
