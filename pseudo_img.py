@@ -194,7 +194,11 @@ def my_collate(batch):
 
 def visualization(img, label, root, iter):
     image = img.numpy()
+    image = np.squeeze(image)
     label = label.numpy()
+    label = np.squeeze(label)
+    label = np.argmax(label)
+    print("img's shape: {}\nlabel's shape: {}".format(image.shape, label.shape))
     d1, d2, d3 = image.shape
     max_score = 0
     max_score_idx = 0
