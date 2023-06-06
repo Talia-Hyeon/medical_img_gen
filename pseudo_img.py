@@ -197,8 +197,7 @@ def visualization(img, label, root, iter):
     image = np.squeeze(image)
     label = label.numpy()
     label = np.squeeze(label)
-    label = np.argmax(label)
-    print("img's shape: {}\nlabel's shape: {}".format(image.shape, label.shape))
+    label = np.argmax(label, axis=0)
     d1, d2, d3 = image.shape
     max_score = 0
     max_score_idx = 0
@@ -214,7 +213,7 @@ def visualization(img, label, root, iter):
 
     plt.figure()
     plt.subplot(1, 2, 1)
-    plt.imshow(image[30, :, :], cmap='gray')
+    plt.imshow(image[:, :, max_score_idx], cmap='gray')
     plt.title('Image')
     plt.subplot(1, 2, 2)
     plt.imshow(label[:, :, max_score_idx])
