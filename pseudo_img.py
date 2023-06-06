@@ -192,45 +192,39 @@ def my_collate(batch):
     return data_dict
 
 
-if __name__ == '__main__':
-    # img_path = './sample/Img/0img.nii.gz'
-    # pred_path = './sample/Pred/0pred.nii.gz'
-    # imageNII = nib.load(img_path)
-    # labelNII = nib.load(pred_path)
-    # image = imageNII.get_fdata()
-    # label = labelNII.get_fdata()
-    # print("label's type: {}".format(type(label)))
-    # print("img's shape: {}\nlabel's shape: {}".format(image.shape, label.shape))
-    # # print("img\n{}".format(image))
-    #
-    # d1, d2, d3 = image.shape
-    # max_score = 0
-    # max_score_idx = 0
-    # for i in range(d3):
-    #     sagital_label = label[:, :, i]
-    #     classes = np.unique(sagital_label)
-    #     if classes.size >= 1:
-    #         counts = np.array([max(np.where(sagital_label == c)[0].size, 1e-8) for c in range(5)])
-    #         score = np.exp(np.sum(np.log(counts)) - 5 * np.log(np.sum(counts)))
-    #         if score > max_score:
-    #             max_score = score
-    #             max_score_idx = i
-    #
-    # plt.figure()
-    # plt.subplot(1, 2, 1)
-    # plt.imshow(image[30, :, :], cmap='gray')
-    # plt.title('Image')
-    # plt.subplot(1, 2, 2)
-    # plt.imshow(label[:, :, max_score_idx])
-    # plt.title('Ground Truth')
-    # plt.show()
+def visualization(img, label, root, iter):
+    image = img.numpy()
+    label = label.numpy()
+    d1, d2, d3 = image.shape
+    max_score = 0
+    max_score_idx = 0
+    for i in range(d3):
+        sagital_label = label[:, :, i]
+        classes = np.unique(sagital_label)
+        if classes.size >= 1:
+            counts = np.array([max(np.where(sagital_label == c)[0].size, 1e-8) for c in range(5)])
+            score = np.exp(np.sum(np.log(counts)) - 5 * np.log(np.sum(counts)))
+            if score > max_score:
+                max_score = score
+                max_score_idx = i
 
-    train_path = './sample'
-    train_data = FAKEDataSet(root=train_path, split='train')
-    train_loader = data.DataLoader(dataset=train_data, batch_size=1, shuffle=True,
-                                   collate_fn=my_collate, num_workers=4)
-    for train_iter, pack in enumerate(train_loader):
-        img_ = pack['image']
-        label_ = pack['label']
-        name_ = pack['name']
-        print("img's shape: {}\nlabel's shape: {}".format(img_.shape, label_.shape))
+    plt.figure()
+    plt.subplot(1, 2, 1)
+    plt.imshow(image[30, :, :], cmap='gray')
+    plt.title('Image')
+    plt.subplot(1, 2, 2)
+    plt.imshow(label[:, :, max_score_idx])
+    plt.title('Ground Truth')
+    plt.savefig(f'{root}/{iter}.png')
+
+
+if __name__ == '__main__':
+    save_path = './fig/gen_img'
+    os.makedirs(save_path, exist_ok=True)
+    val_path = './sample'
+    val_data = FAKEDataSet(root=val_path, mirror=False, scale=False, split='val')
+    val_loader = data.DataLoader(dataset=val_data, batch_size=1, shuffle=False, num_workers=4)
+    for val_iter, pack in enumerate(val_loader):
+        img_ = pack[0]
+        label_ = pack[1]
+        visualization(img_, label_, save_path, val_iter)
