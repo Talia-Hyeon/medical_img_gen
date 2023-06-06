@@ -95,7 +95,7 @@ def evaluate(model, test_data_loader, num_class, device, crops=(30, None, None))
             pred = np.squeeze(pred, axis=0)
             gt = np.squeeze(gt, axis=0)
 
-            max_score_idx = find_best_view(pred)
+            max_score_idx = find_best_view(gt)
             img = img[max_score_idx, :, :]
             pred = pred[max_score_idx, :, :]
             gt = gt[max_score_idx, :, :]
