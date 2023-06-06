@@ -4,7 +4,6 @@ import torch
 from torch.utils.data import DataLoader
 import numpy as np
 from matplotlib import pyplot as plt
-from skimage.transform import resize
 
 from btcv import BTCVDataSet
 from unet3D import UNet3D
@@ -32,6 +31,22 @@ def decode_segmap(temp):
     rgb[:, :, 1] = g / 255.0
     rgb[:, :, 2] = b / 255.0
     return rgb
+
+
+def find_best_view(img):
+    d1, d2, d3 = img.shape
+    max_score = 0
+    max_score_idx = 0
+    for i in range(d1):
+        sagital_pred = img[i, :, :]
+        classes = np.unique(sagital_pred)
+        if classes.size >= 2:
+            counts = np.array([max(np.where(sagital_pred == c)[0].size, 1e-8) for c in range(5)])  # 5:num_classes
+            score = np.exp(np.sum(np.log(counts)) - 5 * np.log(np.sum(counts)))
+            if score > max_score:
+                max_score = score
+                max_score_idx = i
+    return max_score_idx
 
 
 def evaluate(model, test_data_loader, num_class, device, crops=(30, None, None)):
@@ -78,19 +93,8 @@ def evaluate(model, test_data_loader, num_class, device, crops=(30, None, None))
             img = np.squeeze(img, axis=0)
             pred = np.squeeze(pred, axis=0)
             gt = np.squeeze(gt, axis=0)
-            d1, d2, d3 = pred.shape
-            max_score = 0
-            max_score_idx = 0
-            for i in range(d1):
-                sagital_pred = pred[i, :, :]
-                classes = np.unique(sagital_pred)
-                if classes.size >= 1:
-                    counts = np.array([max(np.where(sagital_pred == c)[0].size, 1e-8) for c in range(num_class)])
-                    score = np.exp(np.sum(np.log(counts)) - 5 * np.log(np.sum(counts)))
-                    if score > max_score:
-                        max_score = score
-                        max_score_idx = i
 
+            max_score_idx = find_best_view(pred)
             img = img[max_score_idx, :, :]
             pred = pred[max_score_idx, :, :]
             gt = gt[max_score_idx, :, :]
@@ -135,7 +139,8 @@ if __name__ == '__main__':
     device = torch.device('cuda:0') if torch.cuda.is_available() else torch.device('cpu')
     model = UNet3D(num_classes=n_classes)
     model.to(device)
-    model.load_state_dict(torch.load(f'./save_model/best_model.pth'))
+    # model.load_state_dict(torch.load(f'./save_model/best_model.pth'))
+    model.load_state_dict(torch.load(f'./save_model/best_model_fake.pth'))
 
     # evaluation
     miou = evaluate(model, test_loader, n_classes, device=device)

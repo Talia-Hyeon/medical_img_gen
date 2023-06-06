@@ -18,6 +18,8 @@ from batchgenerators.transforms.noise_transforms import GaussianNoiseTransform, 
 from batchgenerators.transforms.resample_transforms import SimulateLowResolutionTransform
 from batchgenerators.transforms.abstract_transforms import Compose
 
+from test_unet import *
+
 
 class FAKEDataSet(data.Dataset):
     def __init__(self, root, crop_size=(64, 192, 192), mean=(128, 128, 128), scale=True,
@@ -198,29 +200,23 @@ def visualization(img, label, root, iter):
     label = label.numpy()
     label = np.squeeze(label)
     label = np.argmax(label, axis=0)
-    d1, d2, d3 = image.shape
-    max_score = 0
-    max_score_idx = 0
-    for i in range(d2):
-        sagital_label = label[:, i, :]
-        classes = np.unique(sagital_label)
-        if classes.size >= 1:
-            counts = np.array([max(np.where(sagital_label == c)[0].size, 1e-8) for c in range(5)])
-            score = np.exp(np.sum(np.log(counts)) - 5 * np.log(np.sum(counts)))
-            if score > max_score:
-                max_score = score
-                max_score_idx = i
+
+    max_score_idx = find_best_view(label)
+    image = image[max_score_idx, :, :]
+    label = label[max_score_idx, :, :]
+    col_label = decode_segmap(label)
 
     plt.figure()
     plt.subplot(1, 2, 1)
-    plt.imshow(image[:, max_score_idx, :], cmap='gray')
+    plt.imshow(image, cmap='gray')
     plt.title('Image')
     plt.subplot(1, 2, 2)
-    plt.imshow(label[:, max_score_idx, :])
+    plt.imshow(col_label)
     plt.title('Ground Truth')
     plt.savefig(f'{root}/{iter}.png')
 
     plt.close()
+
 
 if __name__ == '__main__':
     save_path = './fig/gen_img'
