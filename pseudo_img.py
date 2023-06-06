@@ -201,8 +201,8 @@ def visualization(img, label, root, iter):
     d1, d2, d3 = image.shape
     max_score = 0
     max_score_idx = 0
-    for i in range(d3):
-        sagital_label = label[:, :, i]
+    for i in range(d2):
+        sagital_label = label[:, i, :]
         classes = np.unique(sagital_label)
         if classes.size >= 1:
             counts = np.array([max(np.where(sagital_label == c)[0].size, 1e-8) for c in range(5)])
@@ -213,13 +213,14 @@ def visualization(img, label, root, iter):
 
     plt.figure()
     plt.subplot(1, 2, 1)
-    plt.imshow(image[:, :, max_score_idx], cmap='gray')
+    plt.imshow(image[:, max_score_idx, :], cmap='gray')
     plt.title('Image')
     plt.subplot(1, 2, 2)
-    plt.imshow(label[:, :, max_score_idx])
+    plt.imshow(label[:, max_score_idx, :])
     plt.title('Ground Truth')
     plt.savefig(f'{root}/{iter}.png')
 
+    plt.close()
 
 if __name__ == '__main__':
     save_path = './fig/gen_img'
