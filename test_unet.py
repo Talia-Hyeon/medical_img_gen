@@ -34,7 +34,7 @@ def decode_segmap(temp):
     return rgb
 
 
-def evaluate(model, test_data_loader, num_class, device, crops=(None, 400, None)):
+def evaluate(model, test_data_loader, num_class, device, crops=(30, None, None)):
     path = os.path.join('./fig', 'prediction_map')
     os.makedirs(path, exist_ok=True)
 
@@ -81,8 +81,8 @@ def evaluate(model, test_data_loader, num_class, device, crops=(None, 400, None)
             d1, d2, d3 = pred.shape
             max_score = 0
             max_score_idx = 0
-            for i in range(d2):
-                sagital_pred = pred[:, i, :]
+            for i in range(d1):
+                sagital_pred = pred[i, :, :]
                 classes = np.unique(sagital_pred)
                 if classes.size >= 1:
                     counts = np.array([max(np.where(sagital_pred == c)[0].size, 1e-8) for c in range(num_class)])
@@ -91,9 +91,9 @@ def evaluate(model, test_data_loader, num_class, device, crops=(None, 400, None)
                         max_score = score
                         max_score_idx = i
 
-            img = img[:, max_score_idx, :]
-            pred = pred[:, max_score_idx, :]
-            gt = gt[:, max_score_idx, :]
+            img = img[max_score_idx, :, :]
+            pred = pred[max_score_idx, :, :]
+            gt = gt[max_score_idx, :, :]
 
             col_pred = decode_segmap(pred)
             col_gt = decode_segmap(gt)
