@@ -11,13 +11,37 @@ from unet3D import UNet3D
 from loss_functions.score import *
 
 
-def evaluate(model, test_data_loader, num_class, device, crops=(100, 480, 480)):
+def decode_segmap(temp):
+    colors = [[255, 255, 255],  # "unlabelled"
+              [220, 20, 60],
+              [0, 0, 142],
+              [0, 150, 20],
+              [0, 0, 230]]
+    label_colours = dict(zip(range(5), colors))  # key: label's index, value: color
+
+    r = temp.copy()
+    g = temp.copy()
+    b = temp.copy()
+    for l in range(5):
+        r[temp == l] = label_colours[l][0]
+        g[temp == l] = label_colours[l][1]
+        b[temp == l] = label_colours[l][2]
+
+    rgb = np.zeros((temp.shape[0], temp.shape[1], 3))
+    rgb[:, :, 0] = r / 255.0
+    rgb[:, :, 1] = g / 255.0
+    rgb[:, :, 2] = b / 255.0
+    return rgb
+
+
+def evaluate(model, test_data_loader, num_class, device, crops=(None, 400, None)):
     path = os.path.join('./fig', 'prediction_map')
     os.makedirs(path, exist_ok=True)
 
     metrics = Score(num_class)
 
     crop_d, crop_h, crop_w = crops
+    do_crop = (crop_d != None or crop_h != None or crop_w != None)
 
     with torch.no_grad():
         model.eval()
@@ -26,16 +50,17 @@ def evaluate(model, test_data_loader, num_class, device, crops=(100, 480, 480)):
             label = pack[1]
             name = pack[2][0]
 
-            B, C, D, H, W = img.shape
-            d0 = (D - crop_d) // 2
-            d1 = (D + crop_d) // 2
-            h0 = (H - crop_h) // 2
-            h1 = (H + crop_d) // 2
-            w0 = (W - crop_w) // 2
-            w1 = (W + crop_w) // 2
+            if do_crop:
+                B, C, D, H, W = img.shape
+                d0 = (D - crop_d) // 2 if crop_d != None else 0
+                d1 = (D + crop_d) // 2 if crop_d != None else D
+                h0 = (H - crop_h) // 2 if crop_h != None else 0
+                h1 = (H + crop_h) // 2 if crop_h != None else H
+                w0 = (W - crop_w) // 2 if crop_w != None else 0
+                w1 = (W + crop_w) // 2 if crop_w != None else W
 
-            img = img[:, :, d0:d1, h0:h1, w0:w1]
-            label = label[:, :, d0:d1, h0:h1, w0:w1]
+                img = img[:, :, d0:d1, h0:h1, w0:w1]
+                label = label[:, :, d0:d1, h0:h1, w0:w1]
 
             img = img.to(device)
             label = label.to(device)
@@ -56,8 +81,8 @@ def evaluate(model, test_data_loader, num_class, device, crops=(100, 480, 480)):
             d1, d2, d3 = pred.shape
             max_score = 0
             max_score_idx = 0
-            for i in range(d3):
-                sagital_pred = pred[:, :, i]
+            for i in range(d2):
+                sagital_pred = pred[:, i, :]
                 classes = np.unique(sagital_pred)
                 if classes.size >= 1:
                     counts = np.array([max(np.where(sagital_pred == c)[0].size, 1e-8) for c in range(num_class)])
@@ -66,15 +91,22 @@ def evaluate(model, test_data_loader, num_class, device, crops=(100, 480, 480)):
                         max_score = score
                         max_score_idx = i
 
+            img = img[:, max_score_idx, :]
+            pred = pred[:, max_score_idx, :]
+            gt = gt[:, max_score_idx, :]
+
+            col_pred = decode_segmap(pred)
+            col_gt = decode_segmap(gt)
+
             plt.figure()
             plt.subplot(1, 3, 1)
-            plt.imshow(img[:, :, max_score_idx], cmap='gray')
+            plt.imshow(img, cmap='gray')
             plt.title("Image")
             plt.subplot(1, 3, 2)
-            plt.imshow(pred[:, :, max_score_idx])
+            plt.imshow(col_pred)
             plt.title('Prediction Map')
             plt.subplot(1, 3, 3)
-            plt.imshow(gt[:, :, max_score_idx])
+            plt.imshow(col_gt)
             plt.title('Ground Truth')
             plt.savefig(f'{path}/{name}.png')
             plt.close()
