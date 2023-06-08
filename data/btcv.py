@@ -1,0 +1,148 @@
+import os
+import os.path as osp
+import random
+import math
+
+import torch
+from torch.utils import data
+import numpy as np
+import nibabel as nib
+from sklearn.model_selection import train_test_split
+
+from flare21_ import *
+
+# 0: background
+BTCV_label_num = {
+    'spleen': 1,
+    'right kidney': 2,
+    'left kidney': 3,
+    'gallbladder': 4,
+    'esophagus': 5,
+    'liver': 6,
+    'stomach': 7,
+    'aorta': 8,
+    'inferior vena cava*': 9,
+    'portal vein and splenic vein*': 10,
+    'pancreas': 11,
+    'right adrenal gland': 12,
+    'left adrenal gland': 13
+}
+
+valid_dataset = {
+    'background': 0,
+    'liver': 1,
+    'kidney': 2,
+    'spleen': 3,
+    'pancreas': 4,
+}
+
+
+class BTCVDataSet(data.Dataset):
+    def __init__(self, root, crop_size=(64, 256, 256), mean=(128, 128, 128), ignore_label=255):
+        self.root = root
+        self.crop_d, self.crop_h, self.crop_w = crop_size
+        self.ignore_label = ignore_label
+        self.mean = mean
+        self.void_classes = [4, 5, 7, 8, 9, 10, 12, 13]
+
+        print("Start preprocessing....")
+        # load data
+        image_path = osp.join(self.root, 'img')
+        label_path = osp.join(self.root, 'label')
+
+        img_list = os.listdir(image_path)
+        all_files = []
+        for i, item in enumerate(img_list):
+            img_file = osp.join(image_path, item)
+            label_item = item.replace('img', 'label')
+            label_file = osp.join(label_path, label_item)
+
+            label = nib.load(label_file).get_fdata()
+            boud_h, boud_w, boud_d = np.where(label >= 1)  # background 아닌
+
+            all_files.append({
+                "image": img_file,
+                "label": label_file,
+                "name": item,
+                "bbx": [boud_h, boud_w, boud_d]
+            })
+
+        self.files = all_files
+        print('{} images are loaded!'.format(len(self.files)))
+
+    def __len__(self):
+        return len(self.files)
+
+    def __getitem__(self, index):
+        datafiles = self.files[index]
+        # read nii file
+        imageNII = nib.load(datafiles["image"])
+        labelNII = nib.load(datafiles["label"])
+        image = imageNII.get_fdata()
+        label = labelNII.get_fdata()
+        name = datafiles["name"]
+
+        image = pad_image(image, [self.crop_h, self.crop_w, self.crop_d])
+        label = pad_image(label, [self.crop_h, self.crop_w, self.crop_d])
+
+        [h0, h1, w0, w1, d0, d1] = locate_bbx(self.crop_d, self.crop_h, self.crop_w,
+                                              label, 1, datafiles["bbx"])
+        image = image[h0: h1, w0: w1, d0: d1]
+        label = label[h0: h1, w0: w1, d0: d1]
+
+        image = truncate(image)
+        label = self.id2trainId(label)
+
+        image = image[np.newaxis, :]
+
+        image = image.transpose((0, 3, 1, 2))  # Channel x Depth x H x W
+        label = label.transpose((0, 3, 1, 2))
+
+        d, h, w = image.shape[-3:]
+        if d != self.crop_d or h != self.crop_h or w != self.crop_w:
+            image = resize(image, (1, self.crop_d, self.crop_h, self.crop_w), order=1, mode='constant', cval=0,
+                           clip=True, preserve_range=True)
+            label = resize(label, (1, self.crop_d, self.crop_h, self.crop_w), order=0, mode='edge', cval=0, clip=True,
+                           preserve_range=True)
+
+        label = extend_channel_classes(label)
+
+        image = image.astype(np.float32)
+        label = label.astype(np.float32)
+
+        image = torch.from_numpy(image)
+        label = torch.from_numpy(label)
+        return image, label, name, labelNII.affine
+
+    def id2trainId(self, label):
+        # void_class to background
+        for void_class in self.void_classes:
+            label[np.where(label == void_class)] = 0
+
+        # left kidney to kidney(2)
+        label[np.where(label == 3)] = 2
+        # spleen to 3
+        label[np.where(label == 1)] = 3
+        # liver to 1
+        label[np.where(label == 6)] = 1
+        # pancreas to 4
+        label[np.where(label == 11)] = 4
+
+        shape = label.shape
+        results_map = np.zeros((1, shape[0], shape[1], shape[2])).astype(np.float32)
+        results_map[0, :, :, :] = label
+        return results_map
+
+
+if __name__ == '__main__':
+    btcv = BTCVDataSet(root='./dataset/BTCV/Trainset')
+    img_, label_, name_, label_aff = btcv[0]
+    print("affine's type: {}".format(type(label_aff)))
+    # flare = BTCVDataSet(root='./dataset/FLARE21')
+    # valid_loader = data.DataLoader(dataset=flare, batch_size=1, shuffle=False, num_workers=0)
+    # for train_iter, pack in enumerate(valid_loader):
+    #     img_ = pack[0]
+    #     label_ = pack[1]
+    #     name_ = pack[2]
+    #     label_affine = pack[3]
+    #     print("img_shape: {}\nlabel_shape: {}\naffine's type: {}".format(img_.shape, label_.shape, type(label_affine)))
