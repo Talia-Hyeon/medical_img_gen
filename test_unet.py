@@ -2,11 +2,10 @@ import os
 
 import torch
 from torch.utils.data import DataLoader
-import numpy as np
 from matplotlib import pyplot as plt
 
-from btcv import BTCVDataSet
-from unet3D import UNet3D
+from data.btcv import BTCVDataSet
+from model.unet3D import UNet3D
 from loss_functions.score import *
 
 
@@ -49,15 +48,12 @@ def find_best_view(img):
     return max_score_idx
 
 
-def evaluate(model, test_data_loader, num_class, device, crops=(30, None, None)):
-    # path = os.path.join('./fig', 'prediction_map')
-    path = os.path.join('./fig', 'prediction_map_fake')
+def evaluate(model, test_data_loader, num_class, device):
+    path = os.path.join('./fig', 'prediction_map')
+    # path = os.path.join('./fig', 'prediction_map_fake')
     os.makedirs(path, exist_ok=True)
 
     metrics = Score(num_class)
-
-    crop_d, crop_h, crop_w = crops
-    do_crop = (crop_d != None or crop_h != None or crop_w != None)
 
     with torch.no_grad():
         model.eval()
@@ -66,22 +62,11 @@ def evaluate(model, test_data_loader, num_class, device, crops=(30, None, None))
             label = pack[1]
             name = pack[2][0]
 
-            if do_crop:
-                B, C, D, H, W = img.shape
-                d0 = (D - crop_d) // 2 if crop_d != None else 0
-                d1 = (D + crop_d) // 2 if crop_d != None else D
-                h0 = (H - crop_h) // 2 if crop_h != None else 0
-                h1 = (H + crop_h) // 2 if crop_h != None else H
-                w0 = (W - crop_w) // 2 if crop_w != None else 0
-                w1 = (W + crop_w) // 2 if crop_w != None else W
-
-                img = img[:, :, d0:d1, h0:h1, w0:w1]
-                label = label[:, :, d0:d1, h0:h1, w0:w1]
-
             img = img.to(device)
             label = label.to(device)
 
             pred = model(img)
+            pred = torch.sigmoid(pred)
 
             img = img.cpu().numpy()
             pred = torch.argmax(pred, dim=1).cpu().numpy()
@@ -132,7 +117,7 @@ if __name__ == '__main__':
 
     # dataloader
     data_path = './dataset/BTCV/Trainset'
-    test_data = BTCVDataSet(root=data_path, split='test')
+    test_data = BTCVDataSet(root=data_path)
     test_loader = DataLoader(dataset=test_data, batch_size=1, shuffle=False, num_workers=0)
 
     # model
