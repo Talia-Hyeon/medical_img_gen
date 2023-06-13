@@ -11,7 +11,7 @@ from loss_functions.score import *
 
 
 def decode_segmap(temp):
-    colors = [[255, 255, 255],  # "unlabelled"
+    colors = [[0, 0, 0],  # "unlabelled"
               [220, 20, 60],
               [0, 0, 142],
               [0, 150, 20],
@@ -82,7 +82,6 @@ def evaluate(model, test_data_loader, num_class, device, crops=(30, None, None))
             label = label.to(device)
 
             pred = model(img)
-            pred = torch.sigmoid(pred)
 
             img = img.cpu().numpy()
             pred = torch.argmax(pred, dim=1).cpu().numpy()

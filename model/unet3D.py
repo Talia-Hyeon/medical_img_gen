@@ -14,7 +14,8 @@ class Conv3d(nn.Conv3d):
 
     def forward(self, x):
         weight = self.weight
-        weight_mean = weight.mean(dim=1, keepdim=True).mean(dim=2, keepdim=True).mean(dim=3, keepdim=True).mean(dim=4, keepdim=True)
+        weight_mean = weight.mean(dim=1, keepdim=True).mean(dim=2, keepdim=True).mean(dim=3, keepdim=True).mean(dim=4,
+                                                                                                                keepdim=True)
         weight = weight - weight_mean
         std = torch.sqrt(torch.var(weight.view(weight.size(0), -1), dim=1) + 1e-12).view(-1, 1, 1, 1, 1)
         weight = weight / std.expand_as(weight)
@@ -98,7 +99,7 @@ class unet3D(nn.Module):
             nn.BatchNorm3d(bch),
             nn.ReLU(inplace=in_place),
             # nn.Conv3d(bch, 1, kernel_size=1)
-            nn.Conv3d(bch, num_classes, kernel_size=1) # newly added 2023.06.04
+            nn.Conv3d(bch, num_classes, kernel_size=1)  # newly added 2023.06.04
         )
 
         self._init_weights()
@@ -123,7 +124,7 @@ class unet3D(nn.Module):
         generate_multi_grid = lambda index, grids: grids[index % len(grids)] if isinstance(grids, tuple) else 1
         layers.append(block(inplanes, planes, stride, dilation=dilation, downsample=downsample,
                             multi_grid=generate_multi_grid(0, multi_grid), weight_std=self.weight_std))
-        
+
         for i in range(1, blocks):
             layers.append(
                 block(planes, planes, dilation=dilation, multi_grid=generate_multi_grid(i, multi_grid),
@@ -179,7 +180,7 @@ class unet3D(nn.Module):
         x = self.x1_resb(x)
 
         logits = self.precls_conv(x)
-        
+
         # return logits, feat
         return logits
 

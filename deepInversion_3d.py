@@ -1,5 +1,5 @@
 import argparse
-import os, sys
+import os
 import timeit
 
 import torch
@@ -8,7 +8,7 @@ import torch.backends.cudnn as cudnn
 import numpy as np
 import nibabel as nib
 
-from unet3D import UNet3D
+from model.unet3D import UNet3D
 
 start = timeit.default_timer()
 
@@ -86,7 +86,7 @@ def get_arguments():
     parser.add_argument("--itrs_each_epoch", type=int, default=250)
     parser.add_argument("--num_imgs", type=int, default=1)  # 500
     parser.add_argument("--num_epochs", type=int, default=500)
-    parser.add_argument("--input_size", type=str, default='64,192,192')
+    parser.add_argument("--input_size", type=str, default='64,256,256')
     parser.add_argument("--batch_size", type=int, default=1)
     parser.add_argument("--learning_rate", type=float, default=1e-3)
     parser.add_argument("--num_classes", type=int, default=5)
@@ -168,7 +168,7 @@ def main():
             rescale = [10] + [1. for _ in range(len(loss_r_feature_layers) - 1)]
             bn_diff = [mod.r_feature * rescale[idx] for (idx, mod) in enumerate(loss_r_feature_layers)]
             loss_bn = sum(bn_diff) / len(loss_r_feature_layers)
-            loss = loss_bn * 10 + loss_var_l1 * 10 + loss_var_l2 * 1  # + frac
+            loss = loss_bn * 1 + loss_var_l1 * 0.01 + loss_var_l2 * 0.001  # + frac
             loss.backward()
 
             optimizer.step()

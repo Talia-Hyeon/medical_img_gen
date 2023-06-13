@@ -49,8 +49,8 @@ def find_best_view(img):
 
 
 def evaluate(model, test_data_loader, num_class, device):
-    # path = os.path.join('./fig', 'prediction_map')
-    path = os.path.join('./fig', 'prediction_map_fake')
+    path = os.path.join('./fig', 'prediction_map')
+    # path = os.path.join('./fig', 'prediction_map_fake')
     os.makedirs(path, exist_ok=True)
 
     metrics = Score(num_class)

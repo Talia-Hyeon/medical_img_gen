@@ -16,16 +16,13 @@ from batchgenerators.transforms.abstract_transforms import Compose
 
 
 class FLAREDataSet(data.Dataset):
-    def __init__(self, root, split='train', train_crop_size=(64, 192, 192), test_crop_size=(64, 256, 256),
-                 mean=(128, 128, 128), ignore_label=255):
+    def __init__(self, root, split='train', crop_size=(64, 256, 256), mean=(128, 128, 128), ignore_label=255):
+        # train_crop_size=(64, 192, 192)
         self.root = root
-        self.split = split
-        if self.split == 'train':
-            self.crop_d, self.crop_h, self.crop_w = train_crop_size
-        else:
-            self.crop_d, self.crop_h, self.crop_w = train_crop_size
+        self.crop_d, self.crop_h, self.crop_w = crop_size
         self.mean = mean
         self.ignore_label = ignore_label
+        self.split = split
         self.files = []
 
         # spacing = [0.8, 0.8, 1.5]
@@ -53,11 +50,11 @@ class FLAREDataSet(data.Dataset):
             })
 
         # split train/val set
-        train_X, val_X = train_test_split(all_files, test_size=0.20, shuffle=True, random_state=0)
+        train_data, val_data = train_test_split(all_files, test_size=0.20, shuffle=True, random_state=0)
         if self.split == 'train':
-            self.files = train_X
+            self.files = train_data
         else:
-            self.files = val_X
+            self.files = val_data
 
         print('{} images are loaded!'.format(len(self.files)))
 
@@ -73,56 +70,59 @@ class FLAREDataSet(data.Dataset):
         label = labelNII.get_fdata()
         name = datafiles["name"]
 
+        # scale
         if self.split == 'train' and np.random.uniform() < 0.2:
             scaler = np.random.uniform(0.7, 1.4)
         else:
             scaler = 1
 
+        # pad
         image = pad_image(image, [self.crop_h * scaler, self.crop_w * scaler, self.crop_d * scaler])
         label = pad_image(label, [self.crop_h * scaler, self.crop_w * scaler, self.crop_d * scaler])
 
+        # crop
         [h0, h1, w0, w1, d0, d1] = locate_bbx(self.crop_d, self.crop_h, self.crop_w,
                                               label, scaler, datafiles["bbx"])
         image = image[h0: h1, w0: w1, d0: d1]
         label = label[h0: h1, w0: w1, d0: d1]
 
-        image = truncate(image)
-        label = self.id2trainId(label)
+        # normalization
+        image = truncate(image)  # -1 <= image <= 1
 
+        # add channel
         image = image[np.newaxis, :]
+        label = label[np.newaxis, :]
 
-        image = image.transpose((0, 3, 1, 2))  # Channel x Depth x H x W
-        label = label.transpose((0, 3, 1, 2))  # Channel x Depth x H x W
+        # Channel x Depth x H x W
+        image = image.transpose((0, 3, 1, 2))
+        label = label.transpose((0, 3, 1, 2))
 
+        # 50% flip
         if self.split == 'train':
-            if np.random.rand(1) <= 0.5:  # flip W
+            if np.random.rand(1) <= 0.5:  # W
                 image = image[:, :, :, ::-1]
                 label = label[:, :, :, ::-1]
-            if np.random.rand(1) <= 0.5:
+            if np.random.rand(1) <= 0.5:  # H
                 image = image[:, :, ::-1, :]
                 label = label[:, :, ::-1, :]
-            if np.random.rand(1) <= 0.5:
+            if np.random.rand(1) <= 0.5:  # D
                 image = image[:, ::-1, :, :]
                 label = label[:, ::-1, :, :]
 
+        # adjust shape
         d, h, w = image.shape[-3:]
         if scaler != 1 or d != self.crop_d or h != self.crop_h or w != self.crop_w:
             image = resize(image, (1, self.crop_d, self.crop_h, self.crop_w), order=1, mode='constant', cval=0,
                            clip=True, preserve_range=True)
-            label = resize(label, (1, self.crop_d, self.crop_h, self.crop_w), order=0, mode='edge', cval=0, clip=True,
-                           preserve_range=True)
+            label = resize(label, (1, self.crop_d, self.crop_h, self.crop_w), order=0, mode='edge', cval=0,
+                           clip=True, preserve_range=True)
 
+        # extend label's channel to # of classes for loss fn
         label = extend_channel_classes(label)
 
         image = image.astype(np.float32)
         label = label.astype(np.float32)
         return image, label, name
-
-    def id2trainId(self, label):
-        shape = label.shape
-        results_map = np.zeros((1, shape[0], shape[1], shape[2])).astype(np.float32)
-        results_map[0, :, :, :] = label
-        return results_map
 
 
 def truncate(CT):
@@ -215,19 +215,20 @@ def get_train_transform():
 
     tr_transforms.append(GaussianNoiseTransform(p_per_sample=0.1, data_key="image"))
     tr_transforms.append(
-        GaussianBlurTransform(blur_sigma=(0.5, 1.), different_sigma_per_channel=True, p_per_channel=0.5,
-                              p_per_sample=0.2, data_key="image"))
+        GaussianBlurTransform(blur_sigma=(0.5, 1.), different_sigma_per_channel=True,
+                              p_per_channel=0.5, p_per_sample=0.2, data_key="image"))
     tr_transforms.append(BrightnessMultiplicativeTransform((0.75, 1.25), p_per_sample=0.15, data_key="image"))
-    tr_transforms.append(BrightnessTransform(0.0, 0.1, True, p_per_sample=0.15, p_per_channel=0.5, data_key="image"))
+    tr_transforms.append(BrightnessTransform(0.0, 0.1, True, p_per_sample=0.15,
+                                             p_per_channel=0.5, data_key="image"))
     tr_transforms.append(ContrastAugmentationTransform(p_per_sample=0.15, data_key="image"))
     tr_transforms.append(
-        SimulateLowResolutionTransform(zoom_range=(0.5, 1), per_channel=True, p_per_channel=0.5, order_downsample=0,
-                                       order_upsample=3, p_per_sample=0.25,
+        SimulateLowResolutionTransform(zoom_range=(0.5, 1), per_channel=True, p_per_channel=0.5,
+                                       order_downsample=0, order_upsample=3, p_per_sample=0.25,
                                        ignore_axes=None, data_key="image"))
-    tr_transforms.append(GammaTransform(gamma_range=(0.7, 1.5), invert_image=False, per_channel=True, retain_stats=True,
-                                        p_per_sample=0.15, data_key="image"))
+    tr_transforms.append(GammaTransform(gamma_range=(0.7, 1.5), invert_image=False, per_channel=True,
+                                        retain_stats=True, p_per_sample=0.15, data_key="image"))
 
-    # now we compose these transforms together
+    # compose these transforms together
     tr_transforms = Compose(tr_transforms)
     return tr_transforms
 
@@ -246,14 +247,14 @@ def my_collate(batch):
 
 
 if __name__ == '__main__':
-    # flare = FLAREDataSet(root='./dataset/FLARE21', split='train')
-    # img_, label_, name_ = flare[0]
+    flare = FLAREDataSet(root='../dataset/FLARE21', split='train')
+    img_, label_, name_ = flare[0]
     # print("img's shape: {}\nlabel's shape: {}".format(img_.shape, label_.shape))
 
-    flare = FLAREDataSet(root='./dataset/FLARE21', split='train')
-    train_loader = data.DataLoader(dataset=flare, batch_size=1, shuffle=False, num_workers=4, collate_fn=my_collate)
-    for train_iter, pack in enumerate(train_loader):
-        img_ = pack['image']
-        label_ = pack['label']
-        name_ = pack['name']
-        print("img's shape: {}\nlabel's shape: {}".format(img_.shape, label_.shape))
+    # flare = FLAREDataSet(root='../dataset/FLARE21', split='train')
+    # train_loader = data.DataLoader(dataset=flare, batch_size=1, shuffle=False, num_workers=4, collate_fn=my_collate)
+    # for train_iter, pack in enumerate(train_loader):
+    #     img_ = pack['image']
+    #     label_ = pack['label']
+    #     name_ = pack['name']
+    #     print("img's shape: {}\nlabel's shape: {}".format(img_.shape, label_.shape))

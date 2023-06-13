@@ -1,15 +1,6 @@
-import os
-import os.path as osp
-import random
-import math
-
 import torch
-from torch.utils import data
-import numpy as np
-import nibabel as nib
-from sklearn.model_selection import train_test_split
 
-from flare21_ import *
+from flare21 import *
 
 # 0: background
 BTCV_label_num = {
@@ -82,22 +73,29 @@ class BTCVDataSet(data.Dataset):
         label = labelNII.get_fdata()
         name = datafiles["name"]
 
+        # pad
         image = pad_image(image, [self.crop_h, self.crop_w, self.crop_d])
         label = pad_image(label, [self.crop_h, self.crop_w, self.crop_d])
 
+        # crop
         [h0, h1, w0, w1, d0, d1] = locate_bbx(self.crop_d, self.crop_h, self.crop_w,
                                               label, 1, datafiles["bbx"])
         image = image[h0: h1, w0: w1, d0: d1]
         label = label[h0: h1, w0: w1, d0: d1]
 
-        image = truncate(image)
+        # normalization & redefine label
+        image = truncate(image)  # -1 <= image <= 1
         label = self.id2trainId(label)
 
+        # add channel
         image = image[np.newaxis, :]
+        label = label[np.newaxis, :]
 
-        image = image.transpose((0, 3, 1, 2))  # Channel x Depth x H x W
+        # Channel x Depth x H x W
+        image = image.transpose((0, 3, 1, 2))
         label = label.transpose((0, 3, 1, 2))
 
+        # adjust shape
         d, h, w = image.shape[-3:]
         if d != self.crop_d or h != self.crop_h or w != self.crop_w:
             image = resize(image, (1, self.crop_d, self.crop_h, self.crop_w), order=1, mode='constant', cval=0,
@@ -105,6 +103,7 @@ class BTCVDataSet(data.Dataset):
             label = resize(label, (1, self.crop_d, self.crop_h, self.crop_w), order=0, mode='edge', cval=0, clip=True,
                            preserve_range=True)
 
+        # extend label's channel to # of classes for loss fn
         label = extend_channel_classes(label)
 
         image = image.astype(np.float32)
@@ -127,18 +126,14 @@ class BTCVDataSet(data.Dataset):
         label[np.where(label == 6)] = 1
         # pancreas to 4
         label[np.where(label == 11)] = 4
-
-        shape = label.shape
-        results_map = np.zeros((1, shape[0], shape[1], shape[2])).astype(np.float32)
-        results_map[0, :, :, :] = label
-        return results_map
+        return label
 
 
 if __name__ == '__main__':
-    btcv = BTCVDataSet(root='./dataset/BTCV/Trainset')
+    btcv = BTCVDataSet(root='../dataset/BTCV/Trainset')
     img_, label_, name_, label_aff = btcv[0]
-    print("affine's type: {}".format(type(label_aff)))
-    # flare = BTCVDataSet(root='./dataset/FLARE21')
+    print("img's shape: {}\nlabel's shape: {}".format(img_.shape,label_.shape))
+    # flare = BTCVDataSet(root='../dataset/FLARE21')
     # valid_loader = data.DataLoader(dataset=flare, batch_size=1, shuffle=False, num_workers=0)
     # for train_iter, pack in enumerate(valid_loader):
     #     img_ = pack[0]

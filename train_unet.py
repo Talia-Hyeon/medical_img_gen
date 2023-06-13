@@ -1,17 +1,15 @@
 import os
 from time import time
 
+import matplotlib.pyplot as plt
 import torch
 from torch.utils.data import DataLoader
-import matplotlib.pyplot as plt
 
-from btcv import BTCVDataSet
-from flare21 import FLAREDataSet
-from pseudo_img import FAKEDataSet
-from unet3D import UNet3D
-from loss_functions.loss import *
-from loss_functions.score import *
+from data.flare21 import FLAREDataSet
 from flare21 import my_collate
+from data.pseudo_img import FAKEDataSet
+from model.unet3D import UNet3D
+from loss_functions.score import *
 
 
 def main():
@@ -20,9 +18,8 @@ def main():
     device = torch.device('cuda:2') if torch.cuda.is_available() else torch.device('cpu')
 
     # Hyper-parameters
-    num_epochs = 100
+    num_epochs = 150
     n_classes = 5
-    train_batch_size = 2
 
     model = UNet3D(num_classes=n_classes)
     model.to(device)
@@ -30,26 +27,26 @@ def main():
     optimizer = torch.optim.Adam(model.parameters(), lr=0.0001)  # weight_decay=0.0001
     lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=10, gamma=0.9)
 
-    loss_function = CELoss4MOTS(num_classes=n_classes)
+    loss_function = CELoss(num_classes=n_classes)
     loss_function.to(device)
 
-    # # real data loader
-    # train_path = './dataset/FLARE21'
-    # train_data = FLAREDataSet(root=train_path, split='train')
-    # valid_data = BTCVDataSet(root=train_path, split='val')
-    #
-    # train_loader = DataLoader(dataset=train_data, batch_size=1, shuffle=True,
-    #                           num_workers=4, collate_fn=my_collate)
-    # valid_loader = DataLoader(dataset=valid_data, batch_size=1, shuffle=False, num_workers=4)
-
-    # fake data loader
-    train_path = './sample'
-    train_data = FAKEDataSet(root=train_path, split='train')
-    valid_data = FAKEDataSet(root=train_path, split='val')
+    # real data loader
+    train_path = '../dataset/FLARE21'
+    train_data = FLAREDataSet(root=train_path, split='train')
+    valid_data = FLAREDataSet(root=train_path, split='val')
 
     train_loader = DataLoader(dataset=train_data, batch_size=1, shuffle=True,
                               num_workers=4, collate_fn=my_collate)
     valid_loader = DataLoader(dataset=valid_data, batch_size=1, shuffle=False, num_workers=4)
+
+    # # fake data loader
+    # train_path = './sample'
+    # train_data = FAKEDataSet(root=train_path, split='train')
+    # valid_data = FAKEDataSet(root=train_path, split='val')
+    #
+    # train_loader = DataLoader(dataset=train_data, batch_size=1, shuffle=True,
+    #                           num_workers=4, collate_fn=my_collate)
+    # valid_loader = DataLoader(dataset=valid_data, batch_size=1, shuffle=False, num_workers=4)
 
     # setup metrics
     metrics = Score(n_classes)
@@ -73,19 +70,17 @@ def main():
             label = torch.tensor(label).to(device)
 
             pred = model(img)
-            pred = torch.sigmoid(pred)
-
             loss = loss_function(pred, label)
-            train_loss_meter.update(loss.item(), train_batch_size)
+            train_loss_meter.update(loss.item())
 
             optimizer.zero_grad()
             loss.backward()
             optimizer.step()
 
-            if (train_iter + 1) % (len(train_loader) // 5) == 0:
+            if (train_iter + 1) % (len(train_loader) // 10) == 0:
                 iter_end = time()
-                print(
-                    f'Epoch: {epoch + 1}/{num_epochs} | Iters: {train_iter + 1} | Train loss: {loss.item():.4f} | Time: {(iter_end - iter_start):.4f}')
+                print('Epoch: {}/{} | Iters: {} | Train loss: {:.4f} | Time: {:.4f}'.format(
+                    epoch + 1, num_epochs, train_iter + 1, loss.item(), (iter_end - iter_start)))
                 # newly check iter. start time
                 iter_start = time()
 
@@ -101,7 +96,6 @@ def main():
                 label_val = pack[1].to(device)
 
                 pred_val = model(img_val)
-                pred_val = torch.sigmoid(pred_val)
                 val_loss = loss_function(pred_val, label_val)
                 val_loss_meter.update(val_loss.item())
 
@@ -111,7 +105,8 @@ def main():
 
             val_loss_l.append(val_loss_meter.avg)
             val_end = time()
-            print(f'Epoch: {epoch + 1} | Valid loss: {val_loss.item():.4f} | Time: {(val_end - val_start):.4f}')
+            print('Epoch: {} | Valid loss: {:.4f} | Time: {:.4f}'.format(
+                epoch + 1, val_loss.item(), (val_end - val_start)))
 
         lr_scheduler.step()
 
@@ -121,8 +116,16 @@ def main():
 
         if score_dic['Mean IoU'] >= best_iou:
             best_iou = score_dic['Mean IoU']
-            # torch.save(model.state_dict(), f'./save_model/best_model.pth')
-            torch.save(model.state_dict(), f'./save_model/best_model_fake.pth')
+            torch.save(model.state_dict(), f'./save_model/best_model.pth')
+            # torch.save(model.state_dict(), f'./save_model/best_model_fake.pth')
+
+        elif epoch % 20 == 0:
+            torch.save((model.state_dict(), f'./save_model/{epoch}_model.pth'))
+            # torch.save((model.state_dict(), f'./save_model/{epoch}_model_fake.pth'))
+
+        elif epoch == num_epochs - 1:
+            torch.save((model.state_dict(), f'./save_model/last_model.pth'))
+            # torch.save((model.state_dict(), f'./save_model/last_model_fake.pth'))
 
         epoch_end = time()
 
@@ -130,13 +133,13 @@ def main():
 
     plt.plot(epoch_l, train_loss_l, 'ro--', label='train')
     plt.plot(epoch_l, val_loss_l, 'bo--', label='validation')
-    # plt.title('Real data')
-    plt.title('Fake data')
+    plt.title('Real data')
+    # plt.title('Fake data')
     plt.xlabel('Epoch')
     plt.ylabel('Loss')
     plt.legend(loc='upper right')
-
-    plt.savefig(f'./fig/loss.png')
+    plt.savefig(f'./fig/pretrained_loss.png')
+    # plt.savefig(f'./fig/fake_loss.png')
     plt.close()
 
 
