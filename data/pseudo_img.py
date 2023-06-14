@@ -1,11 +1,11 @@
 import matplotlib.pyplot as plt
 
 from test_unet import find_best_view, decode_segmap
-from flare21 import *
+from data.flare21 import *
 
 
 class FAKEDataSet(data.Dataset):
-    def __init__(self, root, crop_size=(64, 256, 256), mean=(128, 128, 128), ignore_label=255, split='train'):
+    def __init__(self, root, crop_size=(64, 192, 192), mean=(128, 128, 128), ignore_label=255, split='train'):
         self.root = root
         self.crop_d, self.crop_h, self.crop_w = crop_size
         self.mean = mean

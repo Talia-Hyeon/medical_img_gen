@@ -200,7 +200,7 @@ def pad_image(img, target_size):
 
 def extend_channel_classes(label):
     label_list = []
-    for i in range(5):
+    for i in range(1, 5):
         label_i = label.copy()
         label_i[label == i] = 1
         label_i[label != i] = 0

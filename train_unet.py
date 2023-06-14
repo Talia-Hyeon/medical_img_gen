@@ -120,11 +120,11 @@ def main():
             # torch.save(model.state_dict(), f'./save_model/best_model_fake.pth')
 
         elif epoch % 20 == 0:
-            torch.save((model.state_dict(), f'./save_model/{epoch}_model.pth'))
+            torch.save(model.state_dict(), f'./save_model/{epoch}_model.pth')
             # torch.save((model.state_dict(), f'./save_model/{epoch}_model_fake.pth'))
 
         elif epoch == num_epochs - 1:
-            torch.save((model.state_dict(), f'./save_model/last_model.pth'))
+            torch.save(model.state_dict(), f'./save_model/last_model.pth')
             # torch.save((model.state_dict(), f'./save_model/last_model_fake.pth'))
 
         epoch_end = time()

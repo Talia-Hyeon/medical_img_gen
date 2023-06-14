@@ -1,6 +1,6 @@
 import torch
 
-from flare21 import *
+from data.flare21 import *
 
 # 0: background
 BTCV_label_num = {
@@ -20,7 +20,7 @@ BTCV_label_num = {
 }
 
 valid_dataset = {
-    'background': 0,
+    # 'background': 0,
     'liver': 1,
     'kidney': 2,
     'spleen': 3,
