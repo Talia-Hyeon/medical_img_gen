@@ -6,7 +6,7 @@ import torch
 from torch.utils.data import DataLoader
 
 from data.flare21 import FLAREDataSet
-from flare21 import my_collate
+from data.flare21 import my_collate
 from data.pseudo_img import FAKEDataSet
 from model.unet3D import UNet3D
 from loss_functions.score import *
@@ -31,7 +31,7 @@ def main():
     loss_function.to(device)
 
     # real data loader
-    train_path = '../dataset/FLARE21'
+    train_path = './dataset/FLARE21'
     train_data = FLAREDataSet(root=train_path, split='train')
     valid_data = FLAREDataSet(root=train_path, split='val')
 

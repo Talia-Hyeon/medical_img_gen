@@ -54,7 +54,7 @@ class averageMeter(object):
 
 
 class CELoss(nn.Module):
-    def __init__(self, ignore_index=None, num_classes=3, **kwargs):
+    def __init__(self, ignore_index=None, num_classes=4, **kwargs):
         super(CELoss, self).__init__()
         self.kwargs = kwargs
         self.num_classes = num_classes

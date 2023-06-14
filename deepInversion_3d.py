@@ -86,7 +86,7 @@ def get_arguments():
     parser.add_argument("--itrs_each_epoch", type=int, default=250)
     parser.add_argument("--num_imgs", type=int, default=1)  # 500
     parser.add_argument("--num_epochs", type=int, default=500)
-    parser.add_argument("--input_size", type=str, default='64,256,256')
+    parser.add_argument("--input_size", type=str, default='64,192,192')
     parser.add_argument("--batch_size", type=int, default=1)
     parser.add_argument("--learning_rate", type=float, default=1e-3)
     parser.add_argument("--num_classes", type=int, default=5)

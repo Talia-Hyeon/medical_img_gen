@@ -29,7 +29,7 @@ valid_dataset = {
 
 
 class BTCVDataSet(data.Dataset):
-    def __init__(self, root, crop_size=(64, 256, 256), mean=(128, 128, 128), ignore_label=255):
+    def __init__(self, root, crop_size=(64, 192, 192), mean=(128, 128, 128), ignore_label=255):
         self.root = root
         self.crop_d, self.crop_h, self.crop_w = crop_size
         self.ignore_label = ignore_label
