@@ -1,6 +1,7 @@
 import numpy as np
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 
 
 class Score:
@@ -83,6 +84,60 @@ class CELoss(nn.Module):
                 ce_loss_avg = ce_loss[target[:, i, 0, 0, 0] != -1].sum() / ce_loss[target[:, i, 0, 0, 0] != -1].shape[0]
 
                 total_loss.append(ce_loss_avg)
+
+        total_loss = torch.stack(total_loss)
+        total_loss = total_loss[total_loss == total_loss]
+
+        return total_loss.sum() / total_loss.shape[0]
+
+
+class BinaryDiceScore(nn.Module):
+    def __init__(self, smooth=1e-5, p=2, reduction='mean'):
+        super(BinaryDiceScore, self).__init__()
+        self.smooth = smooth
+        # self.p = p
+        # self.reduction = reduction
+
+    def forward(self, predict, target):
+        assert predict.shape[0] == target.shape[0], "predict & target batch size don't match"
+        predict = predict.contiguous().view(predict.shape[0], -1)
+        target = target.contiguous().view(target.shape[0], -1)
+
+        intersection = torch.sum(torch.mul(predict, target), dim=1)
+        union = torch.sum(predict, dim=1) + torch.sum(target, dim=1)
+
+        dice_score = 2 * intersection / (union + self.smooth)
+
+        # dice_loss = 1 - dice_score
+        # dice_loss_avg = dice_loss[target[:, 0] != -1].sum() / dice_loss[target[:, 0] != -1].shape[0]
+
+        return dice_score
+
+
+class DiceScore(nn.Module):
+    def __init__(self, weight=None, ignore_index=None, num_classes=4, **kwargs):
+        super(DiceScore, self).__init__()
+        self.kwargs = kwargs
+        self.weight = weight
+        self.ignore_index = ignore_index
+        self.num_classes = num_classes
+        self.dice = BinaryDiceScore(**self.kwargs)
+
+    def forward(self, predict, target, is_sigmoid=True):
+
+        total_loss = []
+        if is_sigmoid:
+            predict = F.sigmoid(predict)
+
+        for i in range(self.num_classes):
+            if i != self.ignore_index:
+                # set_trace()
+                dice_score = self.dice(predict[:, i], target[:, i])
+                if self.weight is not None:
+                    assert self.weight.shape[0] == self.num_classes, \
+                        'Expect weight shape [{}], get[{}]'.format(self.num_classes, self.weight.shape[0])
+                    dice_score *= self.weights[i]
+                total_loss.append(dice_score)
 
         total_loss = torch.stack(total_loss)
         total_loss = total_loss[total_loss == total_loss]

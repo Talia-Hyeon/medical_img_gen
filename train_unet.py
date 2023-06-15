@@ -32,8 +32,8 @@ def main():
 
     # real data loader
     train_path = './dataset/FLARE21'
-    train_data = FLAREDataSet(root=train_path, split='train')
-    valid_data = FLAREDataSet(root=train_path, split='val')
+    train_data = FLAREDataSet(root=train_path, split='train', task_id=4)
+    valid_data = FLAREDataSet(root=train_path, split='val', task_id=4)
 
     train_loader = DataLoader(dataset=train_data, batch_size=1, shuffle=True,
                               num_workers=4, collate_fn=my_collate)
@@ -41,8 +41,8 @@ def main():
 
     # # fake data loader
     # train_path = './sample'
-    # train_data = FAKEDataSet(root=train_path, split='train')
-    # valid_data = FAKEDataSet(root=train_path, split='val')
+    # train_data = FAKEDataSet(root=train_path, split='train', task_id=4)
+    # valid_data = FAKEDataSet(root=train_path, split='val', task_id=4)
     #
     # train_loader = DataLoader(dataset=train_data, batch_size=1, shuffle=True,
     #                           num_workers=4, collate_fn=my_collate)
@@ -50,6 +50,7 @@ def main():
 
     # setup metrics
     metrics = Score(n_classes)
+
     val_loss_meter = averageMeter()
     train_loss_meter = averageMeter()
     best_iou = -100.0

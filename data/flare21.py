@@ -16,13 +16,15 @@ from batchgenerators.transforms.abstract_transforms import Compose
 
 
 class FLAREDataSet(data.Dataset):
-    def __init__(self, root, split='train', crop_size=(64, 192, 192), mean=(128, 128, 128), ignore_label=255):
+    def __init__(self, root, split='train', task_id=1, crop_size=(64, 192, 192), mean=(128, 128, 128),
+                 ignore_label=255):
         # test_crop_size=(64, 256, 256)
         self.root = root
+        self.split = split
+        self.task_id = task_id
         self.crop_d, self.crop_h, self.crop_w = crop_size
         self.mean = mean
         self.ignore_label = ignore_label
-        self.split = split
         self.files = []
 
         # spacing = [0.8, 0.8, 1.5]
@@ -118,7 +120,7 @@ class FLAREDataSet(data.Dataset):
                            clip=True, preserve_range=True)
 
         # extend label's channel to # of classes for loss fn
-        label = extend_channel_classes(label)
+        label = extend_channel_classes(label, self.task_id)
 
         image = image.astype(np.float32)
         label = label.astype(np.float32)
@@ -198,9 +200,9 @@ def pad_image(img, target_size):
     return padded_img
 
 
-def extend_channel_classes(label):
+def extend_channel_classes(label, num_classes):
     label_list = []
-    for i in range(1, 5):
+    for i in range(1, num_classes):
         label_i = label.copy()
         label_i[label == i] = 1
         label_i[label != i] = 0
@@ -247,11 +249,11 @@ def my_collate(batch):
 
 
 if __name__ == '__main__':
-    flare = FLAREDataSet(root='../dataset/FLARE21', split='train')
+    flare = FLAREDataSet(root='../dataset/FLARE21', split='train', task_id=4)
     img_, label_, name_ = flare[0]
     # print("img's shape: {}\nlabel's shape: {}".format(img_.shape, label_.shape))
 
-    # flare = FLAREDataSet(root='../dataset/FLARE21', split='train')
+    # flare = FLAREDataSet(root='../dataset/FLARE21', split='train', task_id=4)
     # train_loader = data.DataLoader(dataset=flare, batch_size=1, shuffle=False, num_workers=4, collate_fn=my_collate)
     # for train_iter, pack in enumerate(train_loader):
     #     img_ = pack['image']

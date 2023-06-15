@@ -29,8 +29,9 @@ valid_dataset = {
 
 
 class BTCVDataSet(data.Dataset):
-    def __init__(self, root, crop_size=(64, 192, 192), mean=(128, 128, 128), ignore_label=255):
+    def __init__(self, root, task_id=1, crop_size=(64, 192, 192), mean=(128, 128, 128), ignore_label=255):
         self.root = root
+        self.task_id = task_id
         self.crop_d, self.crop_h, self.crop_w = crop_size
         self.ignore_label = ignore_label
         self.mean = mean
@@ -104,7 +105,7 @@ class BTCVDataSet(data.Dataset):
                            preserve_range=True)
 
         # extend label's channel to # of classes for loss fn
-        label = extend_channel_classes(label)
+        label = extend_channel_classes(label, self.task_id)
 
         image = image.astype(np.float32)
         label = label.astype(np.float32)
@@ -130,11 +131,11 @@ class BTCVDataSet(data.Dataset):
 
 
 if __name__ == '__main__':
-    btcv = BTCVDataSet(root='../dataset/BTCV/Trainset')
+    btcv = BTCVDataSet(root='../dataset/BTCV/Trainset', task_id=4)
     img_, label_, name_, label_aff = btcv[0]
-    print("img's shape: {}\nlabel's shape: {}".format(img_.shape,label_.shape))
-    # flare = BTCVDataSet(root='../dataset/FLARE21')
-    # valid_loader = data.DataLoader(dataset=flare, batch_size=1, shuffle=False, num_workers=0)
+    print("img's shape: {}\nlabel's shape: {}".format(img_.shape, label_.shape))
+    # btcv = BTCVDataSet(root='../dataset/FLARE21', task_id=4)
+    # valid_loader = data.DataLoader(dataset=btcv, batch_size=1, shuffle=False, num_workers=0)
     # for train_iter, pack in enumerate(valid_loader):
     #     img_ = pack[0]
     #     label_ = pack[1]

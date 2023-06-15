@@ -5,8 +5,10 @@ from data.flare21 import *
 
 
 class FAKEDataSet(data.Dataset):
-    def __init__(self, root, crop_size=(64, 192, 192), mean=(128, 128, 128), ignore_label=255, split='train'):
+    def __init__(self, root, task_id=1, crop_size=(64, 192, 192), mean=(128, 128, 128), ignore_label=255,
+                 split='train'):
         self.root = root
+        self.task_id = task_id
         self.crop_d, self.crop_h, self.crop_w = crop_size
         self.mean = mean
         self.ignore_label = ignore_label
@@ -104,7 +106,7 @@ class FAKEDataSet(data.Dataset):
                            preserve_range=True)
 
         # extend label's channel to # of classes for loss fn
-        label = extend_channel_classes(label)
+        label = extend_channel_classes(label, self.task_id)
 
         image = image.astype(np.float32)
         label = label.astype(np.float32)
@@ -139,7 +141,7 @@ if __name__ == '__main__':
     save_path = '../fig/gen_img'
     os.makedirs(save_path, exist_ok=True)
     val_path = '../sample'
-    val_data = FAKEDataSet(root=val_path, split='val')
+    val_data = FAKEDataSet(root=val_path, split='val', task_id=4)
     val_loader = data.DataLoader(dataset=val_data, batch_size=1, shuffle=False, num_workers=4)
     for val_iter, pack in enumerate(val_loader):
         img_ = pack[0]

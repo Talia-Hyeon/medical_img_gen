@@ -117,7 +117,7 @@ if __name__ == '__main__':
 
     # dataloader
     data_path = './dataset/BTCV/Trainset'
-    test_data = BTCVDataSet(root=data_path)
+    test_data = BTCVDataSet(root=data_path, task_id=4)
     test_loader = DataLoader(dataset=test_data, batch_size=1, shuffle=False, num_workers=0)
 
     # model
