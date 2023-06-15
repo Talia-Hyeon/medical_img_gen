@@ -107,10 +107,6 @@ class BinaryDiceScore(nn.Module):
         union = torch.sum(predict, dim=1) + torch.sum(target, dim=1)
 
         dice_score = 2 * intersection / (union + self.smooth)
-
-        # dice_loss = 1 - dice_score
-        # dice_loss_avg = dice_loss[target[:, 0] != -1].sum() / dice_loss[target[:, 0] != -1].shape[0]
-
         return dice_score
 
 
@@ -141,8 +137,4 @@ class DiceScore(nn.Module):
                 total_loss.append(dice_score.item())
 
         total_loss = torch.tensor(total_loss)
-
-        # total_loss = torch.stack(total_loss)
-        # total_loss = total_loss[total_loss == total_loss]
-
-        return total_loss  # total_loss.sum() / total_loss.shape[0]
+        return total_loss
