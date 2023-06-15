@@ -15,11 +15,11 @@ from loss_functions.score import *
 def main():
     os.makedirs('./save_model', exist_ok=True)
     os.makedirs('./fig', exist_ok=True)
-    device = torch.device('cuda:2') if torch.cuda.is_available() else torch.device('cpu')
+    device = torch.device('cuda:7') if torch.cuda.is_available() else torch.device('cpu')
 
     # Hyper-parameters
-    num_epochs = 150
-    n_classes = 5
+    num_epochs = 10  # 150
+    n_classes = 4
 
     model = UNet3D(num_classes=n_classes)
     model.to(device)
@@ -31,7 +31,8 @@ def main():
     loss_function.to(device)
 
     # real data loader
-    train_path = './dataset/FLARE21'
+    # train_path = './test/FLARE21'
+    train_path = './test'
     train_data = FLAREDataSet(root=train_path, split='train', task_id=4)
     valid_data = FLAREDataSet(root=train_path, split='val', task_id=4)
 
@@ -49,11 +50,11 @@ def main():
     # valid_loader = DataLoader(dataset=valid_data, batch_size=1, shuffle=False, num_workers=4)
 
     # setup metrics
-    metrics = Score(n_classes)
-
+    # metrics = Score(n_classes)
     val_loss_meter = averageMeter()
     train_loss_meter = averageMeter()
-    best_iou = -100.0
+    metric = DiceScore()
+    best_dice = -100.0
 
     # training
     train_loss_l = []
@@ -78,7 +79,7 @@ def main():
             loss.backward()
             optimizer.step()
 
-            if (train_iter + 1) % (len(train_loader) // 10) == 0:
+            if (train_iter + 1) % (len(train_loader) // 2) == 0:  # 10
                 iter_end = time()
                 print('Epoch: {}/{} | Iters: {} | Train loss: {:.4f} | Time: {:.4f}'.format(
                     epoch + 1, num_epochs, train_iter + 1, loss.item(), (iter_end - iter_start)))
@@ -92,35 +93,40 @@ def main():
         with torch.no_grad():
             model.eval()
             val_start = time()
+            dice_list = []
             for valid_iter, pack in enumerate(valid_loader):
                 img_val = pack[0].to(device)
                 label_val = pack[1].to(device)
-
                 pred_val = model(img_val)
+
                 val_loss = loss_function(pred_val, label_val)
                 val_loss_meter.update(val_loss.item())
 
-                ours = torch.argmax(pred_val, dim=1).cpu().numpy()
-                gt = torch.argmax(label_val, dim=1).cpu().numpy()
-                metrics.update(gt, ours)
+                iter_dice = metric(pred_val, label_val)
+                dice_list.append(iter_dice)
+                # ours = torch.argmax(pred_val, dim=1).cpu().numpy()
+                # gt = torch.argmax(label_val, dim=1).cpu().numpy()
+                # metrics.update(gt, ours)
 
             val_loss_l.append(val_loss_meter.avg)
+            total_dice = torch.stack(dice_list)
+            dice_score = torch.mean(total_dice, dim=0)
             val_end = time()
             print('Epoch: {} | Valid loss: {:.4f} | Time: {:.4f}'.format(
                 epoch + 1, val_loss.item(), (val_end - val_start)))
 
         lr_scheduler.step()
 
-        score_dic, cls_iu = metrics.get_scores()
-        metrics.reset()
+        # score_dic, cls_iu = metrics.get_scores()
+        # metrics.reset()
         val_loss_meter.reset()
 
-        if score_dic['Mean IoU'] >= best_iou:
-            best_iou = score_dic['Mean IoU']
+        if dice_score >= best_dice:
+            best_iou = dice_score
             torch.save(model.state_dict(), f'./save_model/best_model.pth')
             # torch.save(model.state_dict(), f'./save_model/best_model_fake.pth')
 
-        elif epoch % 20 == 0:
+        if epoch % 20 == 0:
             torch.save(model.state_dict(), f'./save_model/{epoch}_model.pth')
             # torch.save((model.state_dict(), f'./save_model/{epoch}_model_fake.pth'))
 

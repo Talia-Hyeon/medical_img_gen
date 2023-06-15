@@ -124,22 +124,25 @@ class DiceScore(nn.Module):
         self.dice = BinaryDiceScore(**self.kwargs)
 
     def forward(self, predict, target, is_sigmoid=True):
-
         total_loss = []
         if is_sigmoid:
             predict = F.sigmoid(predict)
 
         for i in range(self.num_classes):
             if i != self.ignore_index:
-                # set_trace()
                 dice_score = self.dice(predict[:, i], target[:, i])
+
                 if self.weight is not None:
                     assert self.weight.shape[0] == self.num_classes, \
                         'Expect weight shape [{}], get[{}]'.format(self.num_classes, self.weight.shape[0])
                     dice_score *= self.weights[i]
-                total_loss.append(dice_score)
 
-        total_loss = torch.stack(total_loss)
-        total_loss = total_loss[total_loss == total_loss]
+                dice_score = torch.mean(dice_score)
+                total_loss.append(dice_score.item())
 
-        return total_loss.sum() / total_loss.shape[0]
+        total_loss = torch.tensor(total_loss)
+
+        # total_loss = torch.stack(total_loss)
+        # total_loss = total_loss[total_loss == total_loss]
+
+        return total_loss  # total_loss.sum() / total_loss.shape[0]

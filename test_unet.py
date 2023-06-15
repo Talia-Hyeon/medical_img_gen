@@ -113,7 +113,7 @@ def evaluate(model, test_data_loader, num_class, device):
 
 
 if __name__ == '__main__':
-    n_classes = 5
+    n_classes = 4
 
     # dataloader
     data_path = './dataset/BTCV/Trainset'
