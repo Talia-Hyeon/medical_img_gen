@@ -15,14 +15,18 @@ from loss_functions.score import *
 def main():
     os.makedirs('./save_model', exist_ok=True)
     os.makedirs('./fig', exist_ok=True)
-    device = torch.device('cuda:7') if torch.cuda.is_available() else torch.device('cpu')
+
+    # device
+    os.environ['CUDA_DEVICE_ORDER'] = 'PCI_BUS_ID'
+    os.environ['CUDA_VISIBLE_DEVICES'] = '4,5,6,7'
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
     # Hyper-parameters
-    num_epochs = 150  # 150
+    num_epochs = 150
     n_classes = 4
 
     model = UNet3D(num_classes=n_classes)
-    model.to(device)
+    model = nn.DataParallel(model).to(device)
 
     optimizer = torch.optim.Adam(model.parameters(), lr=0.0001)  # weight_decay=0.0001
     lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=10, gamma=0.9)
@@ -35,7 +39,7 @@ def main():
     train_data = FLAREDataSet(root=train_path, split='train', task_id=4)
     valid_data = FLAREDataSet(root=train_path, split='val', task_id=4)
 
-    train_loader = DataLoader(dataset=train_data, batch_size=1, shuffle=True,
+    train_loader = DataLoader(dataset=train_data, batch_size=3, shuffle=True,
                               num_workers=4, collate_fn=my_collate)
     valid_loader = DataLoader(dataset=valid_data, batch_size=1, shuffle=False, num_workers=4)
 
@@ -52,7 +56,7 @@ def main():
     val_loss_meter = averageMeter()
     train_loss_meter = averageMeter()
     metric = DiceScore()
-    best_dice = -100.0
+    best_avg_dice = -100.0
 
     # training
     train_loss_l = []
@@ -106,7 +110,7 @@ def main():
             val_loss_l.append(val_loss_meter.avg)
             total_dice = torch.stack(dice_list)
             dice_score = torch.mean(total_dice, dim=0)
-            avg_dice = torch.mean(dice_score)
+            avg_dice = torch.mean(dice_score).item()
 
             val_end = time()
             print('Epoch: {} | Valid loss: {:.4f} | Time: {:.4f}'.format(
@@ -115,7 +119,8 @@ def main():
         lr_scheduler.step()
         val_loss_meter.reset()
 
-        if avg_dice >= best_dice:
+        if avg_dice >= best_avg_dice:
+            best_avg_dice = avg_dice
             best_dice = dice_score
             torch.save(model.state_dict(), f'./save_model/best_model.pth')
             # torch.save(model.state_dict(), f'./save_model/best_model_fake.pth')
@@ -130,7 +135,7 @@ def main():
 
         epoch_end = time()
 
-        print('Epoch: {} | Best MIoU: {} | Total Time: {:.4f}'.format(epoch + 1, best_dice, epoch_end - epoch_start))
+        print('Epoch: {} | Best Dice: {} | Total Time: {:.4f}'.format(epoch + 1, best_dice, epoch_end - epoch_start))
 
     plt.plot(epoch_l, train_loss_l, 'ro--', label='train')
     plt.plot(epoch_l, val_loss_l, 'bo--', label='validation')

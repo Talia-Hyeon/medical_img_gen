@@ -16,8 +16,8 @@ from batchgenerators.transforms.abstract_transforms import Compose
 
 
 class FLAREDataSet(data.Dataset):
-    def __init__(self, root, split='train', task_id=1, crop_size=(64, 192, 192), mean=(128, 128, 128),
-                 ignore_label=255):
+    def __init__(self, root, split='train', task_id=1, crop_size=(64, 192, 192),
+                 mean=(128, 128, 128), ignore_label=255):
         # test_crop_size=(64, 256, 256)
         self.root = root
         self.split = split
@@ -30,35 +30,28 @@ class FLAREDataSet(data.Dataset):
         # spacing = [0.8, 0.8, 1.5]
 
         print("Start preprocessing....")
-        # load data
+        # read path
         image_path = osp.join(self.root, 'TrainingImg')
         label_path = osp.join(self.root, 'TrainingMask')
-
         img_list = os.listdir(image_path)
-        all_files = []
-        for i, item in enumerate(img_list):
-            img_file = osp.join(image_path, item)
-            label_item = item.replace('_0000', '')
-            label_file = osp.join(label_path, label_item)
-
-            label = nib.load(label_file).get_fdata()
-            boud_h, boud_w, boud_d = np.where(label >= 1)  # background 아닌
-
-            all_files.append({
-                "image": img_file,
-                "label": label_file,
-                "name": item,
-                "bbx": [boud_h, boud_w, boud_d]
-            })
 
         # split train/val set
-        train_data, val_data = train_test_split(all_files, test_size=0.20, shuffle=True, random_state=0)
-        if self.split == 'train':
-            self.files = train_data
-        else:
-            self.files = val_data
+        train_data, rest_data = train_test_split(img_list, test_size=0.20, shuffle=True, random_state=0)
+        val_data, test_data = train_test_split(rest_data, test_size=0.50, shuffle=True, random_state=0)
 
-        print('{} images are loaded!'.format(len(self.files)))
+        if self.split == 'train':
+            all_files = load_data(train_data, image_path, label_path)
+            self.files = all_files
+
+        elif self.split == 'val':
+            all_files = load_data(val_data, image_path, label_path)
+            self.files = all_files
+
+        elif self.split == 'test':
+            all_files = load_data(test_data, image_path, label_path)
+            self.files = all_files
+
+        print("{}'s {} images are loaded!".format(self.split, len(self.files)))
 
     def __len__(self):
         return len(self.files)
@@ -125,6 +118,25 @@ class FLAREDataSet(data.Dataset):
         image = image.astype(np.float32)
         label = label.astype(np.float32)
         return image, label, name
+
+
+def load_data(data_l, image_path, label_path):
+    all_files = []
+    for i, item in enumerate(data_l):
+        img_file = osp.join(image_path, item)
+        label_item = item.replace('_0000', '')
+        label_file = osp.join(label_path, label_item)
+
+        label = nib.load(label_file).get_fdata()
+        boud_h, boud_w, boud_d = np.where(label >= 1)  # background 아닌
+
+        all_files.append({
+            "image": img_file,
+            "label": label_file,
+            "name": item,
+            "bbx": [boud_h, boud_w, boud_d]
+        })
+    return all_files
 
 
 def truncate(CT):
