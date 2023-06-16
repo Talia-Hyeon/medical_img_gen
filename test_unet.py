@@ -1,10 +1,11 @@
 import os
+import argparse
 
 import torch
 from torch.utils.data import DataLoader
 from matplotlib import pyplot as plt
 
-from data.btcv import BTCVDataSet
+from data.btcv import *
 from data.flare21 import FLAREDataSet
 from model.unet3D import UNet3D
 from loss_functions.score import *
@@ -107,25 +108,52 @@ def evaluate(model, test_data_loader, num_class, device):
 
     total_dice = torch.stack(dice_list)
     dice_score = torch.mean(total_dice, dim=0)
-
     return dice_score
 
 
+def print_dice(dice_score):
+    label_dict = {value: key for key, value in valid_dataset.items()}
+    avg_dice = avg_dice = torch.mean(dice_score).item()
+    dice_dict = {}
+    for i in range(1, len(label_dict) + 1):
+        organ = label_dict[i]
+        dice_dict[organ] = dice_score[i]
+
+    print(dice_dict)
+    print('Average_Dice_Score: {}'.format(avg_dice))
+
+
+def get_args():
+    parser = argparse.ArgumentParser(description="test_pretrained_UNet")
+    parser.add_argument("--num_classes", type=int, default=4)
+    parser.add_argument("--gpu", type=str, default='0,1,2,3')
+    parser.add_argument("--model_path", type=str, default='./save_model/best_model.pth')
+    return parser
+
+
 if __name__ == '__main__':
-    n_classes = 4
+    parser = get_args()
+    print(parser)
+    args = parser.parse_args()
+
+    # device
+    os.environ['CUDA_DEVICE_ORDER'] = 'PCI_BUS_ID'
+    os.environ['CUDA_VISIBLE_DEVICES'] = args.gpu
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+
+    n_classes = args.num_classes
 
     # dataloader
-    data_path = './dataset/BTCV/Trainset'
-    test_data = BTCVDataSet(root=data_path, task_id=4)
+    data_path = './dataset/FLARE21'
+    test_data = FLAREDataSet(root=data_path, split='test', task_id=4)
     test_loader = DataLoader(dataset=test_data, batch_size=1, shuffle=False, num_workers=4)
 
     # model
-    device = torch.device('cuda:0') if torch.cuda.is_available() else torch.device('cpu')
     model = UNet3D(num_classes=n_classes)
-    model.to(device)
-    # model.load_state_dict(torch.load(f'./save_model/best_model.pth'))
-    model.load_state_dict(torch.load(f'./save_model/best_model_fake.pth'))
+    checkpoint = torch.load(args.model_path)
+    model.load_state_dict(checkpoint['model'], strict=False)
+    model = nn.DataParallel(model).to(device)
 
     # evaluation
     dice = evaluate(model, test_loader, n_classes, device=device)
-
+    print_dice(dice)

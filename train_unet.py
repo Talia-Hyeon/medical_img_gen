@@ -132,7 +132,7 @@ def main():
             loss.backward()
             optimizer.step()
 
-            if (train_iter + 1) % (len(train_loader) // 10) == 0:
+            if (train_iter + 1) % 10 == 0:
                 iter_end = time()
                 print('Epoch: {}/{} | Iters: {} | Train loss: {:.4f} | Time: {:.4f}'.format(
                     epoch + 1, num_epochs, train_iter + 1, loss.item(), (iter_end - iter_start)))

@@ -19,6 +19,7 @@ BTCV_label_num = {
     'left adrenal gland': 13
 }
 
+global valid_dataset
 valid_dataset = {
     # 'background': 0,
     'liver': 1,
