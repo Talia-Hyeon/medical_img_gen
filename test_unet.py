@@ -5,6 +5,7 @@ from torch.utils.data import DataLoader
 from matplotlib import pyplot as plt
 
 from data.btcv import BTCVDataSet
+from data.flare21 import FLAREDataSet
 from model.unet3D import UNet3D
 from loss_functions.score import *
 
@@ -48,12 +49,45 @@ def find_best_view(img):
     return max_score_idx
 
 
+def visualization(img, label, pred, name, path):
+    img = img.cpu().numpy()
+    pred = torch.argmax(pred, dim=1).cpu().numpy()
+    gt = torch.argmax(label, dim=1).cpu().numpy()
+
+    img = np.squeeze(img, axis=0)
+    img = np.squeeze(img, axis=0)
+    pred = np.squeeze(pred, axis=0)
+    gt = np.squeeze(gt, axis=0)
+
+    max_score_idx = find_best_view(gt)
+    img = img[max_score_idx, :, :]
+    pred = pred[max_score_idx, :, :]
+    gt = gt[max_score_idx, :, :]
+
+    col_pred = decode_segmap(pred)
+    col_gt = decode_segmap(gt)
+
+    plt.figure()
+    plt.subplot(1, 3, 1)
+    plt.imshow(img, cmap='gray')
+    plt.title("Image")
+    plt.subplot(1, 3, 2)
+    plt.imshow(col_pred)
+    plt.title('Prediction Map')
+    plt.subplot(1, 3, 3)
+    plt.imshow(col_gt)
+    plt.title('Ground Truth')
+    plt.savefig(f'{path}/{name}.png')
+    plt.close()
+
+
 def evaluate(model, test_data_loader, num_class, device):
     path = os.path.join('./fig', 'prediction_map')
     # path = os.path.join('./fig', 'prediction_map_fake')
     os.makedirs(path, exist_ok=True)
 
-    metrics = Score(num_class)
+    metric = DiceScore()
+    dice_list = []
 
     with torch.no_grad():
         model.eval()
@@ -64,52 +98,17 @@ def evaluate(model, test_data_loader, num_class, device):
 
             img = img.to(device)
             label = label.to(device)
-
             pred = model(img)
-            pred = torch.sigmoid(pred)
 
-            img = img.cpu().numpy()
-            pred = torch.argmax(pred, dim=1).cpu().numpy()
-            gt = torch.argmax(label, dim=1).cpu().numpy()
-            metrics.update(gt, pred)
+            iter_dice = metric(pred, label)
+            dice_list.append(iter_dice)
 
-            # visualization
-            img = np.squeeze(img, axis=0)
-            img = np.squeeze(img, axis=0)
-            pred = np.squeeze(pred, axis=0)
-            gt = np.squeeze(gt, axis=0)
+            # visualization(img, label, pred, name, path)
 
-            max_score_idx = find_best_view(gt)
-            img = img[max_score_idx, :, :]
-            pred = pred[max_score_idx, :, :]
-            gt = gt[max_score_idx, :, :]
+    total_dice = torch.stack(dice_list)
+    dice_score = torch.mean(total_dice, dim=0)
 
-            col_pred = decode_segmap(pred)
-            col_gt = decode_segmap(gt)
-
-            plt.figure()
-            plt.subplot(1, 3, 1)
-            plt.imshow(img, cmap='gray')
-            plt.title("Image")
-            plt.subplot(1, 3, 2)
-            plt.imshow(col_pred)
-            plt.title('Prediction Map')
-            plt.subplot(1, 3, 3)
-            plt.imshow(col_gt)
-            plt.title('Ground Truth')
-            plt.savefig(f'{path}/{name}.png')
-            plt.close()
-
-    score_dic, cls_iu = metrics.get_scores()
-    for k, v in score_dic.items():
-        print(k, v)
-
-    for k, v in cls_iu.items():
-        print(k, v)
-
-    metrics.reset()
-
-    return score_dic['Mean IoU']
+    return dice_score
 
 
 if __name__ == '__main__':
@@ -118,7 +117,7 @@ if __name__ == '__main__':
     # dataloader
     data_path = './dataset/BTCV/Trainset'
     test_data = BTCVDataSet(root=data_path, task_id=4)
-    test_loader = DataLoader(dataset=test_data, batch_size=1, shuffle=False, num_workers=0)
+    test_loader = DataLoader(dataset=test_data, batch_size=1, shuffle=False, num_workers=4)
 
     # model
     device = torch.device('cuda:0') if torch.cuda.is_available() else torch.device('cpu')
@@ -128,5 +127,5 @@ if __name__ == '__main__':
     model.load_state_dict(torch.load(f'./save_model/best_model_fake.pth'))
 
     # evaluation
-    miou = evaluate(model, test_loader, n_classes, device=device)
-    print(f'MIoU Score: {miou}')
+    dice = evaluate(model, test_loader, n_classes, device=device)
+
