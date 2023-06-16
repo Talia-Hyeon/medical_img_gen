@@ -1,5 +1,6 @@
 import os
 from time import time
+import argparse
 
 import matplotlib.pyplot as plt
 import torch
@@ -12,27 +13,46 @@ from model.unet3D import UNet3D
 from loss_functions.score import *
 
 
+def get_args():
+    parser = argparse.ArgumentParser(description="train_pretrained_UNet")
+    parser.add_argument("--epoch", type=int, default=150)
+    parser.add_argument("--num_classes", type=int, default=4)
+    parser.add_argument("--gpu", type=str, default='1,2,3,4')
+    parser.add_argument("--pretrained_model", type=str, default=None)
+    parser.add_argument("--pretrained_epoch", type=int, default=0)
+    return parser
+
+
 def main():
     os.makedirs('./save_model', exist_ok=True)
     os.makedirs('./fig', exist_ok=True)
 
+    parser = get_args()
+    print(parser)
+    args = parser.parse_args()
+
     # device
     os.environ['CUDA_DEVICE_ORDER'] = 'PCI_BUS_ID'
-    os.environ['CUDA_VISIBLE_DEVICES'] = '4,5,6,7'
+    os.environ['CUDA_VISIBLE_DEVICES'] = args.gpu
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
     # Hyper-parameters
-    num_epochs = 150
-    n_classes = 4
+    num_epochs = args.epoch + args.pretrained_epoch
+    n_classes = args.num_classes
 
+    # define the model
     model = UNet3D(num_classes=n_classes)
+    if args.pretrained_model != None:
+        model.load_state_dict(torch.load(args.pretrained_model), strict=False)
     model = nn.DataParallel(model).to(device)
 
-    optimizer = torch.optim.Adam(model.parameters(), lr=0.0001)  # weight_decay=0.0001
-    lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=10, gamma=0.9)
-
+    # loss function
     loss_function = CELoss(num_classes=n_classes)
     loss_function.to(device)
+
+    # optimizer & lr_scheduler
+    optimizer = torch.optim.Adam(model.parameters(), lr=0.0001)  # weight_decay=0.0001
+    lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=10, gamma=0.9)
 
     # real data loader
     train_path = './dataset/FLARE21'
@@ -122,24 +142,26 @@ def main():
         if avg_dice >= best_avg_dice:
             best_avg_dice = avg_dice
             best_dice = dice_score
-            torch.save(model.state_dict(), f'./save_model/best_model.pth')
+            torch.save(model.state_dict(), f'./save_model/{epoch}_best_model.pth')
             # torch.save(model.state_dict(), f'./save_model/best_model_fake.pth')
 
         if epoch % 20 == 0:
             torch.save(model.state_dict(), f'./save_model/{epoch}_model.pth')
             # torch.save((model.state_dict(), f'./save_model/{epoch}_model_fake.pth'))
+            draw_loss_plot(epoch_l, train_loss_l, val_loss_l)
 
         elif epoch == num_epochs - 1:
-            torch.save(model.state_dict(), f'./save_model/last_model.pth')
+            torch.save(model.state_dict(), f'./save_model/{epoch}_last_model.pth')
             # torch.save((model.state_dict(), f'./save_model/last_model_fake.pth'))
 
         epoch_end = time()
-
         print('Epoch: {} | Best Dice: {} | Total Time: {:.4f}'.format(epoch + 1, best_dice, epoch_end - epoch_start))
 
+
+def draw_loss_plot(epoch_l, train_loss_l, val_loss_l):
     plt.plot(epoch_l, train_loss_l, 'ro--', label='train')
     plt.plot(epoch_l, val_loss_l, 'bo--', label='validation')
-    plt.title('Real data')
+    plt.title(f'Real data Epoch: {epoch_l[-1]}')
     # plt.title('Fake data')
     plt.xlabel('Epoch')
     plt.ylabel('Loss')
