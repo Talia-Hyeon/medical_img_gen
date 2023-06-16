@@ -112,7 +112,7 @@ class FLAREDataSet(data.Dataset):
             label = resize(label, (1, self.crop_d, self.crop_h, self.crop_w), order=0, mode='edge', cval=0,
                            clip=True, preserve_range=True)
 
-        # extend label's channel to # of classes for loss fn
+        # extend label's channel for val/test
         label = extend_channel_classes(label, self.task_id)
 
         image = image.astype(np.float32)

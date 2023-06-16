@@ -30,6 +30,7 @@ def draw_loss_plot(epoch_l, train_loss_l, val_loss_l):
     # plt.title('Fake data')
     plt.xlabel('Epoch')
     plt.ylabel('Loss')
+    plt.yscale('log')
     plt.legend(loc='upper right')
     plt.savefig(f'./fig/pretrained_loss.png')
     # plt.savefig(f'./fig/fake_loss.png')
