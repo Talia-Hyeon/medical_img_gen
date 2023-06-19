@@ -20,7 +20,7 @@ def get_args():
     parser.add_argument("--epoch", type=int, default=200)
     parser.add_argument("--num_classes", type=int, default=4)
     parser.add_argument("--task_id", type=int, default=4)
-    parser.add_argument("--batch_size", type=int, default=8)
+    parser.add_argument("--batch_size", type=int, default=12)
     parser.add_argument("--num_workers", type=int, default=16)
     parser.add_argument("--gpu", type=str, default='0,1,2,3')
     parser.add_argument("--pretrained_model", type=str, default=None)
@@ -97,7 +97,7 @@ def main():
 
     # real data loader
     flared_path = './dataset/FLARE21'
-    btcv_path = '../dataset/BTCV/Trainset'
+    btcv_path = './dataset/BTCV/Trainset'
     flared_train = FLAREDataSet(root=flared_path, split='train', task_id=task_id)
     flared_valid = FLAREDataSet(root=flared_path, split='val', task_id=task_id)
     btcv_train = BTCVDataSet(root=btcv_path, split='train', task_id=task_id)

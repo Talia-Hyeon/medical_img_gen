@@ -61,11 +61,9 @@ class CELoss(nn.Module):
 
 
 class BinaryDiceScore(nn.Module):
-    def __init__(self, smooth=1e-5, p=2, reduction='mean'):
+    def __init__(self, smooth=1e-5):
         super(BinaryDiceScore, self).__init__()
         self.smooth = smooth
-        # self.p = p
-        # self.reduction = reduction
 
     def forward(self, predict, target):
         assert predict.shape[0] == target.shape[0], "predict & target batch size don't match"

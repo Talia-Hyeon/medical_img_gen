@@ -51,10 +51,20 @@ def find_best_view(img):
 
 
 def visualization(img, label, pred, name, path):
-    img = img.cpu().numpy()
+    # add background channel
+    shape = label[:, 0].shape
+    backg = torch.zeros(shape)
+    backg = backg.unsqueeze(0)
+    pred = torch.cat((backg, pred), dim=1)
+    label = torch.cat((backg, label), dim=1)
+
+    # apply threshold
+    pred = torch.threshold(pred, 0.4, 0)
     pred = torch.argmax(pred, dim=1).cpu().numpy()
     gt = torch.argmax(label, dim=1).cpu().numpy()
+    img = img.cpu().numpy()
 
+    # remove batch, channel
     img = np.squeeze(img, axis=0)
     img = np.squeeze(img, axis=0)
     pred = np.squeeze(pred, axis=0)
@@ -121,6 +131,7 @@ def print_dice(dice_score):
 
     print(dice_dict)
     print('Average_Dice_Score: {}'.format(avg_dice))
+    return dice_dict
 
 
 def get_args():
