@@ -4,6 +4,7 @@ import argparse
 
 import matplotlib.pyplot as plt
 import torch
+import torch.optim as optim
 from torch.utils.data import DataLoader
 
 from data.flare21 import FLAREDataSet
@@ -17,7 +18,8 @@ def get_args():
     parser = argparse.ArgumentParser(description="train_pretrained_UNet")
     parser.add_argument("--epoch", type=int, default=200)
     parser.add_argument("--num_classes", type=int, default=4)
-    parser.add_argument("--gpu", type=str, default='1,2,3,4')
+    parser.add_argument("--task_id", type=int, default=4)
+    parser.add_argument("--gpu", type=str, default='0,1,2,3')
     parser.add_argument("--pretrained_model", type=str, default=None)
     parser.add_argument("--pretrained_epoch", type=int, default=0)
     return parser
@@ -62,11 +64,12 @@ def main():
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
     n_classes = args.num_classes
+    task_id = args.task_id
 
     # define model, optimizer, lr_scheduler
     model = UNet3D(num_classes=n_classes)
-    optimizer = torch.optim.Adam(model.parameters(), lr=0.0001)  # weight_decay=0.0001
-    lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=10, gamma=0.9)
+    optimizer = optim.Adam(model.parameters(), lr=0.0003)  # weight_decay=0.0001
+    lr_scheduler = optim.lr_scheduler.MultiStepLR(optimizer, milestones=[30, 50, 80, 100], gamma=0.5)
 
     # resume
     if args.pretrained_model != None:
@@ -88,12 +91,12 @@ def main():
 
     # real data loader
     train_path = './dataset/FLARE21'
-    train_data = FLAREDataSet(root=train_path, split='train', task_id=4)
-    valid_data = FLAREDataSet(root=train_path, split='val', task_id=4)
+    train_data = FLAREDataSet(root=train_path, split='train', task_id=task_id)
+    valid_data = FLAREDataSet(root=train_path, split='val', task_id=task_id)
 
-    train_loader = DataLoader(dataset=train_data, batch_size=3, shuffle=True,
-                              num_workers=4, collate_fn=my_collate)
-    valid_loader = DataLoader(dataset=valid_data, batch_size=1, shuffle=False, num_workers=4)
+    train_loader = DataLoader(dataset=train_data, batch_size=6, shuffle=True,
+                              num_workers=6, collate_fn=my_collate)
+    valid_loader = DataLoader(dataset=valid_data, batch_size=1, shuffle=False, num_workers=8)
 
     # # fake data loader
     # train_path = './sample'

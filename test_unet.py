@@ -87,7 +87,7 @@ def evaluate(model, test_data_loader, num_class, device):
     # path = os.path.join('./fig', 'prediction_map_fake')
     os.makedirs(path, exist_ok=True)
 
-    metric = DiceScore()
+    metric = DiceScore(num_classes=num_class)
     dice_list = []
 
     with torch.no_grad():
