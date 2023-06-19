@@ -25,7 +25,6 @@ class FLAREDataSet(data.Dataset):
         self.crop_d, self.crop_h, self.crop_w = crop_size
         self.mean = mean
         self.ignore_label = ignore_label
-        self.files = []
 
         # spacing = [0.8, 0.8, 1.5]
 
@@ -40,15 +39,15 @@ class FLAREDataSet(data.Dataset):
         val_data, test_data = train_test_split(rest_data, test_size=0.50, shuffle=True, random_state=0)
 
         if self.split == 'train':
-            all_files = load_data(train_data, image_path, label_path)
+            all_files = self.load_data(train_data, image_path, label_path)
             self.files = all_files
 
         elif self.split == 'val':
-            all_files = load_data(val_data, image_path, label_path)
+            all_files = self.load_data(val_data, image_path, label_path)
             self.files = all_files
 
         elif self.split == 'test':
-            all_files = load_data(test_data, image_path, label_path)
+            all_files = self.load_data(test_data, image_path, label_path)
             self.files = all_files
 
         print("{}'s {} images are loaded!".format(self.split, len(self.files)))
@@ -119,24 +118,23 @@ class FLAREDataSet(data.Dataset):
         label = label.astype(np.float32)
         return image, label, name
 
+    def load_data(self, data_l, image_path, label_path):
+        all_files = []
+        for i, item in enumerate(data_l):
+            img_file = osp.join(image_path, item)
+            label_item = item.replace('_0000', '')
+            label_file = osp.join(label_path, label_item)
 
-def load_data(data_l, image_path, label_path):
-    all_files = []
-    for i, item in enumerate(data_l):
-        img_file = osp.join(image_path, item)
-        label_item = item.replace('_0000', '')
-        label_file = osp.join(label_path, label_item)
+            label = nib.load(label_file).get_fdata()
+            boud_h, boud_w, boud_d = np.where(label >= 1)  # background 아닌
 
-        label = nib.load(label_file).get_fdata()
-        boud_h, boud_w, boud_d = np.where(label >= 1)  # background 아닌
-
-        all_files.append({
-            "image": img_file,
-            "label": label_file,
-            "name": item,
-            "bbx": [boud_h, boud_w, boud_d]
-        })
-    return all_files
+            all_files.append({
+                "image": img_file,
+                "label": label_file,
+                "name": item,
+                "bbx": [boud_h, boud_w, boud_d]
+            })
+        return all_files
 
 
 def truncate(CT):

@@ -5,10 +5,11 @@ import argparse
 import matplotlib.pyplot as plt
 import torch
 import torch.optim as optim
-from torch.utils.data import DataLoader
+from torch.utils.data import DataLoader, ConcatDataset
 
 from data.flare21 import FLAREDataSet
 from data.flare21 import my_collate
+from data.btcv import BTCVDataSet
 from data.pseudo_img import FAKEDataSet
 from model.unet3D import UNet3D
 from loss_functions.score import *
@@ -19,6 +20,8 @@ def get_args():
     parser.add_argument("--epoch", type=int, default=200)
     parser.add_argument("--num_classes", type=int, default=4)
     parser.add_argument("--task_id", type=int, default=4)
+    parser.add_argument("--batch_size", type=int, default=8)
+    parser.add_argument("--num_workers", type=int, default=16)
     parser.add_argument("--gpu", type=str, default='0,1,2,3')
     parser.add_argument("--pretrained_model", type=str, default=None)
     parser.add_argument("--pretrained_epoch", type=int, default=0)
@@ -63,8 +66,11 @@ def main():
     os.environ['CUDA_VISIBLE_DEVICES'] = args.gpu
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
+    # hyper-parameter
     n_classes = args.num_classes
     task_id = args.task_id
+    batch_size = args.batch_size
+    num_workers = args.num_workers
 
     # define model, optimizer, lr_scheduler
     model = UNet3D(num_classes=n_classes)
@@ -90,13 +96,18 @@ def main():
     loss_function.to(device)
 
     # real data loader
-    train_path = './dataset/FLARE21'
-    train_data = FLAREDataSet(root=train_path, split='train', task_id=task_id)
-    valid_data = FLAREDataSet(root=train_path, split='val', task_id=task_id)
+    flared_path = './dataset/FLARE21'
+    btcv_path = '../dataset/BTCV/Trainset'
+    flared_train = FLAREDataSet(root=flared_path, split='train', task_id=task_id)
+    flared_valid = FLAREDataSet(root=flared_path, split='val', task_id=task_id)
+    btcv_train = BTCVDataSet(root=btcv_path, split='train', task_id=task_id)
+    btcv_val = BTCVDataSet(root=btcv_path, split='val', task_id=task_id)
 
-    train_loader = DataLoader(dataset=train_data, batch_size=6, shuffle=True,
-                              num_workers=6, collate_fn=my_collate)
-    valid_loader = DataLoader(dataset=valid_data, batch_size=1, shuffle=False, num_workers=8)
+    train_data = ConcatDataset([flared_train, btcv_train])
+    val_data = ConcatDataset([flared_valid, btcv_val])
+    train_loader = DataLoader(dataset=train_data, batch_size=batch_size, shuffle=True,
+                              num_workers=num_workers, collate_fn=my_collate)
+    valid_loader = DataLoader(dataset=val_data, batch_size=1, shuffle=False, num_workers=num_workers)
 
     # # fake data loader
     # train_path = './sample'
@@ -110,7 +121,7 @@ def main():
     # setup metrics
     val_loss_meter = averageMeter()
     train_loss_meter = averageMeter()
-    metric = DiceScore()
+    metric = DiceScore(num_classes=n_classes)
     best_avg_dice = -100.0
 
     # training
