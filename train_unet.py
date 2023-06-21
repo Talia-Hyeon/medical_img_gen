@@ -24,7 +24,6 @@ def get_args():
     parser.add_argument("--num_workers", type=int, default=16)
     parser.add_argument("--gpu", type=str, default='0,1,2,3')
     parser.add_argument("--pretrained_model", type=str, default=None)
-    parser.add_argument("--pretrained_epoch", type=int, default=0)
     return parser
 
 

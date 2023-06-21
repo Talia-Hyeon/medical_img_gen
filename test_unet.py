@@ -2,7 +2,7 @@ import os
 import argparse
 
 import torch
-from torch.utils.data import DataLoader
+from torch.utils.data import DataLoader, ConcatDataset
 from matplotlib import pyplot as plt
 
 from data.btcv import *
@@ -13,10 +13,10 @@ from loss_functions.score import *
 
 def decode_segmap(temp):
     colors = [[0, 0, 0],  # "unlabelled"
-              [220, 20, 60],
+              [150, 0, 0],
               [0, 0, 142],
-              [0, 150, 20],
-              [0, 0, 230]]
+              [150, 170, 0],
+              [70, 0, 100]]
     label_colours = dict(zip(range(5), colors))  # key: label's index, value: color
 
     r = temp.copy()
@@ -53,13 +53,13 @@ def find_best_view(img):
 def visualization(img, label, pred, name, path):
     # add background channel
     shape = label[:, 0].shape
-    backg = torch.zeros(shape)
+    backg = torch.zeros(shape).to(device)
     backg = backg.unsqueeze(0)
     pred = torch.cat((backg, pred), dim=1)
     label = torch.cat((backg, label), dim=1)
 
     # apply threshold
-    pred = torch.threshold(pred, 0.4, 0)
+    pred = torch.threshold(pred, 0.1, 0)
     pred = torch.argmax(pred, dim=1).cpu().numpy()
     gt = torch.argmax(label, dim=1).cpu().numpy()
     img = img.cpu().numpy()
@@ -114,7 +114,7 @@ def evaluate(model, test_data_loader, num_class, device):
             iter_dice = metric(pred, label)
             dice_list.append(iter_dice)
 
-            # visualization(img, label, pred, name, path)
+            visualization(img, label, pred, name, path)
 
     total_dice = torch.stack(dice_list)
     dice_score = torch.mean(total_dice, dim=0)
@@ -125,8 +125,8 @@ def print_dice(dice_score):
     label_dict = {value: key for key, value in valid_dataset.items()}
     avg_dice = avg_dice = torch.mean(dice_score).item()
     dice_dict = {}
-    for i in range(1, len(label_dict) + 1):
-        organ = label_dict[i]
+    for i in range(len(label_dict)):
+        organ = label_dict[i + 1]
         dice_dict[organ] = dice_score[i]
 
     print(dice_dict)
@@ -137,8 +137,9 @@ def print_dice(dice_score):
 def get_args():
     parser = argparse.ArgumentParser(description="test_pretrained_UNet")
     parser.add_argument("--num_classes", type=int, default=4)
-    parser.add_argument("--gpu", type=str, default='0,1,2,3')
-    parser.add_argument("--model_path", type=str, default='./save_model/best_model.pth')
+    parser.add_argument("--num_workers", type=int, default=8)
+    parser.add_argument("--gpu", type=str, default='0')
+    parser.add_argument("--model_path", type=str, default='./save_model/199_last_model.pth')
     return parser
 
 
@@ -152,12 +153,17 @@ if __name__ == '__main__':
     os.environ['CUDA_VISIBLE_DEVICES'] = args.gpu
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
+    # hyper-parameter
     n_classes = args.num_classes
+    num_workers = args.num_workers
 
     # dataloader
-    data_path = './dataset/FLARE21'
-    test_data = FLAREDataSet(root=data_path, split='test', task_id=4)
-    test_loader = DataLoader(dataset=test_data, batch_size=1, shuffle=False, num_workers=4)
+    flared_path = './dataset/FLARE21'
+    btcv_path = './dataset/BTCV/Trainset'
+    flared_test = FLAREDataSet(root=flared_path, split='test', task_id=n_classes)
+    btcv_test = BTCVDataSet(root=btcv_path, split='test', task_id=n_classes)
+    test_data = ConcatDataset([flared_test, btcv_test])
+    test_loader = DataLoader(dataset=test_data, batch_size=1, shuffle=False, num_workers=num_workers)
 
     # model
     model = UNet3D(num_classes=n_classes)
