@@ -54,9 +54,6 @@ def save_model(path, model, optim, lr_sch, epoch):
 
 
 def main():
-    os.makedirs('./save_model', exist_ok=True)
-    os.makedirs('./fig', exist_ok=True)
-
     parser = get_args()
     print(parser)
     args = parser.parse_args()
@@ -72,10 +69,14 @@ def main():
     batch_size = args.batch_size
     num_workers = args.num_workers
 
+    # make directory
+    os.makedirs('./save_model', exist_ok=True)
+    os.makedirs('./fig', exist_ok=True)
+
     # define model, optimizer, lr_scheduler
     model = UNet3D(num_classes=n_classes)
     optimizer = optim.Adam(model.parameters(), lr=0.0003)  # weight_decay=0.0001
-    lr_scheduler = optim.lr_scheduler.MultiStepLR(optimizer, milestones=[30, 50, 80, 100], gamma=0.5)
+    lr_scheduler = optim.lr_scheduler.MultiStepLR(optimizer, milestones=[30, 50, 80, 100, 120], gamma=0.5)
 
     # resume
     if args.pretrained_model != None:
@@ -147,7 +148,7 @@ def main():
             loss.backward()
             optimizer.step()
 
-            if (train_iter + 1) % 10 == 0:
+            if (train_iter + 1) % 5 == 0:
                 iter_end = time()
                 print('Epoch: {}/{} | Iters: {} | Train loss: {:.4f} | Time: {:.4f}'.format(
                     epoch + 1, num_epochs, train_iter + 1, loss.item(), (iter_end - iter_start)))
