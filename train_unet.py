@@ -20,9 +20,9 @@ def get_args():
     parser.add_argument("--epoch", type=int, default=200)
     parser.add_argument("--num_classes", type=int, default=4)
     parser.add_argument("--task_id", type=int, default=4)
-    parser.add_argument("--batch_size", type=int, default=12)
-    parser.add_argument("--num_workers", type=int, default=16)
-    parser.add_argument("--gpu", type=str, default='0,1,2,3')
+    parser.add_argument("--batch_size", type=int, default=16)
+    parser.add_argument("--num_workers", type=int, default=48)
+    parser.add_argument("--gpu", type=str, default='0,1,2,3,4,5')
     parser.add_argument("--pretrained_model", type=str, default=None)
     return parser
 
@@ -31,13 +31,11 @@ def draw_loss_plot(epoch_l, train_loss_l, val_loss_l):
     plt.plot(epoch_l, train_loss_l, 'ro--', label='train')
     plt.plot(epoch_l, val_loss_l, 'bo--', label='validation')
     plt.title(f'Real data Epoch: {epoch_l[-1]}')
-    # plt.title('Fake data')
     plt.xlabel('Epoch')
     plt.ylabel('Loss')
     plt.yscale('log')
     plt.legend(loc='upper right')
     plt.savefig(f'./fig/pretrained_loss.png')
-    # plt.savefig(f'./fig/fake_loss.png')
     plt.close()
 
 
@@ -74,8 +72,9 @@ def main():
 
     # define model, optimizer, lr_scheduler
     model = UNet3D(num_classes=n_classes)
-    optimizer = optim.Adam(model.parameters(), lr=0.0003)  # weight_decay=0.0001
-    lr_scheduler = optim.lr_scheduler.MultiStepLR(optimizer, milestones=[30, 50, 80, 100, 120], gamma=0.5)
+    optimizer = optim.Adam(model.parameters(), lr=0.01, weight_decay=1e-5, betas=(0.9, 0.99))
+    lr_scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=60, gamma=0.5)
+    # lr_scheduler = optim.lr_scheduler.MultiStepLR(optimizer, milestones=[30, 50, 80, 100, 120], gamma=0.5)
 
     # resume
     if args.pretrained_model != None:
