@@ -21,8 +21,8 @@ def get_args():
     parser.add_argument("--num_classes", type=int, default=4)
     parser.add_argument("--task_id", type=int, default=4)
     parser.add_argument("--batch_size", type=int, default=16)
-    parser.add_argument("--num_workers", type=int, default=48)
-    parser.add_argument("--gpu", type=str, default='0,1,2,3,4,5')
+    parser.add_argument("--num_workers", type=int, default=4)
+    parser.add_argument("--gpu", type=str, default='0,1,2,3,4,5,6,7')
     parser.add_argument("--pretrained_model", type=str, default=None)
     return parser
 
@@ -73,8 +73,8 @@ def main():
     # define model, optimizer, lr_scheduler
     model = UNet3D(num_classes=n_classes)
     optimizer = optim.Adam(model.parameters(), lr=0.01, weight_decay=1e-5, betas=(0.9, 0.99))
-    lr_scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=60, gamma=0.5)
-    # lr_scheduler = optim.lr_scheduler.MultiStepLR(optimizer, milestones=[30, 50, 80, 100, 120], gamma=0.5)
+    # lr_scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=60, gamma=0.5)
+    lr_scheduler = optim.lr_scheduler.MultiStepLR(optimizer, milestones=[30, 50, 80, 100, 120], gamma=0.5)
 
     # resume
     if args.pretrained_model != None:
@@ -96,17 +96,17 @@ def main():
 
     # real data loader
     flared_path = './dataset/FLARE21'
-    btcv_path = './dataset/BTCV/Trainset'
+    # btcv_path = './dataset/BTCV/Trainset'
     flared_train = FLAREDataSet(root=flared_path, split='train', task_id=task_id)
     flared_valid = FLAREDataSet(root=flared_path, split='val', task_id=task_id)
-    btcv_train = BTCVDataSet(root=btcv_path, split='train', task_id=task_id)
-    btcv_val = BTCVDataSet(root=btcv_path, split='val', task_id=task_id)
+    # btcv_train = BTCVDataSet(root=btcv_path, split='train', task_id=task_id)
+    # btcv_val = BTCVDataSet(root=btcv_path, split='val', task_id=task_id)
 
-    train_data = ConcatDataset([flared_train, btcv_train])
-    val_data = ConcatDataset([flared_valid, btcv_val])
-    train_loader = DataLoader(dataset=train_data, batch_size=batch_size, shuffle=True,
+    # train_data = ConcatDataset([flared_train, btcv_train])
+    # val_data = ConcatDataset([flared_valid, btcv_val])
+    train_loader = DataLoader(dataset=flared_train, batch_size=batch_size, shuffle=True,
                               num_workers=num_workers, collate_fn=my_collate)
-    valid_loader = DataLoader(dataset=val_data, batch_size=1, shuffle=False, num_workers=num_workers)
+    valid_loader = DataLoader(dataset=flared_valid, batch_size=1, shuffle=False, num_workers=num_workers)
 
     # # fake data loader
     # train_path = './sample'

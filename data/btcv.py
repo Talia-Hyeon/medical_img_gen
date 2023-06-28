@@ -31,8 +31,9 @@ valid_dataset = {
 
 
 class BTCVDataSet(data.Dataset):
-    def __init__(self, root, split='train', task_id=1, crop_size=(64, 192, 192),
+    def __init__(self, root, split='train', task_id=1, crop_size=(192, 192, 192),
                  mean=(128, 128, 128), ignore_label=255):
+        # crop_size=(64, 192, 192)
         self.root = root
         self.split = split
         self.task_id = task_id

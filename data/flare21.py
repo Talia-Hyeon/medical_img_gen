@@ -16,7 +16,7 @@ from batchgenerators.transforms.abstract_transforms import Compose
 
 
 class FLAREDataSet(data.Dataset):
-    def __init__(self, root, split='train', task_id=1, crop_size=(64, 192, 192),
+    def __init__(self, root, split='train', task_id=1, crop_size=(192, 192, 192),
                  mean=(128, 128, 128), ignore_label=255):
         # test_crop_size=(64, 256, 256)
         self.root = root
