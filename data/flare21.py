@@ -196,7 +196,7 @@ def locate_bbx(crop_d, crop_h, crop_w, label, scaler, bbx):
 
 
 def center_crop_3d(image, label, crop_h, crop_w, crop_d):
-    height, width, depth = image.size()
+    height, width, depth = image.shape
     h0 = (height - crop_h) // 2
     h1 = h0 + crop_h
     w0 = (width - crop_w) // 2
