@@ -50,7 +50,7 @@ def find_best_view(img):
     return max_score_idx
 
 
-def visualization(img, label, pred, name, path):
+def visualization(img, label, pred, name, path, device):
     # add background channel
     shape = label[:, 0].shape
     backg = torch.zeros(shape).to(device)
@@ -114,7 +114,7 @@ def evaluate(model, test_data_loader, num_class, device):
             iter_dice = metric(pred, label)
             dice_list.append(iter_dice)
 
-            visualization(img, label, pred, name, path)
+            visualization(img, label, pred, name, path, device)
 
     total_dice = torch.stack(dice_list)
     dice_score = torch.mean(total_dice, dim=0)
@@ -123,7 +123,7 @@ def evaluate(model, test_data_loader, num_class, device):
 
 def print_dice(dice_score):
     label_dict = {value: key for key, value in valid_dataset.items()}
-    avg_dice = avg_dice = torch.mean(dice_score).item()
+    avg_dice = torch.mean(dice_score).item()
     dice_dict = {}
     for i in range(len(label_dict)):
         organ = label_dict[i + 1]

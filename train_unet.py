@@ -20,7 +20,7 @@ def get_args():
     parser.add_argument("--epoch", type=int, default=200)
     parser.add_argument("--num_classes", type=int, default=4)
     parser.add_argument("--task_id", type=int, default=4)
-    parser.add_argument("--batch_size", type=int, default=16)
+    parser.add_argument("--batch_size", type=int, default=8)
     parser.add_argument("--num_workers", type=int, default=4)
     parser.add_argument("--gpu", type=str, default='0,1,2,3,4,5,6,7')
     parser.add_argument("--pretrained_model", type=str, default=None)
@@ -72,7 +72,7 @@ def main():
 
     # define model, optimizer, lr_scheduler
     model = UNet3D(num_classes=n_classes)
-    optimizer = optim.Adam(model.parameters(), lr=0.01, weight_decay=1e-5, betas=(0.9, 0.99))
+    optimizer = optim.Adam(model.parameters(), lr=0.0001, weight_decay=1e-5, betas=(0.9, 0.99))
     # lr_scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=60, gamma=0.5)
     lr_scheduler = optim.lr_scheduler.MultiStepLR(optimizer, milestones=[30, 50, 80, 100, 120], gamma=0.5)
 
