@@ -31,16 +31,6 @@ class CELoss(nn.Module):
         self.ignore_index = ignore_index
         self.criterion = nn.BCEWithLogitsLoss(reduction='none')
 
-    def weight_function(self, mask):
-        weights = torch.ones_like(mask).float()
-        voxels_sum = mask.shape[0] * mask.shape[1] * mask.shape[2]
-        for i in range(2):
-            voxels_i = [mask == i][0].sum().cpu().numpy()
-            w_i = np.log(voxels_sum / voxels_i).astype(np.float32)
-            weights = torch.where(mask == i, w_i * torch.ones_like(weights).float(), weights)
-
-        return weights
-
     def forward(self, predict, target):
         assert predict.shape == target.shape, 'predict & target shape do not match'
 
@@ -105,3 +95,56 @@ class DiceScore(nn.Module):
 
         total_loss = torch.tensor(total_loss)
         return total_loss
+
+
+class ArgmaxDiceScore(nn.Module):
+    def __init__(self, ignore_index=None, num_classes=4, device=None, **kwargs):
+        super(ArgmaxDiceScore, self).__init__()
+        self.kwargs = kwargs
+        self.ignore_index = ignore_index
+        self.num_classes = num_classes
+        self.device = device
+        self.dice = BinaryDiceScore(**self.kwargs)
+
+    def forward(self, predict, target, is_sigmoid=True):
+        total_loss = []
+        if is_sigmoid:
+            predict = F.sigmoid(predict)
+
+        # add background channel
+        shape = target[:, 0].shape
+        backg = torch.zeros(shape).to(self.device)
+        backg = backg.unsqueeze(1)
+        predict = torch.cat((backg, predict), dim=1)
+        target = torch.cat((backg, target), dim=1)
+
+        # apply threshold 0.1
+        predict = torch.threshold(predict, 0.1, 0)
+
+        # one channel & multi-class
+        predict = torch.argmax(predict, dim=1)
+        target = torch.argmax(target, dim=1)
+
+        # mutil-channel & binary class
+        predict = self.extend_channel_classes(predict)
+        target = self.extend_channel_classes(target)
+
+        for i in range(self.num_classes):
+            if i != self.ignore_index:
+                dice_score = self.dice(predict[:, i], target[:, i])
+                dice_score = torch.mean(dice_score)
+                total_loss.append(dice_score.item())
+
+        total_loss = torch.tensor(total_loss)
+        return total_loss
+
+    def extend_channel_classes(self, label):
+        label_list = []
+        for i in range(1, self.num_classes + 1):
+            label_i = torch.clone(label)
+            label_i[label == i] = 1
+            label_i[label != i] = 0
+            label_list.append(label_i)
+        stacked_label = torch.stack(label_list, axis=1)
+        stacked_label = torch.squeeze(stacked_label)
+        return stacked_label
