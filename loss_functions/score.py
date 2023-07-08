@@ -85,7 +85,7 @@ class CELoss(nn.Module):
 
         total_loss = torch.tensor(total_loss)
         avg_loss = torch.mean(total_loss)  # mean of organ
-        return avg_loss.item()
+        return avg_loss
 
 
 class BinaryDiceScore(nn.Module):
