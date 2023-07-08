@@ -73,8 +73,7 @@ def main():
     # define model, optimizer, lr_scheduler
     model = UNet3D(num_classes=n_classes)
     optimizer = optim.Adam(model.parameters(), lr=0.0001, weight_decay=1e-5, betas=(0.9, 0.99))
-    # lr_scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=60, gamma=0.5)
-    lr_scheduler = optim.lr_scheduler.MultiStepLR(optimizer, milestones=[30, 50, 80, 100, 120], gamma=0.5)
+    lr_scheduler = optim.lr_scheduler.MultiStepLR(optimizer, milestones=[30, 60, 90, 120, 150, 180], gamma=0.5)
 
     # resume
     if args.pretrained_model != None:
