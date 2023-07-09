@@ -74,11 +74,6 @@ class FLAREDataSet(data.Dataset):
         image = pad_image(image, [self.crop_h * scaler, self.crop_w * scaler, self.crop_d * scaler])
         label = pad_image(label, [self.crop_h * scaler, self.crop_w * scaler, self.crop_d * scaler])
 
-        # center crop
-        # [h0, h1, w0, w1, d0, d1] = locate_bbx(self.crop_d, self.crop_h, self.crop_w,
-        #                                       label, scaler, datafiles["bbx"])
-        # image = image[h0: h1, w0: w1, d0: d1]
-        # label = label[h0: h1, w0: w1, d0: d1]
         image, label = center_crop_3d(image, label, self.crop_h, self.crop_w, self.crop_d)
 
         # normalization
@@ -126,14 +121,10 @@ class FLAREDataSet(data.Dataset):
             label_item = item.replace('_0000', '')
             label_file = osp.join(label_path, label_item)
 
-            # label = nib.load(label_file).get_fdata()
-            # boud_h, boud_w, boud_d = np.where(label >= 1)  # background 아닌
-
             all_files.append({
                 "image": img_file,
                 "label": label_file,
-                "name": item,
-                # "bbx": [boud_h, boud_w, boud_d]
+                "name": item
             })
         return all_files
 

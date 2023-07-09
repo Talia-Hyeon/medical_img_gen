@@ -23,43 +23,6 @@ class averageMeter(object):
         self.avg = self.sum / self.count
 
 
-# class CELoss(nn.Module):
-#     def __init__(self, ignore_index=None, num_classes=4, **kwargs):
-#         super(CELoss, self).__init__()
-#         self.kwargs = kwargs
-#         self.num_classes = num_classes
-#         self.ignore_index = ignore_index
-#         self.criterion = nn.BCEWithLogitsLoss(reduction='none')
-#
-#     def weight_function(self, mask):
-#         weights = torch.ones_like(mask).float()
-#         voxels_sum = mask.shape[0] * mask.shape[1] * mask.shape[2]
-#         for i in range(2):
-#             voxels_i = [mask == i][0].sum().cpu().numpy()
-#             w_i = np.log(voxels_sum / voxels_i).astype(np.float32)
-#             weights = torch.where(mask == i, w_i * torch.ones_like(weights).float(), weights)
-#
-#         return weights
-#
-#     def forward(self, predict, target):
-#         assert predict.shape == target.shape, 'predict & target shape do not match'
-#
-#         total_loss = []
-#         for i in range(self.num_classes):
-#             if i != self.ignore_index:
-#                 ce_loss = self.criterion(predict[:, i], target[:, i])
-#                 ce_loss = torch.mean(ce_loss, dim=[1, 2, 3])
-#
-#                 ce_loss_avg = ce_loss[target[:, i, 0, 0, 0] != -1].sum() / ce_loss[target[:, i, 0, 0, 0] != -1].shape[0]
-#
-#                 total_loss.append(ce_loss_avg)
-#
-#         total_loss = torch.stack(total_loss)
-#         total_loss = total_loss[total_loss == total_loss]
-#
-#         return total_loss.sum() / total_loss.shape[0]
-
-
 class CELoss(nn.Module):
     def __init__(self, weight=None, ignore_index=None, num_classes=4):
         super(CELoss, self).__init__()
@@ -81,9 +44,9 @@ class CELoss(nn.Module):
                         'do not match length of weight and # of classes'
                     ce_loss *= self.weight[i]
 
-                total_loss.append(ce_loss.item())  # append each organ
+                total_loss.append(ce_loss)  # append each organ
 
-        total_loss = torch.tensor(total_loss)
+        total_loss = torch.stack(total_loss)
         avg_loss = torch.mean(total_loss)  # mean of organ
         return avg_loss
 
