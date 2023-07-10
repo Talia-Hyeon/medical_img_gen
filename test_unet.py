@@ -96,7 +96,7 @@ def evaluate(model, test_data_loader, num_class, device):
     path = os.path.join('./fig', 'prediction_map')
     os.makedirs(path, exist_ok=True)
 
-    metric = DiceScore(num_classes=num_class)
+    metric = ArgmaxDiceScore(num_classes=num_class, device=device)
     dice_list = []
 
     with torch.no_grad():
@@ -116,19 +116,21 @@ def evaluate(model, test_data_loader, num_class, device):
             visualization(img, label, pred, name, path, device)
 
     total_dice = torch.stack(dice_list)
-    dice_score = torch.mean(total_dice, dim=0)
+    dice_score = torch.mean(total_dice, dim=0) # mean of all batches
     return dice_score
 
 
 def print_dice(dice_score):
+    print("len of dice score: {}".format(len(dice_score)))
     label_dict = {value: key for key, value in valid_dataset.items()}
-    avg_dice = torch.mean(dice_score).item()
+    label_dict[0] = 'background'
     dice_dict = {}
     for i in range(len(label_dict)):
-        organ = label_dict[i + 1]
+        organ = label_dict[i]
         dice_dict[organ] = dice_score[i]
 
     print(dice_dict)
+    avg_dice = torch.mean(dice_score).item()
     print('Average_Dice_Score: {}'.format(avg_dice))
     return dice_dict
 
@@ -158,11 +160,11 @@ if __name__ == '__main__':
 
     # dataloader
     flared_path = './dataset/FLARE21'
-    btcv_path = './dataset/BTCV/Trainset'
+    # btcv_path = './dataset/BTCV/Trainset'
     flared_test = FLAREDataSet(root=flared_path, split='test', task_id=n_classes)
-    btcv_test = BTCVDataSet(root=btcv_path, split='test', task_id=n_classes)
-    test_data = ConcatDataset([flared_test, btcv_test])
-    test_loader = DataLoader(dataset=test_data, batch_size=1, shuffle=False, num_workers=num_workers)
+    # btcv_test = BTCVDataSet(root=btcv_path, split='test', task_id=n_classes)
+    # test_data = ConcatDataset([flared_test, btcv_test])
+    test_loader = DataLoader(dataset=flared_test, batch_size=1, shuffle=False, num_workers=num_workers)
 
     # model
     model = UNet3D(num_classes=n_classes)
