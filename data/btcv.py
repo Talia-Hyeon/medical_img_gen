@@ -47,7 +47,7 @@ class BTCVDataSet(data.Dataset):
         label_path = osp.join(self.root, 'label')
         img_list = os.listdir(image_path)
 
-        # split train/val set
+        # split train/val/test set
         train_data, rest_data = train_test_split(img_list, test_size=0.20, shuffle=True, random_state=0)
         val_data, test_data = train_test_split(rest_data, test_size=0.50, shuffle=True, random_state=0)
 
