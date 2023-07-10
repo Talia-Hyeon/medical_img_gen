@@ -94,7 +94,6 @@ def visualization(img, label, pred, name, path, device):
 
 def evaluate(model, test_data_loader, num_class, device):
     path = os.path.join('./fig', 'prediction_map')
-    # path = os.path.join('./fig', 'prediction_map_fake')
     os.makedirs(path, exist_ok=True)
 
     metric = DiceScore(num_classes=num_class)
@@ -139,7 +138,7 @@ def get_args():
     parser.add_argument("--num_classes", type=int, default=4)
     parser.add_argument("--num_workers", type=int, default=8)
     parser.add_argument("--gpu", type=str, default='0')
-    parser.add_argument("--model_path", type=str, default='./save_model/199_last_model.pth')
+    parser.add_argument("--model_path", type=str, default='./save_model/best_model.pth')
     return parser
 
 

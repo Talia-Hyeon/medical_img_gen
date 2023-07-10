@@ -18,15 +18,12 @@ from batchgenerators.transforms.abstract_transforms import Compose
 class FLAREDataSet(data.Dataset):
     def __init__(self, root, split='train', task_id=1, crop_size=(192, 192, 192),
                  mean=(128, 128, 128), ignore_label=255):
-        # test_crop_size=(64, 256, 256)
         self.root = root
         self.split = split
         self.task_id = task_id
         self.crop_d, self.crop_h, self.crop_w = crop_size
         self.mean = mean
         self.ignore_label = ignore_label
-
-        # spacing = [0.8, 0.8, 1.5]
 
         print("Start preprocessing....")
         # read path
@@ -266,12 +263,3 @@ def my_collate(batch):
 if __name__ == '__main__':
     flare = FLAREDataSet(root='../dataset/FLARE21', split='train', task_id=4)
     img_, label_, name_ = flare[0]
-    # print("img's shape: {}\nlabel's shape: {}".format(img_.shape, label_.shape))
-
-    # flare = FLAREDataSet(root='../dataset/FLARE21', split='train', task_id=4)
-    # train_loader = data.DataLoader(dataset=flare, batch_size=1, shuffle=False, num_workers=4, collate_fn=my_collate)
-    # for train_iter, pack in enumerate(train_loader):
-    #     img_ = pack['image']
-    #     label_ = pack['label']
-    #     name_ = pack['name']
-    #     print("img's shape: {}\nlabel's shape: {}".format(img_.shape, label_.shape))

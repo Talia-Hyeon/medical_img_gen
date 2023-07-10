@@ -10,7 +10,6 @@ from torch.utils.data import DataLoader, ConcatDataset
 from data.flare21 import FLAREDataSet
 from data.flare21 import my_collate
 from data.btcv import BTCVDataSet
-from data.pseudo_img import FAKEDataSet
 from model.unet3D import UNet3D
 from loss_functions.score import *
 
@@ -72,8 +71,8 @@ def main():
 
     # define model, optimizer, lr_scheduler
     model = UNet3D(num_classes=n_classes)
-    optimizer = optim.Adam(model.parameters(), lr=0.0001, weight_decay=1e-5, betas=(0.9, 0.99))
-    lr_scheduler = optim.lr_scheduler.MultiStepLR(optimizer, milestones=[30, 60, 90, 120, 150, 180], gamma=0.5)
+    optimizer = optim.Adam(model.parameters(), lr=2e-4, weight_decay=1e-5, betas=(0.9, 0.99))
+    lr_scheduler = optim.lr_scheduler.MultiStepLR(optimizer, milestones=[40, 80, 120, 160], gamma=0.5)
 
     # resume
     if args.pretrained_model != None:
@@ -93,7 +92,7 @@ def main():
     loss_function = CELoss(num_classes=n_classes)
     loss_function.to(device)
 
-    # real data loader
+    # data loader
     flared_path = './dataset/FLARE21'
     # btcv_path = './dataset/BTCV/Trainset'
     flared_train = FLAREDataSet(root=flared_path, split='train', task_id=task_id)
@@ -106,15 +105,6 @@ def main():
     train_loader = DataLoader(dataset=flared_train, batch_size=batch_size, shuffle=True,
                               num_workers=num_workers, collate_fn=my_collate)
     valid_loader = DataLoader(dataset=flared_valid, batch_size=1, shuffle=False, num_workers=num_workers)
-
-    # # fake data loader
-    # train_path = './sample'
-    # train_data = FAKEDataSet(root=train_path, split='train', task_id=4)
-    # valid_data = FAKEDataSet(root=train_path, split='val', task_id=4)
-    #
-    # train_loader = DataLoader(dataset=train_data, batch_size=1, shuffle=True,
-    #                           num_workers=4, collate_fn=my_collate)
-    # valid_loader = DataLoader(dataset=valid_data, batch_size=1, shuffle=False, num_workers=4)
 
     # setup metrics
     val_loss_meter = averageMeter()
@@ -149,7 +139,6 @@ def main():
                 iter_end = time()
                 print('Epoch: {}/{} | Iters: {} | Train loss: {:.4f} | Time: {:.4f}'.format(
                     epoch + 1, num_epochs, train_iter + 1, loss.item(), (iter_end - iter_start)))
-                # newly check iter. start time
                 iter_start = time()
 
         train_loss_l.append(train_loss_meter.avg)
@@ -186,20 +175,17 @@ def main():
         if avg_dice >= best_avg_dice:
             best_avg_dice = avg_dice
             best_dice = dice_score
-            save_model(path=f'./save_model/{epoch}_best_model.pth',
+            save_model(path=f'./save_model/best_model.pth',
                        model=model, optim=optimizer, lr_sch=lr_scheduler, epoch=epoch)
-            # torch.save(model.state_dict(), f'./save_model/best_model_fake.pth')
 
         elif epoch % 20 == 0:
             save_model(path=f'./save_model/{epoch}_model.pth',
                        model=model, optim=optimizer, lr_sch=lr_scheduler, epoch=epoch)
-            # torch.save((model.state_dict(), f'./save_model/{epoch}_model_fake.pth'))
             draw_loss_plot(epoch_l, train_loss_l, val_loss_l)
 
         elif epoch == num_epochs - 1:
-            save_model(path=f'./save_model/{epoch}_last_model.pth',
+            save_model(path=f'./save_model/last_model.pth',
                        model=model, optim=optimizer, lr_sch=lr_scheduler, epoch=epoch)
-            # torch.save((model.state_dict(), f'./save_model/last_model_fake.pth'))
 
         epoch_end = time()
         print('Epoch: {} | Best Dice: {} | Total Time: {:.4f}'.format(epoch + 1, best_dice, epoch_end - epoch_start))

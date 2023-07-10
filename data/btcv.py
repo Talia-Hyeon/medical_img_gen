@@ -33,7 +33,6 @@ valid_dataset = {
 class BTCVDataSet(data.Dataset):
     def __init__(self, root, split='train', task_id=1, crop_size=(192, 192, 192),
                  mean=(128, 128, 128), ignore_label=255):
-        # crop_size=(64, 192, 192)
         self.root = root
         self.split = split
         self.task_id = task_id
@@ -89,10 +88,7 @@ class BTCVDataSet(data.Dataset):
         label = pad_image(label, [self.crop_h * scaler, self.crop_w * scaler, self.crop_d * scaler])
 
         # crop
-        [h0, h1, w0, w1, d0, d1] = locate_bbx(self.crop_d, self.crop_h, self.crop_w,
-                                              label, scaler, datafiles["bbx"])
-        image = image[h0: h1, w0: w1, d0: d1]
-        label = label[h0: h1, w0: w1, d0: d1]
+        image, label = center_crop_3d(image, label, self.crop_h, self.crop_w, self.crop_d)
 
         # normalization & redefine label
         image = truncate(image)  # -1 <= image <= 1
@@ -140,14 +136,10 @@ class BTCVDataSet(data.Dataset):
             label_item = item.replace('img', 'label')
             label_file = osp.join(label_path, label_item)
 
-            label = nib.load(label_file).get_fdata()
-            boud_h, boud_w, boud_d = np.where(label >= 1)  # background 아닌
-
             all_files.append({
                 "image": img_file,
                 "label": label_file,
-                "name": item,
-                "bbx": [boud_h, boud_w, boud_d]
+                "name": item
             })
         return all_files
 
@@ -171,11 +163,3 @@ if __name__ == '__main__':
     btcv = BTCVDataSet(root='../dataset/BTCV/Trainset', task_id=4)
     img_, label_, name_, label_aff = btcv[0]
     print("img's shape: {}\nlabel's shape: {}".format(img_.shape, label_.shape))
-    # btcv = BTCVDataSet(root='../dataset/FLARE21', task_id=4)
-    # valid_loader = data.DataLoader(dataset=btcv, batch_size=1, shuffle=False, num_workers=0)
-    # for train_iter, pack in enumerate(valid_loader):
-    #     img_ = pack[0]
-    #     label_ = pack[1]
-    #     name_ = pack[2]
-    #     label_affine = pack[3]
-    #     print("img_shape: {}\nlabel_shape: {}\naffine's type: {}".format(img_.shape, label_.shape, type(label_affine)))
