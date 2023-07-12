@@ -99,7 +99,7 @@ class DiceScore(nn.Module):
 
 
 class ArgmaxDiceScore(nn.Module):
-    def __init__(self, ignore_index=None, num_classes=4, device=None, **kwargs):
+    def __init__(self, ignore_index=None, num_classes=5, device=None, **kwargs):
         super(ArgmaxDiceScore, self).__init__()
         self.kwargs = kwargs
         self.ignore_index = ignore_index
@@ -120,7 +120,7 @@ class ArgmaxDiceScore(nn.Module):
         target = torch.cat((backg, target), dim=1)
 
         # apply threshold 0.1
-        predict = torch.threshold(predict, 0.1, 0)
+        predict = torch.threshold(predict, 0.5, 0)
 
         # one channel & multi-class
         predict = torch.argmax(predict, dim=1)
@@ -136,8 +136,8 @@ class ArgmaxDiceScore(nn.Module):
                 dice_score = torch.mean(dice_score)  # mean of each batch
                 total_socre.append(dice_score.item())
 
-        total_loss = torch.tensor(total_socre)
-        return total_loss
+        total_socre = torch.tensor(total_socre)
+        return total_socre
 
     def extend_channel_classes(self, label):
         label_list = []

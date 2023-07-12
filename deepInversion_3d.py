@@ -27,9 +27,8 @@ class DeepInversionFeatureHook():
         # hook co compute deepinversion's feature distribution regularization
         # module: real's batchnorm_layer, input: synth
         nch = input[0].shape[1]  # # of channel?
-        mean = input[0].mean([0, 2, 3, 4])  # 0: batch, 1: channel, 3: height, 3: width, 2: depth
+        mean = input[0].mean([0, 2, 3, 4])  # 0: batch, 1: channel, 2: depth, 3: height, 4: width
         var = input[0].permute(1, 0, 2, 3, 4).contiguous().view([nch, -1]).var(1, unbiased=False)
-        # print(nch)
 
         # forcing mean and variance to match between two distributions
         # other ways might work better, i.g. KL divergence
@@ -42,15 +41,6 @@ class DeepInversionFeatureHook():
 
     def close(self):
         self.hook.remove()
-
-
-def str2bool(v):
-    if v.lower() in ('yes', 'true', 't', 'y', '1'):
-        return True
-    elif v.lower() in ('no', 'false', 'f', 'n', '0'):
-        return False
-    else:
-        raise argparse.ArgumentTypeError('Boolean value expected.')
 
 
 def get_image_prior_losses(img):
@@ -76,27 +66,6 @@ def get_image_prior_losses(img):
     return loss_var_l1, loss_var_l2
 
 
-def save_nii(a, p):  # img_data, path
-    nibimg = nib.Nifti1Image(a, np.eye(4) * 1)  # img.affine
-    nib.save(nibimg, p)
-
-
-def get_arguments():
-    parser = argparse.ArgumentParser(description="unet3D_multihead")
-    parser.add_argument("--itrs_each_epoch", type=int, default=250)
-    parser.add_argument("--num_imgs", type=int, default=1)  # 500
-    parser.add_argument("--num_epochs", type=int, default=500)
-    parser.add_argument("--input_size", type=str, default='64,192,192')
-    parser.add_argument("--batch_size", type=int, default=1)
-    parser.add_argument("--learning_rate", type=float, default=1e-3)
-    parser.add_argument("--num_classes", type=int, default=5)
-    parser.add_argument("--num_workers", type=int, default=1)
-    parser.add_argument("--weight_std", type=str2bool, default=False)
-    parser.add_argument("--random_seed", type=int, default=1234)
-    parser.add_argument("--power", type=float, default=0.9)
-    return parser
-
-
 def lr_poly(base_lr, iter_idx, max_iter, power):
     return base_lr * ((1 - float(iter_idx) / max_iter) ** (power))
 
@@ -108,15 +77,45 @@ def adjust_learning_rate(optimizer, i_iter, lr, num_stemps, power):
     return lr
 
 
+def save_nii(a, p):  # img_data, path
+    nibimg = nib.Nifti1Image(a, np.eye(4) * 1)  # img.affine
+    nib.save(nibimg, p)
+
+
+def save_preds(cnt, fake_x, fake_label, img_idx):
+    save_nii(fake_x[img_idx, 0], f"./sample/Img/{cnt}img.nii.gz")
+    save_nii(fake_label[img_idx], f"./sample/Pred/{cnt}pred.nii.gz")
+    print(f"img{cnt} is saved.")
+
+
+def get_arguments():
+    parser = argparse.ArgumentParser(description="image generation")
+    parser.add_argument("--itrs_each_epoch", type=int, default=250)
+    parser.add_argument("--num_epochs", type=int, default=500)
+    parser.add_argument("--num_imgs", type=int, default=50)  # 500
+    parser.add_argument("--num_classes", type=int, default=4)
+    parser.add_argument("--batch_size", type=int, default=1)
+    parser.add_argument("--gpu", type=str, default='0')
+    parser.add_argument("--num_workers", type=int, default=1)
+    parser.add_argument("--pretrained_model", type=str, default='./save_model/best_model.pth')
+    parser.add_argument("--random_seed", type=int, default=1234)
+    parser.add_argument("--power", type=float, default=0.9)
+    return parser
+
+
 def main():
     """Create the model and start the training."""
     parser = get_arguments()
     print(parser)
-
     args = parser.parse_args()
 
-    d, h, w = map(int, args.input_size.split(','))
-    input_size = (d, h, w)
+    # hyper-parameter
+    cnt = 0
+    n_runs = args.num_imgs // args.batch_size
+    n_iters = args.num_epochs
+
+    path = args.pretrained_model
+    input_size = (192, 192, 192)
 
     cudnn.benchmark = True
     seed = args.random_seed
@@ -124,32 +123,36 @@ def main():
     if torch.cuda.is_available():
         torch.cuda.manual_seed(seed)
 
-    device = torch.device('cuda:1')
+    # device
+    os.environ['CUDA_DEVICE_ORDER'] = 'PCI_BUS_ID'
+    os.environ['CUDA_VISIBLE_DEVICES'] = args.gpu
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    # device = torch.device('cuda:1')
 
+    # make directory
     os.makedirs(f"./sample", exist_ok=True)
     os.makedirs(f"./sample/Img", exist_ok=True)
     os.makedirs(f"./sample/Pred", exist_ok=True)
-    cnt = 0
-    n_runs = args.num_imgs // args.batch_size
-    n_iters = args.num_epochs  # 500
 
-    ## load pretrained local models ##
+    # load the pretrained model
     print("Generate pseudo images using pretrained models.")
-    path = f"./save_model/best_model.pth"
     print(f"Loading checkpoint {path}")
     pretrained = UNet3D(num_classes=args.num_classes)
-    pretrained.load_state_dict(torch.load(path), strict=False)
+    checkpoint = torch.load(path)
+    pretrained.load_state_dict(checkpoint['model'], strict=False)
+    pretrained = nn.DataParallel(pretrained).to(device)
+    # pretrained.load_state_dict(torch.load(path), strict=False)
 
     loss_r_feature_layers = []
     for module in pretrained.modules():
         if isinstance(module, nn.BatchNorm3d):
             loss_r_feature_layers.append(DeepInversionFeatureHook(module))
 
-    pretrained.to(device)
+    # pretrained.to(device)
     pretrained.eval()
 
     for i_run in range(n_runs):
-        fake_x = torch.randn([args.batch_size, 1] + list(input_size), requires_grad=True, device="cuda:1")
+        fake_x = torch.randn([args.batch_size, 1] + list(input_size), requires_grad=True, device=device)
         print(fake_x.is_leaf)  # 텐서가 그래프의 말단 노드인지
         optimizer = torch.optim.Adam([fake_x], lr=0.1)
 
@@ -180,12 +183,6 @@ def main():
             save_preds(cnt, fake_x, fake_label, img_idx)
             print(f"img{cnt} is saved.")
             cnt += 1
-
-
-def save_preds(cnt, fake_x, fake_label, img_idx):
-    save_nii(fake_x[img_idx, 0], f"./sample/Img/{cnt}img.nii.gz")
-    save_nii(fake_label[img_idx], f"./sample/Pred/{cnt}pred.nii.gz")
-    print(f"img{cnt} is saved.")
 
 
 if __name__ == '__main__':

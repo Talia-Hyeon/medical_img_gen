@@ -96,7 +96,8 @@ def evaluate(model, test_data_loader, num_class, device):
     path = os.path.join('./fig', 'prediction_map')
     os.makedirs(path, exist_ok=True)
 
-    metric = ArgmaxDiceScore(num_classes=num_class, device=device)
+    metric = ArgmaxDiceScore(num_classes=num_class+1, device=device)
+    # metric = DiceScore(num_classes=num_class)
     dice_list = []
 
     with torch.no_grad():
@@ -121,13 +122,12 @@ def evaluate(model, test_data_loader, num_class, device):
 
 
 def print_dice(dice_score):
-    print("len of dice score: {}".format(len(dice_score)))
     label_dict = {value: key for key, value in valid_dataset.items()}
     label_dict[0] = 'background'
     dice_dict = {}
     for i in range(len(label_dict)):
-        organ = label_dict[i]
-        dice_dict[organ] = dice_score[i]
+        organ = label_dict[i]  # [i+1]
+        dice_dict[organ] = dice_score[i].item()
 
     print(dice_dict)
     avg_dice = torch.mean(dice_score).item()
@@ -140,7 +140,7 @@ def get_args():
     parser.add_argument("--num_classes", type=int, default=4)
     parser.add_argument("--num_workers", type=int, default=8)
     parser.add_argument("--gpu", type=str, default='0')
-    parser.add_argument("--model_path", type=str, default='./save_model/best_model.pth')
+    parser.add_argument("--model_path", type=str, default='./save_model/199_last_model.pth')
     return parser
 
 

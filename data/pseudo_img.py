@@ -1,18 +1,18 @@
 import matplotlib.pyplot as plt
 
-from test_unet import find_best_view, decode_segmap
+import sys
+
+sys.path.append('..')
+from test_unet import decode_segmap, find_best_view
 from data.flare21 import *
 
 
 class FAKEDataSet(data.Dataset):
-    def __init__(self, root, task_id=1, crop_size=(64, 192, 192), mean=(128, 128, 128), ignore_label=255,
-                 split='train'):
+    def __init__(self, root, task_id=1, crop_size=(192, 192, 192), ignore_label=255):
         self.root = root
         self.task_id = task_id
         self.crop_d, self.crop_h, self.crop_w = crop_size
-        self.mean = mean
         self.ignore_label = ignore_label
-        self.split = split
         self.files = []
 
         print("Start preprocessing....")
@@ -27,23 +27,13 @@ class FAKEDataSet(data.Dataset):
             label_item = item.replace('img', 'pred')
             label_file = osp.join(label_path, label_item)
 
-            label = nib.load(label_file).get_fdata()
-            boud_h, boud_w, boud_d = np.where(label >= 1)  # background 아닌
-
             all_files.append({
                 "image": img_file,
                 "label": label_file,
-                "name": item,
-                "bbx": [boud_h, boud_w, boud_d]
+                "name": item
             })
 
-        # split train/val set
-        train_X, val_X = train_test_split(all_files, test_size=0.20, shuffle=True, random_state=0)
-        if self.split == 'train':
-            self.files = train_X
-        else:
-            self.files = val_X
-
+        self.files = all_files
         print('{} images are loaded!'.format(len(self.files)))
 
     def __len__(self):
@@ -59,20 +49,18 @@ class FAKEDataSet(data.Dataset):
         name = datafiles["name"]
 
         # scale
-        if self.split == 'train' and np.random.uniform() < 0.2:
-            scaler = np.random.uniform(0.7, 1.4)
-        else:
-            scaler = 1
+        scaler = 1
+        # if np.random.uniform() < 0.2:
+        #     scaler = np.random.uniform(0.7, 1.4)
+        # else:
+        #     scaler = 1
 
         # pad
         image = pad_image(image, [self.crop_h * scaler, self.crop_w * scaler, self.crop_d * scaler])
         label = pad_image(label, [self.crop_h * scaler, self.crop_w * scaler, self.crop_d * scaler])
 
         # crop
-        [h0, h1, w0, w1, d0, d1] = locate_bbx(self.crop_d, self.crop_h, self.crop_w,
-                                              label, scaler, datafiles["bbx"])
-        image = image[h0: h1, w0: w1, d0: d1]
-        label = label[h0: h1, w0: w1, d0: d1]
+        image, label = center_crop_3d(image, label, self.crop_h, self.crop_w, self.crop_d)
 
         # normalization
         image = truncate(image)
@@ -86,16 +74,15 @@ class FAKEDataSet(data.Dataset):
         label = label.transpose((0, 3, 1, 2))
 
         # 50% flip
-        if self.split == 'train':
-            if np.random.rand(1) <= 0.5:  # W
-                image = image[:, :, :, ::-1]
-                label = label[:, :, :, ::-1]
-            if np.random.rand(1) <= 0.5:  # H
-                image = image[:, :, ::-1, :]
-                label = label[:, :, ::-1, :]
-            if np.random.rand(1) <= 0.5:  # D
-                image = image[:, ::-1, :, :]
-                label = label[:, ::-1, :, :]
+        # if np.random.rand(1) <= 0.5:  # W
+        #     image = image[:, :, :, ::-1]
+        #     label = label[:, :, :, ::-1]
+        # if np.random.rand(1) <= 0.5:  # H
+        #     image = image[:, :, ::-1, :]
+        #     label = label[:, :, ::-1, :]
+        # if np.random.rand(1) <= 0.5:  # D
+        #     image = image[:, ::-1, :, :]
+        #     label = label[:, ::-1, :, :]
 
         # adjust shape
         d, h, w = image.shape[-3:]
@@ -141,7 +128,7 @@ if __name__ == '__main__':
     save_path = '../fig/gen_img'
     os.makedirs(save_path, exist_ok=True)
     val_path = '../sample'
-    val_data = FAKEDataSet(root=val_path, split='val', task_id=4)
+    val_data = FAKEDataSet(root=val_path, task_id=4)
     val_loader = data.DataLoader(dataset=val_data, batch_size=1, shuffle=False, num_workers=4)
     for val_iter, pack in enumerate(val_loader):
         img_ = pack[0]

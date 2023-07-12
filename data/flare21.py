@@ -16,13 +16,11 @@ from batchgenerators.transforms.abstract_transforms import Compose
 
 
 class FLAREDataSet(data.Dataset):
-    def __init__(self, root, split='train', task_id=1, crop_size=(192, 192, 192),
-                 mean=(128, 128, 128), ignore_label=255):
+    def __init__(self, root, split='train', task_id=1, crop_size=(192, 192, 192), ignore_label=255):
         self.root = root
         self.split = split
         self.task_id = task_id
         self.crop_d, self.crop_h, self.crop_w = crop_size
-        self.mean = mean
         self.ignore_label = ignore_label
 
         print("Start preprocessing....")
