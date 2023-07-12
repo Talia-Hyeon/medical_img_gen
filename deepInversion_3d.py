@@ -109,6 +109,11 @@ def main():
     print(parser)
     args = parser.parse_args()
 
+    # device
+    os.environ['CUDA_DEVICE_ORDER'] = 'PCI_BUS_ID'
+    os.environ['CUDA_VISIBLE_DEVICES'] = args.gpu
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+
     # hyper-parameter
     cnt = 0
     n_runs = args.num_imgs // args.batch_size
@@ -122,12 +127,6 @@ def main():
     torch.manual_seed(seed)
     if torch.cuda.is_available():
         torch.cuda.manual_seed(seed)
-
-    # device
-    os.environ['CUDA_DEVICE_ORDER'] = 'PCI_BUS_ID'
-    os.environ['CUDA_VISIBLE_DEVICES'] = args.gpu
-    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    # device = torch.device('cuda:1')
 
     # make directory
     os.makedirs(f"./sample", exist_ok=True)
