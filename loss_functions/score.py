@@ -108,7 +108,7 @@ class ArgmaxDiceScore(nn.Module):
         self.dice = BinaryDiceScore(**self.kwargs)
 
     def forward(self, predict, target, is_sigmoid=True):
-        total_socre = []
+        total_score = []
         if is_sigmoid:
             predict = F.sigmoid(predict)
 
@@ -134,10 +134,10 @@ class ArgmaxDiceScore(nn.Module):
             if i != self.ignore_index:
                 dice_score = self.dice(predict[:, i], target[:, i])
                 dice_score = torch.mean(dice_score)  # mean of each batch
-                total_socre.append(dice_score.item())
+                total_score.append(dice_score.item())
 
-        total_socre = torch.tensor(total_socre)
-        return total_socre
+        total_score = torch.tensor(total_score)
+        return total_score
 
     def extend_channel_classes(self, label):
         label_list = []
