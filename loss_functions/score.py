@@ -47,6 +47,9 @@ class CELoss(nn.Module):
                 total_loss.append(ce_loss)  # append each organ
 
         total_loss = torch.stack(total_loss)
+        print("CELoss | liver: {} | kidney: {} | spleen: {} | pancreas: {}".format(
+            total_loss[0].item(), total_loss[1].item(), total_loss[2].item(), total_loss[3].item()
+        ), end='\r')
         avg_loss = torch.mean(total_loss)  # mean of organ
         return avg_loss
 

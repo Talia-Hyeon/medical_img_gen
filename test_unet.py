@@ -96,7 +96,7 @@ def evaluate(model, test_data_loader, num_class, device):
     path = os.path.join('./fig', 'prediction_map')
     os.makedirs(path, exist_ok=True)
 
-    metric = ArgmaxDiceScore(num_classes=num_class+1, device=device)
+    metric = ArgmaxDiceScore(num_classes=num_class + 1, device=device)
     # metric = DiceScore(num_classes=num_class)
     dice_list = []
 
@@ -117,7 +117,7 @@ def evaluate(model, test_data_loader, num_class, device):
             visualization(img, label, pred, name, path, device)
 
     total_dice = torch.stack(dice_list)
-    dice_score = torch.mean(total_dice, dim=0) # mean of all batches
+    dice_score = torch.mean(total_dice, dim=0)  # mean of all batches
     return dice_score
 
 
