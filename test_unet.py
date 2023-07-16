@@ -11,18 +11,18 @@ from model.unet3D import UNet3D
 from loss_functions.score import *
 
 
-def decode_segmap(temp):
+def decode_segmap(temp, num_classes):
     colors = [[0, 0, 0],  # "unlabelled"
               [150, 0, 0],
               [0, 0, 142],
               [150, 170, 0],
               [70, 0, 100]]
-    label_colours = dict(zip(range(5), colors))  # key: label's index, value: color
+    label_colours = dict(zip(range(num_classes), colors))  # key: label's index, value: color
 
     r = temp.copy()
     g = temp.copy()
     b = temp.copy()
-    for l in range(5):
+    for l in range(num_classes):
         r[temp == l] = label_colours[l][0]
         g[temp == l] = label_colours[l][1]
         b[temp == l] = label_colours[l][2]
@@ -34,7 +34,7 @@ def decode_segmap(temp):
     return rgb
 
 
-def find_best_view(img):
+def find_best_view(img, num_classes):
     d1, d2, d3 = img.shape
     max_score = 0
     max_score_idx = 0
@@ -42,41 +42,37 @@ def find_best_view(img):
         sagital_pred = img[i, :, :]
         classes = np.unique(sagital_pred)
         if classes.size >= 2:
-            counts = np.array([max(np.where(sagital_pred == c)[0].size, 1e-8) for c in range(5)])  # 5:num_classes
-            score = np.exp(np.sum(np.log(counts)) - 5 * np.log(np.sum(counts)))
+            counts = np.array([max(np.where(sagital_pred == c)[0].size, 1e-8) for c in range(num_classes)])
+            score = np.exp(np.sum(np.log(counts)) - num_classes * np.log(np.sum(counts)))
             if score > max_score:
                 max_score = score
                 max_score_idx = i
     return max_score_idx
 
 
-def visualization(img, label, pred, name, path, device):
-    # add background channel
-    shape = label[:, 0].shape
-    backg = torch.zeros(shape).to(device)
-    backg = backg.unsqueeze(0)
-    pred = torch.cat((backg, pred), dim=1)
-    label = torch.cat((backg, label), dim=1)
+def visualization(img, label, pred, name, path, num_classes):
+    # remove batch
+    img = torch.squeeze(img)
+    pred = torch.squeeze(pred)
+    label = torch.squeeze(label)
 
-    # apply threshold
-    pred = torch.threshold(pred, 0.1, 0)
-    pred = torch.argmax(pred, dim=1).cpu().numpy()
-    gt = torch.argmax(label, dim=1).cpu().numpy()
+    # change binary to multi-class
+    pred = torch.argmax(pred, dim=0)
+    gt = torch.argmax(label, dim=0)
+
+    #  move to cpu & transform to numpy
     img = img.cpu().numpy()
+    pred = pred.cpu().numpy()
+    gt = gt.cpu().numpy()
 
-    # remove batch, channel
-    img = np.squeeze(img, axis=0)
-    img = np.squeeze(img, axis=0)
-    pred = np.squeeze(pred, axis=0)
-    gt = np.squeeze(gt, axis=0)
-
-    max_score_idx = find_best_view(gt)
+    # slice into the best view
+    max_score_idx = find_best_view(gt, num_classes)
     img = img[max_score_idx, :, :]
     pred = pred[max_score_idx, :, :]
     gt = gt[max_score_idx, :, :]
 
-    col_pred = decode_segmap(pred)
-    col_gt = decode_segmap(gt)
+    col_pred = decode_segmap(pred, num_classes)
+    col_gt = decode_segmap(gt, num_classes)
 
     plt.figure()
     plt.subplot(1, 3, 1)
@@ -96,8 +92,7 @@ def evaluate(model, test_data_loader, num_class, device):
     path = os.path.join('./fig', 'prediction_map')
     os.makedirs(path, exist_ok=True)
 
-    metric = ArgmaxDiceScore(num_classes=num_class + 1, device=device)
-    # metric = DiceScore(num_classes=num_class)
+    metric = DiceScore(num_classes=num_class)
     dice_list = []
 
     with torch.no_grad():
@@ -114,7 +109,7 @@ def evaluate(model, test_data_loader, num_class, device):
             iter_dice = metric(pred, label)
             dice_list.append(iter_dice)
 
-            visualization(img, label, pred, name, path, device)
+            visualization(img, label, pred, name, path, num_class)
 
     total_dice = torch.stack(dice_list)
     dice_score = torch.mean(total_dice, dim=0)  # mean of all batches
@@ -122,11 +117,12 @@ def evaluate(model, test_data_loader, num_class, device):
 
 
 def print_dice(dice_score):
-    label_dict = {value: key for key, value in valid_dataset.items()}
-    label_dict[0] = 'background'
+    label_dict = {}
+    for idx, organ in enumerate(index_organs[1:]):
+        label_dict[idx - 1] = organ
     dice_dict = {}
     for i in range(len(label_dict)):
-        organ = label_dict[i]  # [i+1]
+        organ = label_dict[i]
         dice_dict[organ] = dice_score[i].item()
 
     print(dice_dict)
@@ -137,8 +133,8 @@ def print_dice(dice_score):
 
 def get_args():
     parser = argparse.ArgumentParser(description="test_pretrained_UNet")
-    parser.add_argument("--num_classes", type=int, default=4)
-    parser.add_argument("--num_workers", type=int, default=8)
+    parser.add_argument("--num_classes", type=int, default=5)
+    parser.add_argument("--num_workers", type=int, default=4)
     parser.add_argument("--gpu", type=str, default='0')
     parser.add_argument("--model_path", type=str, default='./save_model/199_last_model.pth')
     return parser
