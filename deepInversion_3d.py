@@ -4,6 +4,7 @@ import timeit
 
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 import torch.backends.cudnn as cudnn
 import numpy as np
 import nibabel as nib
@@ -160,7 +161,8 @@ def main():
             optimizer.zero_grad()
             pretrained.zero_grad()
             output = pretrained(fake_x)
-            prob = torch.sigmoid(output)
+            # prob = torch.sigmoid(output)
+            prob = F.softmax(output, dim=1)
             fake_label = torch.argmax(prob, dim=1)
             fake_label = fake_label.to(torch.uint8)
 
