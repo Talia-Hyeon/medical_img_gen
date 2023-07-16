@@ -121,7 +121,7 @@ def main():
     n_iters = args.num_epochs
 
     path = args.pretrained_model
-    input_size = (192, 192, 192)
+    input_size = (96, 96, 96)
 
     cudnn.benchmark = True
     seed = args.random_seed
