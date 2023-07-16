@@ -5,7 +5,6 @@ import torch
 from torch.utils.data import DataLoader, ConcatDataset
 from matplotlib import pyplot as plt
 
-from data.btcv import *
 from data.flare21 import FLAREDataSet
 from model.unet3D import UNet3D
 from loss_functions.score import *
