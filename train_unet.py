@@ -17,7 +17,7 @@ from loss_functions.score import *
 def get_args():
     parser = argparse.ArgumentParser(description="train_pretrained_UNet")
     parser.add_argument("--epoch", type=int, default=200)
-    parser.add_argument("--num_classes", type=int, default=4)
+    parser.add_argument("--num_classes", type=int, default=5)
     parser.add_argument("--task_id", type=int, default=4)
     parser.add_argument("--batch_size", type=int, default=8)
     parser.add_argument("--num_workers", type=int, default=4)
@@ -89,7 +89,7 @@ def main():
     model = nn.DataParallel(model).to(device)
 
     # loss function
-    loss_function = CELoss(num_classes=n_classes)
+    loss_function = DiceLoss(num_classes=n_classes)
     loss_function.to(device)
 
     # data loader

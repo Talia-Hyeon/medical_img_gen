@@ -14,14 +14,16 @@ from batchgenerators.transforms.noise_transforms import GaussianNoiseTransform, 
 from batchgenerators.transforms.resample_transforms import SimulateLowResolutionTransform
 from batchgenerators.transforms.abstract_transforms import Compose
 
+global index_organs
+index_organs = ['background', 'liver', 'kidney', 'spleen', 'pancreas']
+
 
 class FLAREDataSet(data.Dataset):
-    def __init__(self, root, split='train', task_id=1, crop_size=(192, 192, 192), ignore_label=255):
+    def __init__(self, root, split='train', task_id=1, crop_size=(96, 96, 96)):
         self.root = root
         self.split = split
         self.task_id = task_id
         self.crop_d, self.crop_h, self.crop_w = crop_size
-        self.ignore_label = ignore_label
 
         print("Start preprocessing....")
         # read path

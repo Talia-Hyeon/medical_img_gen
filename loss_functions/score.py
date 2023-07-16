@@ -3,6 +3,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
+from data.flare21 import index_organs
 
 class averageMeter(object):
     """Computes and stores the average and current value"""
@@ -23,37 +24,6 @@ class averageMeter(object):
         self.avg = self.sum / self.count
 
 
-class CELoss(nn.Module):
-    def __init__(self, weight=None, ignore_index=None, num_classes=4):
-        super(CELoss, self).__init__()
-        self.weight = weight
-        self.ignore_index = ignore_index
-        self.num_classes = num_classes
-        self.criterion = nn.BCEWithLogitsLoss()
-
-    def forward(self, predict, target):
-        assert predict.shape == target.shape, 'predict & target shape do not match'
-
-        total_loss = []
-        for i in range(self.num_classes):
-            if i != self.ignore_index:
-                ce_loss = self.criterion(predict[:, i], target[:, i])
-
-                if self.weight is not None:
-                    assert len(self.weight) == self.num_classes, \
-                        'do not match length of weight and # of classes'
-                    ce_loss *= self.weight[i]
-
-                total_loss.append(ce_loss)  # append each organ
-
-        total_loss = torch.stack(total_loss)
-        print("CELoss | liver: {} | kidney: {} | spleen: {} | pancreas: {}".format(
-            total_loss[0].item(), total_loss[1].item(), total_loss[2].item(), total_loss[3].item()
-        ), end='\r')
-        avg_loss = torch.mean(total_loss)  # mean of organ
-        return avg_loss
-
-
 class BinaryDiceScore(nn.Module):
     def __init__(self, smooth=1e-5):
         super(BinaryDiceScore, self).__init__()
@@ -72,59 +42,35 @@ class BinaryDiceScore(nn.Module):
 
 
 class DiceScore(nn.Module):
-    def __init__(self, weight=None, ignore_index=None, num_classes=4, **kwargs):
+    def __init__(self, num_classes=5):
         super(DiceScore, self).__init__()
-        self.kwargs = kwargs
-        self.weight = weight
-        self.ignore_index = ignore_index
         self.num_classes = num_classes
-        self.dice = BinaryDiceScore(**self.kwargs)
+        self.dice = BinaryDiceScore()
 
-    def forward(self, predict, target, is_sigmoid=True):
+    def forward(self, predict, target):
+        predict = F.softmax(predict, dim=1)
+
         all_score = []
-        if is_sigmoid:
-            predict = F.sigmoid(predict)
-
-        for i in range(self.num_classes):
-            if i != self.ignore_index:
-                dice_score = self.dice(predict[:, i], target[:, i])
-
-                if self.weight is not None:
-                    assert self.weight.shape[0] == self.num_classes, \
-                        'Expect weight shape [{}], get[{}]'.format(self.num_classes, self.weight.shape[0])
-                    dice_score *= self.weights[i]
-
-                dice_score = torch.mean(dice_score)  # mean of batch
-                all_score.append(dice_score.item())  # append each organ
+        for i in range(1, self.num_classes):  # 1: evaluate score from organs(liver)
+            dice_score = self.dice(predict[:, i], target[:, i])
+            dice_score = torch.mean(dice_score)  # mean of batch
+            all_score.append(dice_score.item())  # append each organ
 
         all_score = torch.tensor(all_score)
         return all_score
 
 
 class ArgmaxDiceScore(nn.Module):
-    def __init__(self, ignore_index=None, num_classes=5, device=None, **kwargs):
+    def __init__(self, num_classes=5, device=None):
         super(ArgmaxDiceScore, self).__init__()
-        self.kwargs = kwargs
-        self.ignore_index = ignore_index
         self.num_classes = num_classes
         self.device = device
-        self.dice = BinaryDiceScore(**self.kwargs)
+        self.dice = BinaryDiceScore()
 
-    def forward(self, predict, target, is_sigmoid=True):
+    def forward(self, predict, target):
+        predict = F.softmax(predict, dim=1)
+
         total_score = []
-        if is_sigmoid:
-            predict = F.sigmoid(predict)
-
-        # add background channel
-        shape = target[:, 0].shape
-        backg = torch.zeros(shape).to(self.device)
-        backg = backg.unsqueeze(1)
-        predict = torch.cat((backg, predict), dim=1)
-        target = torch.cat((backg, target), dim=1)
-
-        # apply threshold 0.1
-        predict = torch.threshold(predict, 0.5, 0)
-
         # one channel & multi-class
         predict = torch.argmax(predict, dim=1)
         target = torch.argmax(target, dim=1)
@@ -134,10 +80,9 @@ class ArgmaxDiceScore(nn.Module):
         target = self.extend_channel_classes(target)
 
         for i in range(self.num_classes):
-            if i != self.ignore_index:
-                dice_score = self.dice(predict[:, i], target[:, i])
-                dice_score = torch.mean(dice_score)  # mean of each batch
-                total_score.append(dice_score.item())
+            dice_score = self.dice(predict[:, i], target[:, i])
+            dice_score = torch.mean(dice_score)  # mean of each batch
+            total_score.append(dice_score.item())
 
         total_score = torch.tensor(total_score)
         return total_score
@@ -174,30 +119,64 @@ class BinaryDiceLoss(nn.Module):
 
 
 class DiceLoss(nn.Module):
-    def __init__(self, weight=None, ignore_index=None, num_classes=4, **kwargs):
+    def __init__(self, weight=None, num_classes=5):
         super(DiceLoss, self).__init__()
-        self.kwargs = kwargs
         self.weight = weight
-        self.ignore_index = ignore_index
         self.num_classes = num_classes
-        self.dice = BinaryDiceLoss(**self.kwargs)
+        self.dice = BinaryDiceLoss()
 
-    def forward(self, predict, target, is_sigmoid=True):
+    def forward(self, predict, target):
+        predict = F.softmax(predict, dim=1)
 
         total_loss = []
-        if is_sigmoid:
-            predict = F.sigmoid(predict)
-
         for i in range(self.num_classes):
-            if i != self.ignore_index:
-                dice_loss = self.dice(predict[:, i], target[:, i])
-                if self.weight is not None:
-                    assert self.weight.shape[0] == self.num_classes, \
-                        'Expect weight shape [{}], get[{}]'.format(self.num_classes, self.weight.shape[0])
-                    dice_loss *= self.weights[i]
+            dice_loss = self.dice(predict[:, i], target[:, i])
 
-                dice_loss = torch.mean(dice_loss)
-                total_loss.append(dice_loss.item())
+            if self.weight is not None:
+                assert len(self.weight) == self.num_classes, \
+                    'do not match length of weight and # of classes'
+                dice_loss *= self.weights[i]
 
-        avg_loss = sum(total_loss) / len(total_loss)
+            dice_loss = torch.mean(dice_loss)  # mean of batch
+            total_loss[i] = dice_loss  # append each organ
+
+        msg = 'DiceLoss '
+        for k, v in total_loss.items():
+            msg += f'| {index_organs[k]}: {v.item()} '
+        print(msg, end='\r')
+
+        total_loss = torch.stack(total_loss.item())
+        avg_loss = torch.mean(total_loss)  # mean of all organs
+        return avg_loss
+
+
+class CELoss(nn.Module):
+    def __init__(self, weight=None, num_classes=4):
+        super(CELoss, self).__init__()
+        self.weight = weight
+        self.num_classes = num_classes
+        self.criterion = nn.BCEWithLogitsLoss()
+
+    def forward(self, predict, target):
+        assert predict.shape == target.shape, 'predict & target shape do not match'
+        predict = F.softmax(predict, dim=1)
+
+        total_loss = []
+        for i in range(self.num_classes):
+            ce_loss = self.criterion(predict[:, i], target[:, i])
+
+            if self.weight is not None:
+                assert len(self.weight) == self.num_classes, \
+                    'do not match length of weight and # of classes'
+                ce_loss *= self.weight[i]
+
+            total_loss.append(ce_loss)  # append each organ
+
+        msg = 'CELoss '
+        for k, v in total_loss.items():
+            msg += f'| {index_organs[k]}: {v.item()} '
+        print(msg, end='\r')
+
+        total_loss = torch.stack(total_loss)
+        avg_loss = torch.mean(total_loss)  # mean of all organs
         return avg_loss
