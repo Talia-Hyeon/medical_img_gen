@@ -4,12 +4,11 @@ import argparse
 
 import matplotlib.pyplot as plt
 import torch
-import torch.optim as optim
-from torch.utils.data import DataLoader, ConcatDataset
+from torch import optim
+from torch.utils.data import DataLoader
 
 from data.flare21 import FLAREDataSet
 from data.flare21 import my_collate
-from data.btcv import BTCVDataSet
 from model.unet3D import UNet3D
 from loss_functions.score import *
 
