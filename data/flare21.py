@@ -19,7 +19,7 @@ index_organs = ['background', 'liver', 'kidney', 'spleen', 'pancreas']
 
 
 class FLAREDataSet(data.Dataset):
-    def __init__(self, root, split='train', task_id=1, crop_size=(96, 96, 96), cur_epoch=0, batch_size=8, milestones=[40, 80, 120]):
+    def __init__(self, root, split='train', task_id=1, crop_size=(96, 96, 96)):
         self.root = root
         self.split = split
         self.task_id = task_id
@@ -47,29 +47,40 @@ class FLAREDataSet(data.Dataset):
             all_files = self.load_data(test_data, image_path, label_path)
             self.files = all_files
 
-        iter_per_epoch = (len(self.files)+batch_size-1)//batch_size
-        self.cur_iter = iter_per_epoch*cur_epoch
-        self.milestones = [iter_per_epoch*e for e in milestones]
- 
         print("{}'s {} images are loaded!".format(self.split, len(self.files)))
 
     def __len__(self):
         return len(self.files)
 
     def __getitem__(self, index):
-        image, label, name = self.files[index]
+        datafiles = self.files[index]
+        # read nii file
+        imageNII = nib.load(datafiles["image"])
+        labelNII = nib.load(datafiles["label"])
+        image = imageNII.get_fdata()
+        label = labelNII.get_fdata()
+        name = datafiles["name"]
 
-        # augmentation
+        # pad
+        image = pad_image(image, [self.crop_h, self.crop_w, self.crop_d])
+        label = pad_image(label, [self.crop_h, self.crop_w, self.crop_d])
+
+        # crop
+        image, label = center_crop_3d(image, label, self.crop_h, self.crop_w, self.crop_d)
+
+        # normalization
+        image = truncate(image)  # -1 <= image <= 1
+
+        # add channel
+        image = image[np.newaxis, :]
+        label = label[np.newaxis, :]
+
+        # Channel x Depth x H x W
+        image = image.transpose((0, 3, 1, 2))
+        label = label.transpose((0, 3, 1, 2))
+
+        # 50% flip
         if self.split == 'train':
-            
-            prob = self.get_centor_crop_prob()
-
-            if np.random.uniform() < prob:
-                image, label = center_crop_3d(image, label, self.crop_h, self.crop_w, self.crop_d)
-            else:
-                iamge, label = random_crop_3d(image, label, self.crop_h, self.crop_w, self.crop_d)
-
-            # 50% flip
             if np.random.rand(1) <= 0.5:  # W
                 image = image[:, :, :, ::-1]
                 label = label[:, :, :, ::-1]
@@ -80,28 +91,12 @@ class FLAREDataSet(data.Dataset):
                 image = image[:, ::-1, :, :]
                 label = label[:, ::-1, :, :]
 
-        if self.split == 'train':
-            label = label_to_binary(label, self.task_id)
-        else:
-            # extend label's channel for val/test
-            label = extend_channel_classes(label, self.task_id)
+        # extend label's channel for val/test
+        label = extend_channel_classes(label, self.task_id)
 
         image = image.astype(np.float32)
         label = label.astype(np.float32)
-
-        self.cur_iter += 1
-
         return image, label, name
-    
-    def get_centor_crop_prob(self):
-        if self.cur_iter < self.milestones[0]:
-            return 1.0
-        elif self.cur_iter < self.milestones[1]:
-            return 0.8
-        elif self.cur_iter < self.milestones[2]:
-            return 0.6
-        else:
-            return 0.4
 
     def load_data(self, data_l, image_path, label_path):
         all_files = []
@@ -110,49 +105,13 @@ class FLAREDataSet(data.Dataset):
             label_item = item.replace('_0000', '')
             label_file = osp.join(label_path, label_item)
 
-            # read nii file
-            imageNII = nib.load(img_file)
-            labelNII = nib.load(label_file)
-            image = imageNII.get_fdata()
-            label = labelNII.get_fdata()
-            name = item
-
-            # normalization
-            image = truncate(image)  # -1 <= image <= 1
-
-            # add channel
-            image = image[np.newaxis, :]
-            label = label[np.newaxis, :]
-
-            # Channel x Depth x H x W
-            image = image.transpose((0, 3, 1, 2))
-            label = label.transpose((0, 3, 1, 2))
-
-            if self.split == 'train':
-                all_files.append((image, label, name))
-            else:
-                _, d, h, w = image.shape
-                num_d = (d+self.crop_d-1)//self.crop_d
-                num_h = (h+self.crop_h-1)//self.crop_h
-                num_w = (w+self.crop_w-1)//self.crop_w
-                
-                # crop
-                for k in range(num_d):
-                    for j in range(num_w):
-                        for i in range(num_h):
-                            pos_h = self.crop_h*i
-                            pos_w = self.crop_w*j 
-                            pos_d = self.crop_d*k
-
-                            croped_img = image[:, pos_d:pos_d+self.crop_d, pos_h:pos_h+self.crop_h, pos_w:pos_w+self.crop_w]
-                            croped_lbl = label[:, pos_d:pos_d+self.crop_d, pos_h:pos_h+self.crop_h, pos_w:pos_w+self.crop_w]
-
-                            croped_img = pad_image(croped_img, [self.crop_d, self.crop_h, self.crop_w])
-                            croped_lbl = pad_image(croped_lbl, [self.crop_d, self.crop_h, self.crop_w])
-
-                            all_files.append((croped_img, croped_lbl, name))
-        
+            all_files.append({
+                "image": img_file,
+                "label": label_file,
+                "name": item
+            })
         return all_files
+
 
 def truncate(CT):
     min_HU = -325
@@ -167,36 +126,25 @@ def truncate(CT):
     CT = CT / divide
     return CT
 
+
 def center_crop_3d(image, label, crop_h, crop_w, crop_d):
-    _, depth, height, width = image.shape
+    height, width, depth = image.shape
     h0 = (height - crop_h) // 2
     h1 = h0 + crop_h
     w0 = (width - crop_w) // 2
     w1 = w0 + crop_w
     d0 = (depth - crop_d) // 2
     d1 = d0 + crop_d
-    image = image[:, d0: d1, h0: h1, w0: w1]
-    label = label[:, d0: d1, h0: h1, w0: w1]
+    image = image[h0: h1, w0: w1, d0: d1]
+    label = label[h0: h1, w0: w1, d0: d1]
     return image, label
 
-def random_crop_3d(image, label, crop_h, crop_w, crop_d):
-    _, depth, height, width = image.shape
-    h0 = np.random.randint(0, height-crop_h)
-    h1 = h0 + crop_h
-    w0 = np.random.randint(0, width-crop_w)
-    w1 = w0 + crop_w
-    d0 = np.random.randint(0, depth-crop_d)
-    d1 = d0 + crop_d
-    image = image[:, d0: d1, h0: h1, w0: w1]
-    label = label[:, d0: d1, h0: h1, w0: w1]
-    return image, label
 
 def pad_image(img, target_size):
     """Pad an image up to the target size."""
-    _, d, h, w = img.shape
-    dept_missing = math.ceil(target_size[0] - d)
-    rows_missing = math.ceil(target_size[1] - h)
-    cols_missing = math.ceil(target_size[2] - w)
+    rows_missing = math.ceil(target_size[0] - img.shape[0])
+    cols_missing = math.ceil(target_size[1] - img.shape[1])
+    dept_missing = math.ceil(target_size[2] - img.shape[2])
     if rows_missing < 0:
         rows_missing = 0
     if cols_missing < 0:
@@ -204,7 +152,7 @@ def pad_image(img, target_size):
     if dept_missing < 0:
         dept_missing = 0
 
-    padded_img = np.pad(img, ((0, 0), (0, dept_missing), (0, rows_missing), (0, cols_missing)), 'constant')
+    padded_img = np.pad(img, ((0, rows_missing), (0, cols_missing), (0, dept_missing)), 'constant')
     return padded_img
 
 

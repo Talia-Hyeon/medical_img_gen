@@ -67,6 +67,38 @@ def get_image_prior_losses(img):
     return loss_var_l1, loss_var_l2
 
 
+r_args = [(0, 1, -1, 1)]
+
+
+class ClassLoss(nn.Module):
+    def __init__(self):
+        super().__init__()
+        self.loss = nn.CrossEntropyLoss()
+
+        r = list()
+
+        for arg in r_args:
+            mean, std, upper, lower = arg
+            r_k = torch.distributions.normal.Normal(torch.tensor(mean), torch.tensor(std)).sample()
+            r_k = min(torch.tensor(upper), r_k)
+            r_k = max(torch.tensor(lower), r_k)
+            r.append(r_k)
+
+        r = torch.tensor(r).reshape(len(r_args), 1, 1)
+
+        self.register_buffer('r', r)
+
+    def forward(self, x):
+        B, C, H, W = x.shape
+
+        r = self.r[:, :C]
+
+        x = (1 / r) * torch.log(torch.sum(torch.exp(r * x), dim=(2, 3)) / (H * W))  # shape = (B,C)
+        gt = torch.ones_like(x)
+
+        return self.loss(x, gt)
+
+
 def lr_poly(base_lr, iter_idx, max_iter, power):
     return base_lr * ((1 - float(iter_idx) / max_iter) ** (power))
 
