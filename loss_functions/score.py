@@ -138,14 +138,14 @@ class DiceLoss(nn.Module):
                 dice_loss *= self.weights[i]
 
             dice_loss = torch.mean(dice_loss)  # mean of batch
-            total_loss[i] = dice_loss  # append each organ
+            total_loss.append(dice_loss)  # append each organ
 
-        msg = 'DiceLoss '
-        for k, v in total_loss.items():
-            msg += f'| {index_organs[k]}: {v.item()} '
-        print(msg, end='\r')
+        # msg = 'DiceLoss '
+        # for k, v in enumerate(total_loss):
+        #     msg += f'| {index_organs[k]}: {v.item()} '
+        # print(msg, end='\r')
 
-        total_loss = torch.stack(total_loss.item())
+        total_loss = torch.stack(total_loss)
         avg_loss = torch.mean(total_loss)  # mean of all organs
         return avg_loss
 
@@ -172,10 +172,10 @@ class CELoss(nn.Module):
 
             total_loss.append(ce_loss)  # append each organ
 
-        msg = 'CELoss '
-        for k, v in total_loss.items():
-            msg += f'| {index_organs[k]}: {v.item()} '
-        print(msg, end='\r')
+        # msg = 'CELoss '
+        # for k, v in enumerate(total_loss):
+        #     msg += f'| {index_organs[k]}: {v.item()} '
+        # print(msg, end='\r')
 
         total_loss = torch.stack(total_loss)
         avg_loss = torch.mean(total_loss)  # mean of all organs

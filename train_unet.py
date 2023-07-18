@@ -174,11 +174,11 @@ def main():
         if avg_dice >= best_avg_dice:
             best_avg_dice = avg_dice
             best_dice = dice_score
-            save_model(path=f'./save_model/best_model.pth',
+            save_model(path=f'./save_model/epoch{epoch}_best_model.pth',
                        model=model, optim=optimizer, lr_sch=lr_scheduler, epoch=epoch)
 
         if epoch % 20 == 0:
-            save_model(path=f'./save_model/{epoch}_model.pth',
+            save_model(path=f'./save_model/epoch{epoch}_model.pth',
                        model=model, optim=optimizer, lr_sch=lr_scheduler, epoch=epoch)
             draw_loss_plot(epoch_l, train_loss_l, val_loss_l)
 

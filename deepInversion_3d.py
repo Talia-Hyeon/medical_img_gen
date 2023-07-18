@@ -75,7 +75,7 @@ class ClassLoss(nn.Module):
         r = []
         for arg in r_args:
             mean, std, upper, lower = arg
-            r_k = torch.distributions.normal.Normal(torch.tensor(mean), torch.tensor(std)).sample()
+            r_k = torch.distributions.normal.Normal(torch.tensor(float(mean)), torch.tensor(float(std))).sample()
             r_k = min(torch.tensor(upper), r_k)
             r_k = max(torch.tensor(lower), r_k)
             r.append(r_k)
@@ -85,6 +85,7 @@ class ClassLoss(nn.Module):
 
     def forward(self, x):
         B, C, D, H, W = x.shape
+        print("c:{}\nlen of r: {}".format(C, len(self.r)))
         assert C == len(self.r), "channel's size don't match"
         # extend the dimension to match the batch size
         r = self.r.unsqueeze(0).expand(B, -1, -1, -1, -1)  # B, C, D, H, W
@@ -122,7 +123,7 @@ def get_arguments():
     parser.add_argument("--itrs_each_epoch", type=int, default=250)
     parser.add_argument("--num_epochs", type=int, default=500)
     parser.add_argument("--num_imgs", type=int, default=50)  # 500
-    parser.add_argument("--num_classes", type=int, default=4)
+    parser.add_argument("--num_classes", type=int, default=5)
     parser.add_argument("--batch_size", type=int, default=1)
     parser.add_argument("--gpu", type=str, default='0')
     parser.add_argument("--num_workers", type=int, default=1)
@@ -206,7 +207,7 @@ def main():
             bn_diff = [mod.r_feature * rescale[idx] for (idx, mod) in enumerate(loss_r_feature_layers)]
             loss_bn = sum(bn_diff) / len(loss_r_feature_layers)
             # class loss
-            class_loss = class_loss_fn(fake_x)
+            class_loss = class_loss_fn(fake_label)
             # total loss
             loss = class_loss * 1 + loss_bn * 1 + loss_var_l1 * 0.01 + loss_var_l2 * 0.001  # + frac
 
