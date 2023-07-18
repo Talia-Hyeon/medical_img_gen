@@ -1,4 +1,5 @@
 import matplotlib.pyplot as plt
+import torch
 
 import sys
 
@@ -48,16 +49,9 @@ class FAKEDataSet(data.Dataset):
         label = labelNII.get_fdata()
         name = datafiles["name"]
 
-        # scale
-        scaler = 1
-        # if np.random.uniform() < 0.2:
-        #     scaler = np.random.uniform(0.7, 1.4)
-        # else:
-        #     scaler = 1
-
         # pad
-        image = pad_image(image, [self.crop_h * scaler, self.crop_w * scaler, self.crop_d * scaler])
-        label = pad_image(label, [self.crop_h * scaler, self.crop_w * scaler, self.crop_d * scaler])
+        image = pad_image(image, [self.crop_h, self.crop_w, self.crop_d])
+        label = pad_image(label, [self.crop_h, self.crop_w, self.crop_d])
 
         # crop
         image, label = center_crop_3d(image, label, self.crop_h, self.crop_w, self.crop_d)
@@ -86,31 +80,32 @@ class FAKEDataSet(data.Dataset):
 
         # adjust shape
         d, h, w = image.shape[-3:]
-        if scaler != 1 or d != self.crop_d or h != self.crop_h or w != self.crop_w:
+        if d != self.crop_d or h != self.crop_h or w != self.crop_w:
             image = resize(image, (1, self.crop_d, self.crop_h, self.crop_w), order=1, mode='constant', cval=0,
                            clip=True, preserve_range=True)
             label = resize(label, (1, self.crop_d, self.crop_h, self.crop_w), order=0, mode='edge', cval=0, clip=True,
                            preserve_range=True)
 
         # extend label's channel to # of classes for loss fn
-        label = extend_channel_classes(label, self.task_id)
+        label = label_to_binary(label, self.task_id)
+        # label = extend_channel_classes(label, self.task_id)
 
         image = image.astype(np.float32)
         label = label.astype(np.float32)
         return image, label, name
 
 
-def visualization(img, label, root, iter):
-    image = img.numpy()
-    image = np.squeeze(image)
-    label = label.numpy()
-    label = np.squeeze(label)
+def visualization(img, label, root, iter, num_classes):
+    # delete batch
+    image = torch.squeeze(img).numpy()
+    label = torch.squeeze(label).numpy()
     label = np.argmax(label, axis=0)
 
-    max_score_idx = find_best_view(label)
+    # slice into the best view
+    max_score_idx = find_best_view(label, num_classes)
     image = image[max_score_idx, :, :]
     label = label[max_score_idx, :, :]
-    col_label = decode_segmap(label)
+    col_label = decode_segmap(label, num_classes)
 
     plt.figure()
     plt.subplot(1, 2, 1)
@@ -125,12 +120,14 @@ def visualization(img, label, root, iter):
 
 
 if __name__ == '__main__':
-    save_path = '../fig/gen_img'
+    task_id = 1
+    num_classes = 1
+    save_path = f'../fig/gen_img/{task_id}'
     os.makedirs(save_path, exist_ok=True)
-    val_path = '../sample'
-    val_data = FAKEDataSet(root=val_path, task_id=4)
+    val_path = f'../sample/{task_id}'
+    val_data = FAKEDataSet(root=val_path, task_id=task_id)
     val_loader = data.DataLoader(dataset=val_data, batch_size=1, shuffle=False, num_workers=4)
     for val_iter, pack in enumerate(val_loader):
         img_ = pack[0]
         label_ = pack[1]
-        visualization(img_, label_, save_path, val_iter)
+        visualization(img_, label_, save_path, val_iter, num_classes)

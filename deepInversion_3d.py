@@ -67,16 +67,12 @@ def get_image_prior_losses(img):
     return loss_var_l1, loss_var_l2
 
 
-r_args = [(0, 1, -1, 1)]
-
-
 class ClassLoss(nn.Module):
-    def __init__(self):
+    def __init__(self, r_args):
         super().__init__()
         self.loss = nn.CrossEntropyLoss()
 
-        r = list()
-
+        r = []
         for arg in r_args:
             mean, std, upper, lower = arg
             r_k = torch.distributions.normal.Normal(torch.tensor(mean), torch.tensor(std)).sample()
@@ -84,16 +80,16 @@ class ClassLoss(nn.Module):
             r_k = max(torch.tensor(lower), r_k)
             r.append(r_k)
 
-        r = torch.tensor(r).reshape(len(r_args), 1, 1)
-
-        self.register_buffer('r', r)
+        r = torch.tensor(r).reshape(len(r_args), 1, 1, 1)
+        self.register_buffer('r', r)  # store the untrained value
 
     def forward(self, x):
-        B, C, H, W = x.shape
+        B, C, D, H, W = x.shape
+        assert C == len(self.r), "channel's size don't match"
+        # extend the dimension to match the batch size
+        r = self.r.unsqueeze(0).expand(B, -1, -1, -1, -1)  # B, C, D, H, W
 
-        r = self.r[:, :C]
-
-        x = (1 / r) * torch.log(torch.sum(torch.exp(r * x), dim=(2, 3)) / (H * W))  # shape = (B,C)
+        x = (1 / r) * torch.log(torch.sum(torch.exp(r * x), dim=(2, 3, 4)) / (D * H * W))  # shape = (B,C)
         gt = torch.ones_like(x)
 
         return self.loss(x, gt)
@@ -173,14 +169,19 @@ def main():
     checkpoint = torch.load(path)
     pretrained.load_state_dict(checkpoint['model'], strict=False)
     pretrained = nn.DataParallel(pretrained).to(device)
-    # pretrained.load_state_dict(torch.load(path), strict=False)
 
+    # loss function
+    # feature loss
     loss_r_feature_layers = []
     for module in pretrained.modules():
         if isinstance(module, nn.BatchNorm3d):
             loss_r_feature_layers.append(DeepInversionFeatureHook(module))
+    # class loss
+    class_loss_fn = ClassLoss(r_args=[(0, 1, -1, 1), (0, 1, -1, 1),  # background, liver
+                                      (0, 1, -1, 1), (0, 1, -1, 1), (0, 1, -1, 1)])  # kidney, spleen, pancreas
+    class_loss_fn.to(device)
 
-    # pretrained.to(device)
+    # generate fake images
     pretrained.eval()
 
     for i_run in range(n_runs):
@@ -190,13 +191,13 @@ def main():
 
         for iter_idx in range(n_iters):
             lr = adjust_learning_rate(optimizer, iter_idx, 0.1, n_iters, args.power)
-            optimizer.zero_grad()
-            pretrained.zero_grad()
+
             output = pretrained(fake_x)
+            fake_label = F.softmax(output, dim=1)
+
             # prob = torch.sigmoid(output)
-            prob = F.softmax(output, dim=1)
-            fake_label = torch.argmax(prob, dim=1)
-            fake_label = fake_label.to(torch.uint8)
+            # fake_label = torch.argmax(prob, dim=1)
+            # fake_label = fake_label.to(torch.uint8)
 
             # R_prior losses
             loss_var_l1, loss_var_l2 = get_image_prior_losses(fake_x)
@@ -204,10 +205,16 @@ def main():
             rescale = [10] + [1. for _ in range(len(loss_r_feature_layers) - 1)]
             bn_diff = [mod.r_feature * rescale[idx] for (idx, mod) in enumerate(loss_r_feature_layers)]
             loss_bn = sum(bn_diff) / len(loss_r_feature_layers)
-            loss = loss_bn * 1 + loss_var_l1 * 0.01 + loss_var_l2 * 0.001  # + frac
-            loss.backward()
+            # class loss
+            class_loss = class_loss_fn(fake_x)
+            # total loss
+            loss = class_loss * 1 + loss_bn * 1 + loss_var_l1 * 0.01 + loss_var_l2 * 0.001  # + frac
 
+            pretrained.zero_grad()
+            optimizer.zero_grad()
+            loss.backward()
             optimizer.step()
+
             print(f"{iter_idx}/{n_iters}, {loss_var_l1:.2f}, {loss_var_l2:.2f}, {loss_bn:.2f},", end='\r')
 
         fake_x = fake_x.detach().cpu().numpy()
