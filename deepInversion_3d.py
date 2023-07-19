@@ -85,7 +85,6 @@ class ClassLoss(nn.Module):
 
     def forward(self, x):
         B, C, D, H, W = x.shape
-        print("c:{}\nlen of r: {}".format(C, len(self.r)))
         assert C == len(self.r), "channel's size don't match"
         # extend the dimension to match the batch size
         r = self.r.unsqueeze(0).expand(B, -1, -1, -1, -1)  # B, C, D, H, W
@@ -127,7 +126,7 @@ def get_arguments():
     parser.add_argument("--batch_size", type=int, default=1)
     parser.add_argument("--gpu", type=str, default='0')
     parser.add_argument("--num_workers", type=int, default=1)
-    parser.add_argument("--pretrained_model", type=str, default='./save_model/best_model.pth')
+    parser.add_argument("--pretrained_model", type=str, default='./save_model/epoch145_best_model.pth')
     parser.add_argument("--random_seed", type=int, default=1234)
     parser.add_argument("--power", type=float, default=0.9)
     return parser
@@ -150,7 +149,7 @@ def main():
     n_iters = args.num_epochs
 
     path = args.pretrained_model
-    input_size = (96, 96, 96)
+    input_size = (160, 192, 192)
 
     cudnn.benchmark = True
     seed = args.random_seed
@@ -209,14 +208,15 @@ def main():
             # class loss
             class_loss = class_loss_fn(fake_label)
             # total loss
-            loss = class_loss * 1 + loss_bn * 1 + loss_var_l1 * 0.01 + loss_var_l2 * 0.001  # + frac
+            loss = class_loss * 0.1 + loss_bn * 1 + loss_var_l1 * 0.01 + loss_var_l2 * 0.001  # + frac
 
             pretrained.zero_grad()
             optimizer.zero_grad()
             loss.backward()
             optimizer.step()
 
-            print(f"{iter_idx}/{n_iters}, {loss_var_l1:.2f}, {loss_var_l2:.2f}, {loss_bn:.2f},", end='\r')
+            print(f"{iter_idx}/{n_iters}| L1: {loss_var_l1:.2f}|"
+                  f" L2: {loss_var_l2:.2f}| Batch_Norm:{loss_bn:.2f}| Class: {class_loss}", end='\r')
 
         fake_x = fake_x.detach().cpu().numpy()
         fake_label = fake_label.detach().cpu().numpy()
