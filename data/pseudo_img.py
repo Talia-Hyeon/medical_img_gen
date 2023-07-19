@@ -9,11 +9,10 @@ from data.flare21 import *
 
 
 class FAKEDataSet(data.Dataset):
-    def __init__(self, root, task_id=1, crop_size=(192, 192, 192), ignore_label=255):
+    def __init__(self, root, task_id=4, crop_size=(160, 192, 192)):
         self.root = root
         self.task_id = task_id
         self.crop_d, self.crop_h, self.crop_w = crop_size
-        self.ignore_label = ignore_label
         self.files = []
 
         print("Start preprocessing....")
@@ -50,22 +49,22 @@ class FAKEDataSet(data.Dataset):
         name = datafiles["name"]
 
         # pad
-        image = pad_image(image, [self.crop_h, self.crop_w, self.crop_d])
-        label = pad_image(label, [self.crop_h, self.crop_w, self.crop_d])
+        # image = pad_image(image, [self.crop_h, self.crop_w, self.crop_d])
+        # label = pad_image(label, [self.crop_h, self.crop_w, self.crop_d])
 
         # crop
-        image, label = center_crop_3d(image, label, self.crop_h, self.crop_w, self.crop_d)
+        # image, label = center_crop_3d(image, label, self.crop_h, self.crop_w, self.crop_d)
 
         # normalization
         image = truncate(image)
 
         # add channel
         image = image[np.newaxis, :]
-        label = label[np.newaxis, :]
+        # label = label[np.newaxis, :]
 
         # Channel x Depth x H x W
         image = image.transpose((0, 3, 1, 2))
-        label = label.transpose((0, 3, 1, 2))
+        # label = label.transpose((0, 3, 1, 2))
 
         # 50% flip
         # if np.random.rand(1) <= 0.5:  # W
@@ -78,16 +77,8 @@ class FAKEDataSet(data.Dataset):
         #     image = image[:, ::-1, :, :]
         #     label = label[:, ::-1, :, :]
 
-        # adjust shape
-        d, h, w = image.shape[-3:]
-        if d != self.crop_d or h != self.crop_h or w != self.crop_w:
-            image = resize(image, (1, self.crop_d, self.crop_h, self.crop_w), order=1, mode='constant', cval=0,
-                           clip=True, preserve_range=True)
-            label = resize(label, (1, self.crop_d, self.crop_h, self.crop_w), order=0, mode='edge', cval=0, clip=True,
-                           preserve_range=True)
 
         # extend label's channel to # of classes for loss fn
-        label = label_to_binary(label, self.task_id)
         # label = extend_channel_classes(label, self.task_id)
 
         image = image.astype(np.float32)
@@ -120,11 +111,11 @@ def visualization(img, label, root, iter, num_classes):
 
 
 if __name__ == '__main__':
-    task_id = 1
-    num_classes = 1
-    save_path = f'../fig/gen_img/{task_id}'
+    task_id = 4
+    num_classes = 5
+    save_path = f'../fig/gen_img/class_loss'
     os.makedirs(save_path, exist_ok=True)
-    val_path = f'../sample/{task_id}'
+    val_path = f'../sample/add_class_loss'
     val_data = FAKEDataSet(root=val_path, task_id=task_id)
     val_loader = data.DataLoader(dataset=val_data, batch_size=1, shuffle=False, num_workers=4)
     for val_iter, pack in enumerate(val_loader):
