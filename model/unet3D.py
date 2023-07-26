@@ -70,7 +70,7 @@ class NoBottleneck(nn.Module):
 
 
 class UNet3D(nn.Module):
-    def __init__(self, layers, num_classes=1, weight_std=False, bch=32):
+    def __init__(self, layers=[1, 2, 2, 2, 2], num_classes=1, weight_std=False, bch=32):
         self.weight_std = weight_std
         super(UNet3D, self).__init__()
 
