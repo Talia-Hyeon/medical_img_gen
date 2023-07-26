@@ -118,7 +118,7 @@ def evaluate(model, test_data_loader, num_class, device):
 def print_dice(dice_score):
     label_dict = {}
     for idx, organ in enumerate(index_organs[1:]):
-        label_dict[idx - 1] = organ
+        label_dict[idx] = organ
     dice_dict = {}
     for i in range(len(label_dict)):
         organ = label_dict[i]
