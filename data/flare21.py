@@ -92,7 +92,7 @@ class FLAREDataSet(data.Dataset):
                 label = label[:, ::-1, :, :]
 
         # extend label's channel for val/test
-        label = extend_channel_classes(label, self.task_id)
+        label = extend_channel_classes(label, self.task_id + 1)
 
         image = image.astype(np.float32)
         label = label.astype(np.float32)
@@ -176,7 +176,7 @@ def label_to_binary(label, task_id):
 
 def extend_channel_classes(label, num_classes):
     label_list = []
-    for i in range(0, num_classes + 1):
+    for i in range(num_classes):
         label_i = label.copy()
         label_i[label == i] = 1
         label_i[label != i] = 0

@@ -155,7 +155,7 @@ if __name__ == '__main__':
 
     # dataloader
     flared_path = './dataset/FLARE21'
-    flared_test = FLAREDataSet(root=flared_path, split='test', task_id=n_classes)
+    flared_test = FLAREDataSet(root=flared_path, split='test', task_id=n_classes - 1)
     test_loader = DataLoader(dataset=flared_test, batch_size=1, shuffle=False, num_workers=num_workers)
 
     # model

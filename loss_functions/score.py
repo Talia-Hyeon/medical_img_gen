@@ -73,11 +73,9 @@ class ArgmaxDiceScore(nn.Module):
         total_score = []
         # one channel & multi-class
         predict = torch.argmax(predict, dim=1)
-        target = torch.argmax(target, dim=1)
-
         # mutil-channel & binary class
         predict = self.extend_channel_classes(predict)
-        target = self.extend_channel_classes(target)
+        target = torch.squeeze(target)  # remove batch
 
         for i in range(1, self.num_classes):  # 1: evaluate score from organs(liver)
             dice_score = self.dice(predict[:, i], target[:, i])
@@ -89,7 +87,7 @@ class ArgmaxDiceScore(nn.Module):
 
     def extend_channel_classes(self, label):
         label_list = []
-        for i in range(1, self.num_classes + 1):
+        for i in range(self.num_classes):
             label_i = torch.clone(label)
             label_i[label == i] = 1
             label_i[label != i] = 0
