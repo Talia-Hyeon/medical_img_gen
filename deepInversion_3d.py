@@ -68,33 +68,31 @@ def get_image_prior_losses(img):
 
 
 class ClassLoss(nn.Module):
-    def __init__(self, r_args):
+    def __init__(self, r_args, num_classes):
         super().__init__()
         self.loss = nn.CrossEntropyLoss()
 
         r = []
-        for arg in r_args:
-            mean, std, upper, lower = arg
+        for organ in range(num_classes):
+            mean, std, upper, lower = r_args[organ]
             r_k = torch.distributions.normal.Normal(torch.tensor(float(mean)), torch.tensor(float(std))).sample()
             r_k = min(torch.tensor(upper), r_k)
             r_k = max(torch.tensor(lower), r_k)
             r.append(r_k)
 
-        r = torch.tensor(r).reshape(1, len(r_args))  # , 1, 1, 1)
+        r = torch.tensor(r).reshape(1, len(r_args))  # add batch
         self.register_buffer('r', r)  # store the untrained value
 
     def forward(self, x):
         B, C, D, H, W = x.shape
         assert C == self.r.size(1), "channel's size don't match"
-        # extend the dimension to match the batch size
-        # r = self.r.unsqueeze(0)#.expand(B, -1, -1, -1, -1)  # B, C, D, H, W
 
         x = (1 / self.r) * torch.log(
             torch.sum(torch.exp(self.r[..., None, None, None] * x), dim=(2, 3, 4)) / (D * H * W))  # shape = (B,C)
         gt = torch.ones_like(x)
         # gt[:, 0] = 0  # don't contain the background into generated class
         gt = F.softmax(gt, dim=1)
-        
+
         return self.loss(x, gt)
 
 
@@ -126,8 +124,8 @@ def get_arguments():
     parser.add_argument("--num_epochs", type=int, default=500)
     parser.add_argument("--num_imgs", type=int, default=50)  # 500
     parser.add_argument("--num_classes", type=int, default=5)
-    parser.add_argument("--batch_size", type=int, default=1)
-    parser.add_argument("--gpu", type=str, default='0')
+    parser.add_argument("--batch_size", type=int, default=4)
+    parser.add_argument("--gpu", type=str, default='2,3,4,5')
     parser.add_argument("--num_workers", type=int, default=1)
     parser.add_argument("--pretrained_model", type=str, default='./save_model/epoch145_best_model.pth')
     parser.add_argument("--random_seed", type=int, default=1234)
@@ -151,8 +149,9 @@ def main():
     n_runs = args.num_imgs // args.batch_size
     n_iters = args.num_epochs
 
-    path = args.pretrained_model
+    num_classes = args.num_classes
     input_size = (160, 192, 192)
+    path = args.pretrained_model
 
     cudnn.benchmark = True
     seed = args.random_seed
@@ -168,7 +167,7 @@ def main():
     # load the pretrained model
     print("Generate pseudo images using pretrained models.")
     print(f"Loading checkpoint {path}")
-    pretrained = UNet3D(num_classes=args.num_classes)
+    pretrained = UNet3D(num_classes=num_classes)
     checkpoint = torch.load(path)
     pretrained.load_state_dict(checkpoint['model'], strict=False)
     pretrained = nn.DataParallel(pretrained).to(device)
@@ -189,11 +188,11 @@ def main():
 
         # class loss
         class_loss_fn = ClassLoss(r_args=[(5, 1, 0.1, 10), (5, 1, 0.1, 10),  # background, liver
-                                          (5, 1, 0.1, 10), (5, 1, 0.1, 10),
-                                          (5, 1, 0.1, 10)])  # kidney, spleen, pancreas
+                                          (5, 1, 0.1, 10), (5, 1, 0.1, 10), (5, 1, 0.1, 10)],  # kidney,spleen,pancreas
+                                  num_classes=num_classes)
         class_loss_fn.to(device)
 
-        optimizer = torch.optim.Adam([fake_x], lr=1.0)
+        optimizer = torch.optim.Adam([fake_x], lr=0.1)
 
         for iter_idx in range(n_iters):
             # lr = adjust_learning_rate(optimizer, iter_idx, 0.1, n_iters, args.power)
@@ -206,7 +205,7 @@ def main():
             # R_feature loss
             rescale = [10] + [1. for _ in range(len(loss_r_feature_layers) - 1)]
             bn_diff = [mod.r_feature * rescale[idx] for (idx, mod) in enumerate(loss_r_feature_layers)]
-            loss_bn = sum(bn_diff) / len(loss_r_feature_layers)
+            loss_bn = torch.sum(torch.tensor(bn_diff, requires_grad=True)) / len(loss_r_feature_layers)
             # class loss
             class_loss = class_loss_fn(fake_label)
             # total loss

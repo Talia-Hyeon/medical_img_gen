@@ -69,10 +69,10 @@ class NoBottleneck(nn.Module):
         return out
 
 
-class unet3D(nn.Module):
+class UNet3D(nn.Module):
     def __init__(self, layers, num_classes=1, weight_std=False, bch=32):
         self.weight_std = weight_std
-        super(unet3D, self).__init__()
+        super(UNet3D, self).__init__()
 
         self.conv1 = conv3x3x3(1, bch, stride=[1, 1, 1], weight_std=self.weight_std)
 
@@ -183,9 +183,3 @@ class unet3D(nn.Module):
 
         # return logits, feat
         return logits
-
-
-def UNet3D(num_classes=1, weight_std=False):
-    print("Using Singlehead 8,8,2")
-    model = unet3D([1, 2, 2, 2, 2], num_classes, weight_std)
-    return model

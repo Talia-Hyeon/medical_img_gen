@@ -5,6 +5,7 @@ import torch.nn.functional as F
 
 from data.flare21 import index_organs
 
+
 class averageMeter(object):
     """Computes and stores the average and current value"""
 
@@ -61,10 +62,9 @@ class DiceScore(nn.Module):
 
 
 class ArgmaxDiceScore(nn.Module):
-    def __init__(self, num_classes=5, device=None):
+    def __init__(self, num_classes=5):
         super(ArgmaxDiceScore, self).__init__()
         self.num_classes = num_classes
-        self.device = device
         self.dice = BinaryDiceScore()
 
     def forward(self, predict, target):
@@ -79,10 +79,10 @@ class ArgmaxDiceScore(nn.Module):
         predict = self.extend_channel_classes(predict)
         target = self.extend_channel_classes(target)
 
-        for i in range(self.num_classes):
+        for i in range(1, self.num_classes):  # 1: evaluate score from organs(liver)
             dice_score = self.dice(predict[:, i], target[:, i])
             dice_score = torch.mean(dice_score)  # mean of each batch
-            total_score.append(dice_score.item())
+            total_score.append(dice_score.item())  # append each organ
 
         total_score = torch.tensor(total_score)
         return total_score

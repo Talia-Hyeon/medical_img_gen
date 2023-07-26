@@ -11,7 +11,7 @@ from loss_functions.score import *
 
 
 def decode_segmap(temp, num_classes):
-    colors = [[0, 0, 0],  # "unlabelled"
+    colors = [[0, 0, 0],  # "background"
               [150, 0, 0],
               [0, 0, 142],
               [150, 170, 0],
@@ -135,7 +135,7 @@ def get_args():
     parser.add_argument("--num_classes", type=int, default=5)
     parser.add_argument("--num_workers", type=int, default=4)
     parser.add_argument("--gpu", type=str, default='0')
-    parser.add_argument("--model_path", type=str, default='./save_model/199_last_model.pth')
+    parser.add_argument("--model_path", type=str, default='./save_model/epoch145_best_model.pth')
     return parser
 
 
@@ -155,10 +155,7 @@ if __name__ == '__main__':
 
     # dataloader
     flared_path = './dataset/FLARE21'
-    # btcv_path = './dataset/BTCV/Trainset'
     flared_test = FLAREDataSet(root=flared_path, split='test', task_id=n_classes)
-    # btcv_test = BTCVDataSet(root=btcv_path, split='test', task_id=n_classes)
-    # test_data = ConcatDataset([flared_test, btcv_test])
     test_loader = DataLoader(dataset=flared_test, batch_size=1, shuffle=False, num_workers=num_workers)
 
     # model

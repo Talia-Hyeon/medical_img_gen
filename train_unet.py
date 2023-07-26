@@ -80,6 +80,12 @@ def main():
         optimizer.load_state_dict(checkpoint['optimizer'])
         lr_scheduler.load_state_dict(checkpoint['scheduler'])
         start_epoch = checkpoint['epoch']
+
+        for state in optimizer.state.values():
+            for k, v in state.items():
+                if torch.is_tensor(v):
+                    state[k] = v.to(device)
+
         print('pretrained model is loaded!')
 
     else:
@@ -93,14 +99,8 @@ def main():
 
     # data loader
     flared_path = './dataset/FLARE21'
-    # btcv_path = './dataset/BTCV/Trainset'
     flared_train = FLAREDataSet(root=flared_path, split='train', task_id=task_id)
     flared_valid = FLAREDataSet(root=flared_path, split='val', task_id=task_id)
-    # btcv_train = BTCVDataSet(root=btcv_path, split='train', task_id=task_id)
-    # btcv_val = BTCVDataSet(root=btcv_path, split='val', task_id=task_id)
-
-    # train_data = ConcatDataset([flared_train, btcv_train])
-    # val_data = ConcatDataset([flared_valid, btcv_val])
     train_loader = DataLoader(dataset=flared_train, batch_size=batch_size, shuffle=True,
                               num_workers=num_workers, collate_fn=my_collate)
     valid_loader = DataLoader(dataset=flared_valid, batch_size=1, shuffle=False, num_workers=num_workers)
