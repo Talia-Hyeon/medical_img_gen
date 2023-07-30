@@ -96,7 +96,7 @@ class ArgmaxDiceScore(nn.Module):
             label_list.append(label_i)
 
         label_list = [bg] + label_list
-        stacked_label = torch.concatenate(label_list, dim=0)
+        stacked_label = torch.cat(label_list, dim=0)
         return stacked_label
 
 
