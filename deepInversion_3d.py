@@ -1,8 +1,10 @@
 import argparse
 import os
 import timeit
+import random
 
 import torch
+from torch.utils import data
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.backends.cudnn as cudnn
@@ -10,6 +12,8 @@ import numpy as np
 import nibabel as nib
 
 from model.unet3D import UNet3D
+from data.flare21 import FLAREDataSet
+from loss_functions.score import DiceLoss
 
 start = timeit.default_timer()
 
@@ -80,7 +84,7 @@ class ClassLoss(nn.Module):
             r_k = max(torch.tensor(lower), r_k)
             r.append(r_k)
 
-        r = torch.tensor(r).reshape(1, len(r_args))  # add batch
+        r = torch.tensor(r).reshape(1, num_classes)  # add batch
         self.register_buffer('r', r)  # store the untrained value
 
     def forward(self, x):
@@ -112,20 +116,21 @@ def save_nii(a, p):  # img_data, path
     nib.save(nibimg, p)
 
 
-def save_preds(cnt, fake_x, fake_label, img_idx):
-    save_nii(fake_x[img_idx, 0], f"./sample/Img/{cnt}img.nii.gz")
-    save_nii(fake_label[img_idx], f"./sample/Pred/{cnt}pred.nii.gz")
+def save_preds(cnt, fake_x, fake_label, img_idx, root):
+    save_nii(fake_x[img_idx, 0], f".{root}/Img/{cnt}img.nii.gz")
+    save_nii(fake_label[img_idx], f".{root}/Pred/{cnt}pred.nii.gz")
     print(f"img{cnt} is saved.")
 
 
 def get_arguments():
     parser = argparse.ArgumentParser(description="image generation")
     parser.add_argument("--itrs_each_epoch", type=int, default=250)
-    parser.add_argument("--num_epochs", type=int, default=500)
-    parser.add_argument("--num_imgs", type=int, default=50)  # 500
+    parser.add_argument("--num_epochs", type=int, default=5000)
+    parser.add_argument("--num_imgs", type=int, default=50)  # 288
+    parser.add_argument("--task_id", type=int, default=1)
     parser.add_argument("--num_classes", type=int, default=5)
     parser.add_argument("--batch_size", type=int, default=4)
-    parser.add_argument("--gpu", type=str, default='2,3,4,5')
+    parser.add_argument("--gpu", type=str, default='0,1,2,3')
     parser.add_argument("--num_workers", type=int, default=1)
     parser.add_argument("--pretrained_model", type=str, default='./save_model/epoch145_best_model.pth')
     parser.add_argument("--random_seed", type=int, default=1234)
@@ -149,9 +154,11 @@ def main():
     n_runs = args.num_imgs // args.batch_size
     n_iters = args.num_epochs
 
+    task_id = args.task_id
     num_classes = args.num_classes
-    input_size = (160, 192, 192)
     path = args.pretrained_model
+    # pre_path = f'./save_model/{task_id}/best_model.pth'
+    input_size = (160, 192, 192)
 
     cudnn.benchmark = True
     seed = args.random_seed
@@ -160,9 +167,10 @@ def main():
         torch.cuda.manual_seed(seed)
 
     # make directory
-    os.makedirs(f"./sample", exist_ok=True)
-    os.makedirs(f"./sample/Img", exist_ok=True)
-    os.makedirs(f"./sample/Pred", exist_ok=True)
+    root_p = f"./sample/mask"
+    os.makedirs(root_p, exist_ok=True)
+    os.makedirs(f"{root_p}/Img", exist_ok=True)
+    os.makedirs(f"{root_p}/Pred", exist_ok=True)
 
     # load the pretrained model
     print("Generate pseudo images using pretrained models.")
@@ -179,6 +187,12 @@ def main():
         if isinstance(module, nn.BatchNorm3d):
             loss_r_feature_layers.append(DeepInversionFeatureHook(module))
 
+    # define the dataset and loss fn for the mask
+    real_data = FLAREDataSet(root='./dataset/FLARE21', split='train', task_id=task_id)
+    real_dataloader = data.DataLoader(dataset=real_data, batch_size=args.batch_size, shuffle=True)
+    loss_fn = DiceLoss(num_classes=task_id + 1)
+    loss_fn.to(device)
+
     # generate fake images
     pretrained.eval()
 
@@ -186,11 +200,15 @@ def main():
         fake_x = torch.randn([args.batch_size, 1] + list(input_size), requires_grad=True, device=device)
         print(fake_x.is_leaf)  # 텐서가 그래프의 말단 노드인지
 
-        # class loss
-        class_loss_fn = ClassLoss(r_args=[(5, 1, 0.1, 10), (5, 1, 0.1, 10),  # background, liver
-                                          (5, 1, 0.1, 10), (5, 1, 0.1, 10), (5, 1, 0.1, 10)],  # kidney,spleen,pancreas
-                                  num_classes=num_classes)
-        class_loss_fn.to(device)
+        # # class loss
+        # class_loss_fn = ClassLoss(r_args=[(5, 1, 0.1, 10), (5, 1, 0.1, 10),  # background, liver
+        #                                   (5, 1, 0.1, 10), (5, 1, 0.1, 10), (5, 1, 0.1, 10)],  # kidney,spleen,pancreas
+        #                           num_classes=num_classes)
+        # class_loss_fn.to(device)
+
+        # define the mask
+        img, mask, name = next(iter(real_dataloader))
+        mask = mask.to(device)
 
         optimizer = torch.optim.Adam([fake_x], lr=0.1)
 
@@ -207,9 +225,12 @@ def main():
             bn_diff = [mod.r_feature * rescale[idx] for (idx, mod) in enumerate(loss_r_feature_layers)]
             loss_bn = torch.sum(torch.tensor(bn_diff, requires_grad=True)) / len(loss_r_feature_layers)
             # class loss
-            class_loss = class_loss_fn(fake_label)
+            # class_loss = class_loss_fn(fake_label)
+            # dice loss
+            dice_loss = loss_fn(output, mask)
             # total loss
-            loss = class_loss * 1 + loss_bn * 1 + loss_var_l1 * 2.5e-5 + loss_var_l2 * 3e-8
+            # loss = class_loss * 1 + loss_bn * 1 + loss_var_l1 * 2.5e-5 + loss_var_l2 * 3e-8
+            loss = dice_loss * 1e-2 + loss_bn * 1 + loss_var_l1 * 2.5e-5 + loss_var_l2 * 3e-8
 
             pretrained.zero_grad()
             optimizer.zero_grad()
@@ -217,12 +238,12 @@ def main():
             optimizer.step()
 
             print(f"{iter_idx}/{n_iters}| L1: {loss_var_l1:.2f}|"
-                  f" L2: {loss_var_l2:.2f}| Batch_Norm:{loss_bn:.2f}| Class: {class_loss}", end='\r')
+                  f" L2: {loss_var_l2:.2f}| Batch_Norm:{loss_bn:.2f}| Dice: {dice_loss}", end='\r')
 
         fake_x = fake_x.detach().cpu().numpy()
         fake_label = fake_label.detach().cpu().numpy()
         for img_idx in range(args.batch_size):
-            save_preds(cnt, fake_x, fake_label, img_idx)
+            save_preds(cnt, fake_x, fake_label, img_idx, root_p)
             print(f"img{cnt} is saved.")
             cnt += 1
 

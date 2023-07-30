@@ -42,23 +42,23 @@ class BinaryDiceScore(nn.Module):
         return dice_score
 
 
-class DiceScore(nn.Module):
-    def __init__(self, num_classes=5):
-        super(DiceScore, self).__init__()
-        self.num_classes = num_classes
-        self.dice = BinaryDiceScore()
-
-    def forward(self, predict, target):
-        predict = F.softmax(predict, dim=1)
-
-        all_score = []
-        for i in range(1, self.num_classes):  # 1: evaluate score from organs(liver)
-            dice_score = self.dice(predict[:, i], target[:, i])
-            dice_score = torch.mean(dice_score)  # mean of batch
-            all_score.append(dice_score.item())  # append each organ
-
-        all_score = torch.tensor(all_score)
-        return all_score
+# class DiceScore(nn.Module):
+#     def __init__(self, num_classes=5):
+#         super(DiceScore, self).__init__()
+#         self.num_classes = num_classes
+#         self.dice = BinaryDiceScore()
+#
+#     def forward(self, predict, target):
+#         predict = F.softmax(predict, dim=1)
+#
+#         all_score = []
+#         for i in range(1, self.num_classes):  # 1: evaluate score from organs(liver)
+#             dice_score = self.dice(predict[:, i], target[:, i])
+#             dice_score = torch.mean(dice_score)  # mean of batch
+#             all_score.append(dice_score.item())  # append each organ
+#
+#         all_score = torch.tensor(all_score)
+#         return all_score
 
 
 class ArgmaxDiceScore(nn.Module):
@@ -70,30 +70,33 @@ class ArgmaxDiceScore(nn.Module):
     def forward(self, predict, target):
         predict = F.softmax(predict, dim=1)
 
-        total_score = []
+        all_score = []
         # one channel & multi-class
         predict = torch.argmax(predict, dim=1)
         # mutil-channel & binary class
         predict = self.extend_channel_classes(predict)
-        target = torch.squeeze(target)  # remove batch
+        predict = torch.unsqueeze(predict, dim=0)
 
         for i in range(1, self.num_classes):  # 1: evaluate score from organs(liver)
             dice_score = self.dice(predict[:, i], target[:, i])
-            dice_score = torch.mean(dice_score)  # mean of each batch
-            total_score.append(dice_score.item())  # append each organ
+            all_score.append(dice_score.item())  # append each organ
 
-        total_score = torch.tensor(total_score)
+        total_score = torch.tensor(all_score)
         return total_score
 
     def extend_channel_classes(self, label):
         label_list = []
-        for i in range(self.num_classes):
+        bg = torch.ones_like(label)
+
+        for i in range(1, self.num_classes):
             label_i = torch.clone(label)
             label_i[label == i] = 1
             label_i[label != i] = 0
+            bg -= label_i
             label_list.append(label_i)
-        stacked_label = torch.stack(label_list, axis=1)
-        stacked_label = torch.squeeze(stacked_label)
+
+        label_list = [bg] + label_list
+        stacked_label = torch.concatenate(label_list, dim=0)
         return stacked_label
 
 
@@ -148,8 +151,56 @@ class DiceLoss(nn.Module):
         return avg_loss
 
 
+class MarginalLoss(nn.Module):
+    def __init__(self, task_id=1):
+        super(MarginalLoss, self).__init__()
+        self.task_id = task_id
+        self.criterion = nn.BCEWithLogitsLoss()
+
+    def forward(self, predict, target):
+        predict = F.softmax(predict, dim=1)
+
+        marg_pred = torch.zeros_like(target)
+        for organ in range(self.task_id):
+            marg_pred[:, 0] += predict[:, organ]
+        marg_pred[:, 1] += predict[:, -1]
+
+        total_loss = []
+        for i in range(2):  # 0: background, 1: foreground
+            ce_loss = self.criterion(marg_pred[:, i], target[:, i])
+            total_loss.append(ce_loss)  # append each organ
+
+        total_loss = torch.stack(total_loss)
+        avg_loss = torch.mean(total_loss)  # mean of all organs
+        return avg_loss
+
+
+class KnowledgeDistillationLoss(nn.Module):
+    def __init__(self, task_id=1):
+        super(KnowledgeDistillationLoss, self).__init__()
+        self.task_id = task_id
+        self.criterion = nn.BCEWithLogitsLoss()
+
+    def forward(self, predict, prior_pred):
+        predict = F.softmax(predict, dim=1)
+
+        exc_pred = torch.zeros_like(prior_pred)
+        for organ in range(self.task_id):
+            exc_pred[:, organ] += predict[:, organ]
+        exc_pred[:, 0] += predict[:, -1]
+
+        total_loss = []
+        for i in range(self.task_id):
+            ce_loss = self.criterion(exc_pred[:, i], prior_pred[:, i])
+            total_loss.append(ce_loss)  # append each organ
+
+        total_loss = torch.stack(total_loss)
+        avg_loss = torch.mean(total_loss)  # mean of all organs
+        return avg_loss
+
+
 class CELoss(nn.Module):
-    def __init__(self, weight=None, num_classes=4):
+    def __init__(self, weight=None, num_classes=5):
         super(CELoss, self).__init__()
         self.weight = weight
         self.num_classes = num_classes

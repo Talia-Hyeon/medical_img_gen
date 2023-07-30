@@ -108,7 +108,7 @@ def main():
     # setup metrics
     val_loss_meter = averageMeter()
     train_loss_meter = averageMeter()
-    metric = DiceScore(num_classes=n_classes)
+    metric = ArgmaxDiceScore(num_classes=n_classes)
     best_avg_dice = -100.0
 
     # training
