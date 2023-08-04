@@ -19,7 +19,7 @@ index_organs = ['background', 'liver', 'kidney', 'spleen', 'pancreas']
 
 
 class FLAREDataSet(data.Dataset):
-    def __init__(self, root, split='train', task_id=1, crop_size=(96, 96, 96)):
+    def __init__(self, root, split='train', task_id=1, crop_size=(160, 192, 192)):
         self.root = root
         self.split = split
         self.task_id = task_id

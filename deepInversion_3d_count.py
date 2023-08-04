@@ -141,8 +141,7 @@ def gen_img(args, device, task_id=1):
     num_classes = args.num_classes
     batch_size = args.gen_batch_size
     num_workers = args.num_workers
-    pre_path = f'./save_model/{task_id}/last_model.pth'
-    # pre_path = './save_model/1/epoch96_best_model.pth'
+    pre_path = './save_model/epoch145_best_model.pth'
     input_size = (160, 192, 192)
 
     cudnn.benchmark = True
@@ -240,12 +239,23 @@ def gen_img_args():
     parser.add_argument("--num_classes", type=int, default=5)
     parser.add_argument("--itrs_each_epoch", type=int, default=250)
     parser.add_argument("--gen_epochs", type=int, default=5000)
-    parser.add_argument("--num_imgs", type=int, default=50)  # 288
+    parser.add_argument("--num_imgs", type=int, default=288)
     parser.add_argument("--gen_batch_size", type=int, default=8)
+    parser.add_argument("--num_workers", type=int, default=4)
     parser.add_argument("--random_seed", type=int, default=1234)
     parser.add_argument("--power", type=float, default=0.9)
     return parser
 
 
 if __name__ == '__main__':
-    gen_img()
+    # device
+    os.environ['CUDA_DEVICE_ORDER'] = 'PCI_BUS_ID'
+    os.environ['CUDA_VISIBLE_DEVICES'] = '0,1,2,3,4,5,6,7'
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+
+    # parser
+    gen_parser = gen_img_args()
+    args = gen_parser.parse_args()
+    print(args)
+
+    gen_img(args, device, task_id=4)
