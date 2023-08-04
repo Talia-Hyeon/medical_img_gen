@@ -71,8 +71,11 @@ class NoBottleneck(nn.Module):
 
 class UNet3D(nn.Module):
     def __init__(self, layers=[1, 2, 2, 2, 2], num_classes=1, weight_std=False, bch=32):
-        self.weight_std = weight_std
         super(UNet3D, self).__init__()
+
+        self.num_classes = num_classes
+        self.weight_std = weight_std
+        self.bch = bch
 
         self.conv1 = conv3x3x3(1, bch, stride=[1, 1, 1], weight_std=self.weight_std)
 
@@ -95,12 +98,12 @@ class UNet3D(nn.Module):
         self.x2_resb = self._make_layer(NoBottleneck, bch * 2, bch, 1, stride=(1, 1, 1))
         self.x1_resb = self._make_layer(NoBottleneck, bch, bch, 1, stride=(1, 1, 1))
 
-        self.precls_conv = nn.Sequential(
+        self.precls = nn.Sequential(
             nn.BatchNorm3d(bch),
-            nn.ReLU(inplace=in_place),
-            # nn.Conv3d(bch, 1, kernel_size=1)
-            nn.Conv3d(bch, num_classes, kernel_size=1)  # newly added 2023.06.04
+            nn.ReLU(inplace=in_place)
         )
+
+        self.class_conv = nn.Conv3d(bch, self.num_classes, kernel_size=1)
 
         self._init_weights()
 
@@ -179,7 +182,7 @@ class UNet3D(nn.Module):
         x = x + skip0
         x = self.x1_resb(x)
 
-        logits = self.precls_conv(x)
+        x = self.precls(x)
+        logits = self.class_conv(x)
 
-        # return logits, feat
         return logits
