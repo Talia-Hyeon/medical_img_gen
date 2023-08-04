@@ -141,7 +141,7 @@ def gen_img(args, device, task_id=1):
     num_classes = args.num_classes
     batch_size = args.gen_batch_size
     num_workers = args.num_workers
-    pre_path = f'./save_model/{task_id}/best_model.pth'
+    pre_path = f'./save_model/{task_id}/last_model.pth'
     # pre_path = './save_model/1/epoch96_best_model.pth'
     input_size = (160, 192, 192)
 
