@@ -24,7 +24,7 @@ class FLAREDataSet(data.Dataset):
         self.split = split
         self.task_id = task_id
         self.crop_d, self.crop_h, self.crop_w = crop_size
-        
+
         print("Start preprocessing....")
         # read path
         image_path = osp.join(self.root, 'TrainingImg')
@@ -60,7 +60,7 @@ class FLAREDataSet(data.Dataset):
         image = imageNII.get_fdata()
         label = labelNII.get_fdata()
         name = datafiles["name"]
-        
+
         # crop
         if self.split == 'train':
             if np.random.rand(1) >= 0.5:
@@ -69,11 +69,11 @@ class FLAREDataSet(data.Dataset):
                 image, label = random_crop_3d(image, label, self.crop_h, self.crop_w, self.crop_d)
         else:
             h_idx, w_idx, d_idx = start_idxs_for_eval
-            
-            h0 = h_idx*self.crop_h
-            w0 = w_idx*self.crop_w
-            d0 = d_idx*self.crop_d
-            
+
+            h0 = h_idx * self.crop_h
+            w0 = w_idx * self.crop_w
+            d0 = d_idx * self.crop_d
+
             image, label = crop(image, label, self.crop_h, self.crop_w, self.crop_d, h0, w0, d0)
 
         # pad
@@ -103,11 +103,7 @@ class FLAREDataSet(data.Dataset):
                 image = image[:, ::-1, :, :]
                 label = label[:, ::-1, :, :]
 
-        if self.split == 'train':
-            label = label_to_binary(label, self.task_id)
-        else:
-            # extend label's channel for val/test
-            label = extend_channel_classes(label, self.task_id)
+        label = extend_channel_classes(label, self.task_id)
 
         image = image.astype(np.float32)
         label = label.astype(np.float32)
@@ -126,31 +122,32 @@ class FLAREDataSet(data.Dataset):
                 image = imageNII.get_fdata()
                 height, width, depth = image.shape
 
-                h_idx_num = (height+self.crop_h-1)//self.crop_h
-                w_idx_num = (width+self.crop_w-1)//self.crop_w
-                d_idx_num = (depth+self.crop_d-1)//self.crop_d
+                h_idx_num = (height + self.crop_h - 1) // self.crop_h
+                w_idx_num = (width + self.crop_w - 1) // self.crop_w
+                d_idx_num = (depth + self.crop_d - 1) // self.crop_d
                 for h_idx in range(h_idx_num):
                     for w_idx in range(w_idx_num):
                         for d_idx in range(d_idx_num):
                             all_files.append((
                                 {
-                                "image": img_file,
-                                "label": label_file,
-                                "name": item
+                                    "image": img_file,
+                                    "label": label_file,
+                                    "name": item
                                 },
-                                (h_idx,w_idx,d_idx)
-                                ))
+                                (h_idx, w_idx, d_idx)
+                            ))
             else:
                 all_files.append((
                     {
-                    "image": img_file,
-                    "label": label_file,
-                    "name": item
+                        "image": img_file,
+                        "label": label_file,
+                        "name": item
                     },
-                    (0,0,0)
+                    (0, 0, 0)
                 ))
 
         return all_files
+
 
 def truncate(CT):
     min_HU = -325
@@ -165,13 +162,15 @@ def truncate(CT):
     CT = CT / divide
     return CT
 
+
 def crop(image, label, crop_h, crop_w, crop_d, h0, w0, d0):
-    h1 = h0+crop_h
-    w1 = w0+crop_w
-    d1 = d0+crop_d
+    h1 = h0 + crop_h
+    w1 = w0 + crop_w
+    d1 = d0 + crop_d
     image = image[h0: h1, w0: w1, d0: d1]
     label = label[h0: h1, w0: w1, d0: d1]
     return image, label
+
 
 def center_crop_3d(image, label, crop_h, crop_w, crop_d):
     height, width, depth = image.shape
@@ -182,13 +181,14 @@ def center_crop_3d(image, label, crop_h, crop_w, crop_d):
 
     return crop(image, label, crop_h, crop_w, crop_d, h0, w0, d0)
 
+
 def random_crop_3d(image, label, crop_h, crop_w, crop_d):
     height, width, depth = image.shape
 
-    h0 = np.random.randint(0, max(height-crop_h, 1))
-    w0 = np.random.randint(0, max(width-crop_w, 1))
-    d0 = np.random.randint(0, max(depth-crop_d, 1))
-    
+    h0 = np.random.randint(0, max(height - crop_h, 1))
+    w0 = np.random.randint(0, max(width - crop_w, 1))
+    d0 = np.random.randint(0, max(depth - crop_d, 1))
+
     return crop(image, label, crop_h, crop_w, crop_d, h0, w0, d0)
 
 
@@ -211,30 +211,28 @@ def pad_image(img, target_size):
 def label_to_binary(label, task_id):
     label_list = []
 
-    label_backg = label.copy()
-    label_backg[np.where(label != 0)] = 0
-    label_backg[np.where(label == 0)] = 1
-    label_list.append(label_backg)
-
     label_foreg = label.copy()
     label_foreg[np.where(label != task_id)] = 0
     label_foreg[np.where(label == task_id)] = 1
+    label_list.append(1 - label_foreg)  # background
     label_list.append(label_foreg)
 
-    stacked_label = np.stack(label_list, axis=1)
-    stacked_label = np.squeeze(stacked_label)
+    stacked_label = np.concatenate(label_list, axis=0)
     return stacked_label
 
 
 def extend_channel_classes(label, num_classes):
     label_list = []
-    for i in range(0, num_classes + 1):
+    bg = np.ones_like(label)
+    for i in range(1, num_classes):  # 1: from foreground
         label_i = label.copy()
         label_i[label == i] = 1
         label_i[label != i] = 0
+        bg -= label_i
         label_list.append(label_i)
-    stacked_label = np.stack(label_list, axis=1)
-    stacked_label = np.squeeze(stacked_label)
+    # bg = np.clip(bg, 0, 1)
+    label_list = [bg] + label_list
+    stacked_label = np.concatenate(label_list, axis=0)
     return stacked_label
 
 
@@ -277,4 +275,3 @@ def my_collate(batch):
 if __name__ == '__main__':
     flare = FLAREDataSet(root='../dataset/FLARE21', split='train', task_id=4)
     img_, label_, name_ = flare[0]
-
