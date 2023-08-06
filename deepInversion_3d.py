@@ -189,7 +189,7 @@ def gen_img(args, device, task_id=1):
     real_dataloader_infinite_iter = iter(cycle(real_dataloader))
     while cnt < n_imgs:
         fake_x = torch.randn([batch_size, 1] + list(input_size), requires_grad=True, device=device)
-        # print(fake_x.is_leaf)  # 텐서가 그래프의 말단 노드인지
+        # print(fake_x.is_leaf)
 
         # # class loss
         # class_loss_fn = ClassLoss(r_args=[(5, 1, 0.1, 10), (5, 1, 0.1, 10),  # background, liver
