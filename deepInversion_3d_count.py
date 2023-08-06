@@ -1,6 +1,7 @@
 import argparse
 import os
 import timeit
+from itertools import cycle
 import random
 
 import torch
@@ -65,8 +66,13 @@ def get_image_prior_losses(img):
     d13 = img[:, :, 1:, 1:, 1:] - img[:, :, :-1, :-1, :-1]
 
     diff_list = [d1, d2, d3, d4, d5, d6, d7, d8, d9, d10, d11, d12, d13]
-    loss_var_l2 = sum([torch.norm(e) for e in diff_list])
-    loss_var_l1 = sum([e.abs().mean() for e in diff_list])
+
+    loss_var_l2 = 0.0
+    loss_var_l1 = 0.0
+
+    for e in diff_list:
+        loss_var_l2 += torch.norm(e)
+        loss_var_l1 += torch.mean(torch.abs(e))
 
     return loss_var_l1, loss_var_l2
 
@@ -116,15 +122,13 @@ def save_nii(a, p):  # img_data, path
     nib.save(nibimg, p)
 
 
-def save_preds(cnt, fake_x, fake_label, root, task_id, percentage=0.3):
+def save_preds(cnt, fake_x, fake_label, root, percentage=0.3):
     h, w, d = fake_label.shape
-    pixels = list()
-    for c in range(1, task_id + 1):
-        pixels.append(torch.count_nonzero(fake_label[fake_label == c]))
+    organ_pixels = torch.count_nonzero(fake_label)
 
-    if (sum(pixels) / (h * w * d)) >= percentage:
-        save_nii(fake_x, f"{root}/Img/{cnt}img.nii.gz")
-        save_nii(fake_label, f"{root}/Pred/{cnt}pred.nii.gz")
+    if (organ_pixels / (h * w * d)) >= percentage:
+        save_nii(fake_x.numpy(), f"{root}/Img/{cnt}img.nii.gz")
+        save_nii(fake_label.numpy(), f"{root}/Pred/{cnt}pred.nii.gz")
         print(f"img{cnt} is saved.")
         return True
     else:
@@ -182,6 +186,7 @@ def gen_img(args, device, task_id=1):
     pretrained.eval()
 
     # for i_run in range(n_runs):
+    real_dataloader_infinite_iter = iter(cycle(real_dataloader))
     while cnt < n_imgs:
         fake_x = torch.randn([batch_size, 1] + list(input_size), requires_grad=True, device=device)
         print(fake_x.is_leaf)  # 텐서가 그래프의 말단 노드인지
@@ -193,7 +198,7 @@ def gen_img(args, device, task_id=1):
         # class_loss_fn.to(device)
 
         # define the mask
-        img, mask, name = next(iter(real_dataloader))
+        img, mask, name = next(real_dataloader_infinite_iter)
         mask = mask.to(device)
 
         optimizer = torch.optim.Adam([fake_x], lr=0.1)
@@ -208,8 +213,13 @@ def gen_img(args, device, task_id=1):
             loss_var_l1, loss_var_l2 = get_image_prior_losses(fake_x)
             # R_feature loss
             rescale = [10] + [1. for _ in range(len(loss_r_feature_layers) - 1)]
-            bn_diff = [mod.r_feature * rescale[idx] for (idx, mod) in enumerate(loss_r_feature_layers)]
-            loss_bn = torch.sum(torch.tensor(bn_diff, requires_grad=True)) / len(loss_r_feature_layers)
+            loss_bn = 0.0
+            for idx, mod in enumerate(loss_r_feature_layers):
+               loss_bn += mod.r_feature.to('cpu') * rescale[idx]
+            loss_bn /= len(loss_r_feature_layers)
+            loss_bn = loss_bn.to(device)
+            #bn_diff = [mod.r_feature * rescale[idx] for (idx, mod) in enumerate(loss_r_feature_layers)]
+            #loss_bn = torch.sum(torch.tensor(bn_diff, requires_grad=True)) / len(loss_r_feature_layers)
             # class loss
             # class_loss = class_loss_fn(fake_label)
             # dice loss
@@ -226,10 +236,10 @@ def gen_img(args, device, task_id=1):
             print(f"{iter_idx}/{n_iters}| L1: {loss_var_l1:.2f}|"
                   f" L2: {loss_var_l2:.2f}| Batch_Norm:{loss_bn:.2f}| Dice: {dice_loss}", end='\r')
 
-        fake_x = fake_x.detach().cpu().numpy()
-        fake_label = torch.argmax(fake_label.detach(), dim=1).cpu().numpy()
+        fake_x = fake_x.detach().cpu()
+        fake_label = torch.argmax(fake_label.detach().cpu(), dim=1)
         for img_idx in range(batch_size):
-            if save_preds(cnt, fake_x[img_idx, 0], fake_label[img_idx], root_p):
+            if cnt < n_imgs and save_preds(cnt, fake_x[img_idx, 0], fake_label[img_idx], root_p):
                 cnt += 1
                 # print(f"img{cnt} is saved.")
 
@@ -240,7 +250,7 @@ def gen_img_args():
     parser.add_argument("--itrs_each_epoch", type=int, default=250)
     parser.add_argument("--gen_epochs", type=int, default=5000)
     parser.add_argument("--num_imgs", type=int, default=288)
-    parser.add_argument("--gen_batch_size", type=int, default=8)
+    parser.add_argument("--gen_batch_size", type=int, default=4)
     parser.add_argument("--num_workers", type=int, default=4)
     parser.add_argument("--random_seed", type=int, default=1234)
     parser.add_argument("--power", type=float, default=0.9)
@@ -250,7 +260,7 @@ def gen_img_args():
 if __name__ == '__main__':
     # device
     os.environ['CUDA_DEVICE_ORDER'] = 'PCI_BUS_ID'
-    os.environ['CUDA_VISIBLE_DEVICES'] = '0,1,2,3,4,5,6,7'
+    os.environ['CUDA_VISIBLE_DEVICES'] = '0,1,2,3,4,5'
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
     # parser
