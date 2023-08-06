@@ -62,19 +62,19 @@ class FLAREDataSet(data.Dataset):
         name = datafiles["name"]
 
         # crop
-        if self.split == 'train':
-            if np.random.rand(1) >= 0.5:
-                image, label = center_crop_3d(image, label, self.crop_h, self.crop_w, self.crop_d)
-            else:
-                image, label = random_crop_3d(image, label, self.crop_h, self.crop_w, self.crop_d)
-        else:
-            h_idx, w_idx, d_idx = start_idxs_for_eval
+        # if self.split == 'train':
+        #     if np.random.rand(1) >= 0.5:
+        #         image, label = center_crop_3d(image, label, self.crop_h, self.crop_w, self.crop_d)
+        #     else:
+        #         image, label = random_crop_3d(image, label, self.crop_h, self.crop_w, self.crop_d)
+        # else:
+        h_idx, w_idx, d_idx = start_idxs_for_eval
 
-            h0 = h_idx * self.crop_h
-            w0 = w_idx * self.crop_w
-            d0 = d_idx * self.crop_d
+        h0 = h_idx * self.crop_h
+        w0 = w_idx * self.crop_w
+        d0 = d_idx * self.crop_d
 
-            image, label = crop(image, label, self.crop_h, self.crop_w, self.crop_d, h0, w0, d0)
+        image, label = crop(image, label, self.crop_h, self.crop_w, self.crop_d, h0, w0, d0)
 
         # pad
         image = pad_image(image, [self.crop_h, self.crop_w, self.crop_d])
@@ -117,34 +117,34 @@ class FLAREDataSet(data.Dataset):
             label_item = item.replace('_0000', '')
             label_file = osp.join(label_path, label_item)
 
-            if self.split != 'train':
-                imageNII = nib.load(img_file)
-                image = imageNII.get_fdata()
-                height, width, depth = image.shape
+            # if self.split != 'train':
+            imageNII = nib.load(img_file)
+            image = imageNII.get_fdata()
+            height, width, depth = image.shape
 
-                h_idx_num = (height + self.crop_h - 1) // self.crop_h
-                w_idx_num = (width + self.crop_w - 1) // self.crop_w
-                d_idx_num = (depth + self.crop_d - 1) // self.crop_d
-                for h_idx in range(h_idx_num):
-                    for w_idx in range(w_idx_num):
-                        for d_idx in range(d_idx_num):
-                            all_files.append((
-                                {
-                                    "image": img_file,
-                                    "label": label_file,
-                                    "name": item
-                                },
-                                (h_idx, w_idx, d_idx)
-                            ))
-            else:
-                all_files.append((
-                    {
-                        "image": img_file,
-                        "label": label_file,
-                        "name": item
-                    },
-                    (0, 0, 0)
-                ))
+            h_idx_num = (height + self.crop_h - 1) // self.crop_h
+            w_idx_num = (width + self.crop_w - 1) // self.crop_w
+            d_idx_num = (depth + self.crop_d - 1) // self.crop_d
+            for h_idx in range(h_idx_num):
+                for w_idx in range(w_idx_num):
+                    for d_idx in range(d_idx_num):
+                        all_files.append((
+                            {
+                                "image": img_file,
+                                "label": label_file,
+                                "name": item
+                            },
+                            (h_idx, w_idx, d_idx)
+                        ))
+            # else:
+            #     all_files.append((
+            #         {
+            #             "image": img_file,
+            #             "label": label_file,
+            #             "name": item
+            #         },
+            #         (0, 0, 0)
+            #     ))
 
         return all_files
 
