@@ -13,9 +13,6 @@ import numpy as np
 import nibabel as nib
 
 from model.unet3D import UNet3D
-from data.flare21 import FLAREDataSet
-from loss_functions.score import DiceLoss
-
 start = timeit.default_timer()
 
 
@@ -81,6 +78,7 @@ class ClassLoss(nn.Module):
     def __init__(self, r_args, num_classes):
         super().__init__()
         self.loss = nn.CrossEntropyLoss()
+        self.num_classes = num_classes
 
         r = []
         for organ in range(num_classes):
@@ -99,10 +97,8 @@ class ClassLoss(nn.Module):
 
         x = (1 / self.r) * torch.log(
             torch.sum(torch.exp(self.r[..., None, None, None] * x), dim=(2, 3, 4)) / (D * H * W))  # shape = (B,C)
-        gt = torch.ones_like(x)
-        # gt[:, 0] = 0  # don't contain the background into generated class
-        gt = F.softmax(gt, dim=1)
 
+        gt = torch.tensor([[0.05, 0.35, 0.2, 0.25, 0.15]]).to(x.device) * torch.ones_like(x)
         return self.loss(x, gt)
 
 
@@ -239,7 +235,7 @@ def gen_img_args():
 if __name__ == '__main__':
     # device
     os.environ['CUDA_DEVICE_ORDER'] = 'PCI_BUS_ID'
-    os.environ['CUDA_VISIBLE_DEVICES'] = '0,1,2,3,4,5'
+    os.environ['CUDA_VISIBLE_DEVICES'] = '4,5,6,7'
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
     # parser

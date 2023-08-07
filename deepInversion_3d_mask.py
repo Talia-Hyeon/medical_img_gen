@@ -93,7 +93,7 @@ def save_nii(a, p):  # img_data, path
     nib.save(nibimg, p)
 
 
-def save_preds(cnt, fake_x, fake_label, organ_pixels, root, percentage=0.012):
+def save_preds(cnt, fake_x, fake_label, organ_pixels, root, percentage=0.007):
     h, w, d = fake_x.shape
 
     if (organ_pixels / (h * w * d)) >= percentage:
