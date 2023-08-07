@@ -77,35 +77,6 @@ def get_image_prior_losses(img):
     return loss_var_l1, loss_var_l2
 
 
-class ClassLoss(nn.Module):
-    def __init__(self, r_args, num_classes):
-        super().__init__()
-        self.loss = nn.CrossEntropyLoss()
-
-        r = []
-        for organ in range(num_classes):
-            mean, std, upper, lower = r_args[organ]
-            r_k = torch.distributions.normal.Normal(torch.tensor(float(mean)), torch.tensor(float(std))).sample()
-            r_k = min(torch.tensor(upper), r_k)
-            r_k = max(torch.tensor(lower), r_k)
-            r.append(r_k)
-
-        r = torch.tensor(r).reshape(1, num_classes)  # add batch
-        self.register_buffer('r', r)  # store the untrained value
-
-    def forward(self, x):
-        B, C, D, H, W = x.shape
-        assert C == self.r.size(1), "channel's size don't match"
-
-        x = (1 / self.r) * torch.log(
-            torch.sum(torch.exp(self.r[..., None, None, None] * x), dim=(2, 3, 4)) / (D * H * W))  # shape = (B,C)
-        gt = torch.ones_like(x)
-        # gt[:, 0] = 0  # don't contain the background into generated class
-        gt = F.softmax(gt, dim=1)
-
-        return self.loss(x, gt)
-
-
 def lr_poly(base_lr, iter_idx, max_iter, power):
     return base_lr * ((1 - float(iter_idx) / max_iter) ** (power))
 
@@ -137,11 +108,8 @@ def save_preds(cnt, fake_x, fake_label, organ_pixels, root, percentage=0.012):
 def gen_img(args, device, task_id=1):
     # hyper-parameter
     cnt = 0
-    # n_runs = args.num_imgs // args.gen_batch_size
     n_imgs = args.num_imgs
     n_iters = args.gen_epochs
-
-    num_classes = args.num_classes
     batch_size = args.gen_batch_size
     num_workers = args.num_workers
     pre_path = './save_model/epoch145_best_model.pth'
@@ -174,26 +142,20 @@ def gen_img(args, device, task_id=1):
         if isinstance(module, nn.BatchNorm3d):
             loss_r_feature_layers.append(DeepInversionFeatureHook(module))
 
-    # define the dataset and loss fn for the mask
-    real_data = FLAREDataSet(root='./dataset/FLARE21', split='train', task_id=task_id)
-    real_dataloader = data.DataLoader(dataset=real_data, batch_size=batch_size,
-                                      num_workers=num_workers, shuffle=True)
+    # dice loss
     loss_fn = DiceLoss(num_classes=task_id + 1)
     loss_fn.to(device)
 
+    # define the dataset
+    real_data = FLAREDataSet(root='./dataset/FLARE21', split='train', task_id=task_id)
+    real_dataloader = data.DataLoader(dataset=real_data, batch_size=batch_size,
+                                      num_workers=num_workers, shuffle=True)
+    real_dataloader_infinite_iter = iter(cycle(real_dataloader))
+
     # generate fake images
     pretrained.eval()
-
-    # for i_run in range(n_runs):
-    real_dataloader_infinite_iter = iter(cycle(real_dataloader))
     while cnt < n_imgs:
         fake_x = torch.randn([batch_size, 1] + list(input_size), requires_grad=True, device=device)
-
-        # # class loss
-        # class_loss_fn = ClassLoss(r_args=[(5, 1, 0.1, 10), (5, 1, 0.1, 10),  # background, liver
-        #                                   (5, 1, 0.1, 10), (5, 1, 0.1, 10), (5, 1, 0.1, 10)],  # kidney,spleen,pancreas
-        #                           num_classes=num_classes)
-        # class_loss_fn.to(device)
 
         # define the mask
         img, mask, name = next(real_dataloader_infinite_iter)
@@ -201,8 +163,6 @@ def gen_img(args, device, task_id=1):
 
         optimizer = torch.optim.Adam([fake_x], lr=0.1)
         for iter_idx in range(n_iters):
-            # lr = adjust_learning_rate(optimizer, iter_idx, 0.1, n_iters, args.power)
-
             output = pretrained(fake_x)
             fake_label = F.softmax(output, dim=1)
 
@@ -215,12 +175,9 @@ def gen_img(args, device, task_id=1):
                 loss_bn += mod.r_feature.to('cpu') * rescale[idx]
             loss_bn /= len(loss_r_feature_layers)
             loss_bn = loss_bn.to(device)
-            # class loss
-            # class_loss = class_loss_fn(fake_label)
             # dice loss
             dice_loss = loss_fn(output, mask)
             # total loss
-            # loss = class_loss * 1 + loss_bn * 1 + loss_var_l1 * 2.5e-5 + loss_var_l2 * 3e-8
             loss = dice_loss * 1 + loss_bn * 1 + loss_var_l1 * 2.5e-5 + loss_var_l2 * 3e-8
 
             pretrained.zero_grad()
