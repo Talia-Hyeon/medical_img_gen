@@ -13,6 +13,9 @@ import numpy as np
 import nibabel as nib
 
 from model.unet3D import UNet3D
+from data.flare21 import FLAREDataSet
+from loss_functions.score import DiceLoss
+
 start = timeit.default_timer()
 
 
@@ -97,8 +100,13 @@ class ClassLoss(nn.Module):
 
         x = (1 / self.r) * torch.log(
             torch.sum(torch.exp(self.r[..., None, None, None] * x), dim=(2, 3, 4)) / (D * H * W))  # shape = (B,C)
+        # gt = torch.ones_like(x)
+        # # gt[:, 0] = 0  # don't contain the background into generated class
+        # gt = F.softmax(gt, dim=1)
 
         gt = torch.tensor([[0.05, 0.35, 0.2, 0.25, 0.15]]).to(x.device) * torch.ones_like(x)
+        # gt = gt.view(1, self.num_classes)
+
         return self.loss(x, gt)
 
 
@@ -118,7 +126,7 @@ def save_nii(a, p):  # img_data, path
     nib.save(nibimg, p)
 
 
-def save_preds(cnt, fake_x, fake_label, organ_pixels, root, percentage=0.012):
+def save_preds(cnt, fake_x, fake_label, organ_pixels, root, percentage=0.007):
     h, w, d = fake_x.shape
 
     if (organ_pixels / (h * w * d)) >= percentage:
@@ -174,8 +182,8 @@ def gen_img(args, device, task_id=1):
         fake_x = torch.randn([batch_size, 1] + list(input_size), requires_grad=True, device=device)
 
         # class loss
-        class_loss_fn = ClassLoss(r_args=[(5, 1, 0.1, 10), (5, 1, 0.1, 10),  # background, liver
-                                          (5, 1, 0.1, 10), (5, 1, 0.1, 10), (5, 1, 0.1, 10)],  # kidney,spleen,pancreas
+        class_loss_fn = ClassLoss(r_args=[(4, 1, 0.1, 7), (2, 1, 0.1, 5),  # background, liver
+                                          (4, 1, 0.1, 7), (3, 1, 0.1, 6), (4, 1, 0.1, 7)],  # kidney,spleen,pancreas
                                   num_classes=num_classes)
         class_loss_fn.to(device)
 
