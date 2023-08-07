@@ -122,9 +122,8 @@ def save_nii(a, p):  # img_data, path
     nib.save(nibimg, p)
 
 
-def save_preds(cnt, fake_x, fake_label, root, percentage=0.3):
-    h, w, d = fake_label.shape
-    organ_pixels = torch.count_nonzero(fake_label)
+def save_preds(cnt, fake_x, fake_label, organ_pixels, root, percentage=0.012):
+    h, w, d = fake_x.shape
 
     if (organ_pixels / (h * w * d)) >= percentage:
         save_nii(fake_x.numpy(), f"{root}/Img/{cnt}img.nii.gz")
@@ -189,7 +188,6 @@ def gen_img(args, device, task_id=1):
     real_dataloader_infinite_iter = iter(cycle(real_dataloader))
     while cnt < n_imgs:
         fake_x = torch.randn([batch_size, 1] + list(input_size), requires_grad=True, device=device)
-        # print(fake_x.is_leaf)
 
         # # class loss
         # class_loss_fn = ClassLoss(r_args=[(5, 1, 0.1, 10), (5, 1, 0.1, 10),  # background, liver
@@ -202,7 +200,6 @@ def gen_img(args, device, task_id=1):
         mask = mask.to(device)
 
         optimizer = torch.optim.Adam([fake_x], lr=0.1)
-
         for iter_idx in range(n_iters):
             # lr = adjust_learning_rate(optimizer, iter_idx, 0.1, n_iters, args.power)
 
@@ -215,7 +212,7 @@ def gen_img(args, device, task_id=1):
             rescale = [10] + [1. for _ in range(len(loss_r_feature_layers) - 1)]
             loss_bn = 0.0
             for idx, mod in enumerate(loss_r_feature_layers):
-               loss_bn += mod.r_feature.to('cpu') * rescale[idx]
+                loss_bn += mod.r_feature.to('cpu') * rescale[idx]
             loss_bn /= len(loss_r_feature_layers)
             loss_bn = loss_bn.to(device)
             # class loss
@@ -231,15 +228,18 @@ def gen_img(args, device, task_id=1):
             loss.backward()
             optimizer.step()
 
-            print(f"{iter_idx}/{n_iters}| L1: {loss_var_l1:.2f}|"
+            print(f"{iter_idx + 1}/{n_iters}| L1: {loss_var_l1:.2f}|"
                   f" L2: {loss_var_l2:.2f}| Batch_Norm:{loss_bn:.2f}| Dice: {dice_loss}", end='\r')
+        print()
 
+        organ_pixels = torch.count_nonzero(torch.argmax(fake_label, dim=1), dim=(1, 2, 3)).detach().cpu()
         fake_x = fake_x.detach().cpu()
-        fake_label = torch.argmax(fake_label.detach().cpu(), dim=1)
+        fake_label = fake_label.detach().cpu()
+        print(organ_pixels)
+
         for img_idx in range(batch_size):
-            if cnt < n_imgs and save_preds(cnt, fake_x[img_idx, 0], fake_label[img_idx], root_p):
+            if cnt < n_imgs and save_preds(cnt, fake_x[img_idx, 0], fake_label[img_idx], organ_pixels[img_idx], root_p):
                 cnt += 1
-                # print(f"img{cnt} is saved.")
 
 
 def gen_img_args():
