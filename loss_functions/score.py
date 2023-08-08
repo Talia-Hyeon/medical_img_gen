@@ -183,6 +183,7 @@ class KnowledgeDistillationLoss(nn.Module):
 
     def forward(self, predict, prior_pred):
         predict = F.softmax(predict, dim=1)
+        prior_pred = F.softmax(prior_pred, dim=1)
 
         exc_pred = torch.zeros_like(prior_pred)
         for organ in range(self.task_id):

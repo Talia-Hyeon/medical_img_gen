@@ -105,8 +105,6 @@ class ClassLoss(nn.Module):
         # gt = F.softmax(gt, dim=1)
 
         gt = torch.tensor([[0.05, 0.35, 0.2, 0.25, 0.15]]).to(x.device) * torch.ones_like(x)
-        # gt = gt.view(1, self.num_classes)
-
         return self.loss(x, gt)
 
 
@@ -182,8 +180,9 @@ def gen_img(args, device, task_id=1):
         fake_x = torch.randn([batch_size, 1] + list(input_size), requires_grad=True, device=device)
 
         # class loss
-        class_loss_fn = ClassLoss(r_args=[(4, 1, 0.1, 7), (2, 1, 0.1, 5),  # background, liver
-                                          (4, 1, 0.1, 7), (3, 1, 0.1, 6), (4, 1, 0.1, 7)],  # kidney,spleen,pancreas
+        class_loss_fn = ClassLoss(r_args=[(4, 1, 0.1, 7), (0.5, 0.1, 0.1, 1),  # background, liver
+                                          (2, 0.4, 0.1, 4), (1, 0.3, 0.1, 3), (3, 0.5, 0.1, 5)],
+                                  # kidney, spleen, pancreas
                                   num_classes=num_classes)
         class_loss_fn.to(device)
 
