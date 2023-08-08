@@ -110,7 +110,7 @@ def evaluate(model, test_data_loader, num_class, device):
 
             visualization(img, label, pred, name, path, num_class)
 
-    total_dice = torch.cat(dice_list, dim=0)
+    total_dice = torch.stack(dice_list)
     dice_score = torch.mean(total_dice, dim=0)  # mean of all batches
     return dice_score
 
