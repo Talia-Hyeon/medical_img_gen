@@ -145,7 +145,7 @@ def gen_img(args, device, task_id=1):
     num_classes = args.num_classes
     batch_size = args.gen_batch_size
     pre_path = './save_model/epoch145_best_model.pth'
-    input_size = (160, 192, 192)
+    input_size = (80, 96, 96)
 
     cudnn.benchmark = True
     seed = args.random_seed
