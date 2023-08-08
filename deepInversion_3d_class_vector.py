@@ -197,11 +197,8 @@ def gen_img(args, device, task_id=1):
             loss_var_l1, loss_var_l2 = get_image_prior_losses(fake_x)
             # R_feature loss
             rescale = [10] + [1. for _ in range(len(loss_r_feature_layers) - 1)]
-            loss_bn = 0.0
-            for idx, mod in enumerate(loss_r_feature_layers):
-                loss_bn += mod.r_feature.to('cpu') * rescale[idx]
-            loss_bn /= len(loss_r_feature_layers)
-            loss_bn = loss_bn.to(device)
+            bn_diff = [mod.r_feature * rescale[idx] for (idx, mod) in enumerate(loss_r_feature_layers)]
+            loss_bn = torch.sum(torch.tensor(bn_diff, requires_grad=True)) / len(loss_r_feature_layers)
             # class loss
             class_loss = class_loss_fn(fake_label)
             # total loss
