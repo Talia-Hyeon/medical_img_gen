@@ -6,6 +6,7 @@ import matplotlib.pyplot as plt
 import torch
 from torch import optim
 from torch.utils.data import DataLoader
+from torch.utils.tensorboard import SummaryWriter
 
 from data.flare21 import FLAREDataSet
 from data.flare21 import my_collate
@@ -21,20 +22,9 @@ def get_args():
     parser.add_argument("--batch_size", type=int, default=8)
     parser.add_argument("--num_workers", type=int, default=4)
     parser.add_argument("--gpu", type=str, default='0,1,2,3,4,5,6,7')
+    parser.add_argument("--log_dir", type=str, default='./log')
     parser.add_argument("--pretrained_model", type=str, default=None)
     return parser
-
-
-def draw_loss_plot(epoch_l, train_loss_l, val_loss_l):
-    plt.plot(epoch_l, train_loss_l, 'ro--', label='train')
-    plt.plot(epoch_l, val_loss_l, 'bo--', label='validation')
-    plt.title(f'Real data Epoch: {epoch_l[-1]}')
-    plt.xlabel('Epoch')
-    plt.ylabel('Loss')
-    plt.yscale('log')
-    plt.legend(loc='upper right')
-    plt.savefig(f'./fig/pretrained_loss.png')
-    plt.close()
 
 
 def save_model(path, model, optim, lr_sch, epoch):
@@ -63,10 +53,14 @@ def main():
     task_id = args.task_id
     batch_size = args.batch_size
     num_workers = args.num_workers
+    logdir = args.log_dir
 
     # make directory
     os.makedirs('./save_model', exist_ok=True)
     os.makedirs('./fig', exist_ok=True)
+    os.makedirs(logdir, exist_ok=True)
+
+    writer = SummaryWriter(logdir)
 
     # define model, optimizer, lr_scheduler
     model = UNet3D(num_classes=n_classes)
@@ -112,9 +106,6 @@ def main():
     best_avg_dice = -100.0
 
     # training
-    train_loss_l = []
-    val_loss_l = []
-    epoch_l = []
     for epoch in range(start_epoch, num_epochs):
 
         epoch_start = time()
@@ -140,8 +131,9 @@ def main():
                     epoch + 1, num_epochs, train_iter + 1, loss.item(), (iter_end - iter_start)))
                 iter_start = time()
 
-        train_loss_l.append(train_loss_meter.avg)
-        epoch_l.append(epoch)
+        # logger
+        loss_report = dict()
+        loss_report['train_loss'] = train_loss_meter.avg
         train_loss_meter.reset()
 
         with torch.no_grad():
@@ -159,10 +151,20 @@ def main():
                 iter_dice = metric(pred_val, label_val)
                 dice_list.append(iter_dice)
 
-            val_loss_l.append(val_loss_meter.avg)
             total_dice = torch.stack(dice_list)
             dice_score = torch.mean(total_dice, dim=0)
             avg_dice = torch.mean(dice_score).item()
+
+            # logger
+            loss_report['val_loss'] = val_loss_meter.avg
+            writer.add_scalars('Train/Val Loss', loss_report, epoch)
+
+            organ_num = dice_score.shape[0]
+            score_report = dict()
+            for idx in range(organ_num):
+                score_report[index_organs[idx + 1]] = dice_score[idx]
+            writer.add_scalars('Dice Score Per Organ', score_report, epoch)
+            writer.add_scalar('Avg Dice Score', avg_dice, epoch)
 
             val_end = time()
             print('Epoch: {} | Valid loss: {:.4f} | Time: {:.4f}'.format(
@@ -173,21 +175,21 @@ def main():
 
         if avg_dice >= best_avg_dice:
             best_avg_dice = avg_dice
-            best_dice = dice_score
             save_model(path=f'./save_model/epoch{epoch}_best_model.pth',
                        model=model, optim=optimizer, lr_sch=lr_scheduler, epoch=epoch)
 
         if epoch % 20 == 0:
             save_model(path=f'./save_model/epoch{epoch}_model.pth',
                        model=model, optim=optimizer, lr_sch=lr_scheduler, epoch=epoch)
-            draw_loss_plot(epoch_l, train_loss_l, val_loss_l)
 
         elif epoch == num_epochs - 1:
             save_model(path=f'./save_model/last_model.pth',
                        model=model, optim=optimizer, lr_sch=lr_scheduler, epoch=epoch)
 
         epoch_end = time()
-        print('Epoch: {} | Best Dice: {} | Total Time: {:.4f}'.format(epoch + 1, best_dice, epoch_end - epoch_start))
+        print('Epoch: {} | Dice: {} | Total Time: {:.4f}'.format(epoch + 1, dice_score, epoch_end - epoch_start))
+
+    writer.close()
 
 
 if __name__ == '__main__':

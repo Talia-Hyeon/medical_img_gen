@@ -67,6 +67,8 @@ class FLAREDataSet(data.Dataset):
 
         # crop
         image, label = center_crop_3d(image, label, self.crop_h, self.crop_w, self.crop_d)
+        image = resize(image, (self.crop_h / 2, self.crop_w / 2, self.crop_d / 2))
+        label = resize(label, (self.crop_h / 2, self.crop_w / 2, self.crop_d / 2))
 
         # normalization
         image = truncate(image)  # -1 <= image <= 1

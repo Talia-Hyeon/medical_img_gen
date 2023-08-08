@@ -94,9 +94,9 @@ def visualization(img, label, root, iter, num_classes):
 
 if __name__ == '__main__':
     num_classes = 5
-    save_path = f'../fig/gen_img/mask'
+    save_path = f'../fig/gen_img/mask/4'
     os.makedirs(save_path, exist_ok=True)
-    val_path = f'../sample/mask'
+    val_path = f'../sample/mask/4'
     val_data = FAKEDataSet(root=val_path)
     val_loader = data.DataLoader(dataset=val_data, batch_size=1, shuffle=False, num_workers=4)
     for val_iter, pack in enumerate(val_loader):
