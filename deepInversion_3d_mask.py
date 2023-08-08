@@ -105,15 +105,20 @@ def save_preds(cnt, fake_x, fake_label, organ_pixels, root, percentage=0.007):
         return False
 
 
-def gen_img(args, device, task_id=1):
+def gen_img_mask(args, device, task_id=1):
     # hyper-parameter
     cnt = 0
     n_imgs = args.num_imgs
     n_iters = args.gen_epochs
+    img_check_points = [(n_iters // 10) * (i + 1) for i in range(9)]
+
     batch_size = args.gen_batch_size
     num_workers = args.num_workers
     pre_path = './save_model/epoch145_best_model.pth'
     input_size = (80, 96, 96)
+    pixels = input_size[0] * input_size[1] * input_size[2]
+
+    organ_percentage = 0.007
 
     cudnn.benchmark = True
     seed = args.random_seed
@@ -162,6 +167,8 @@ def gen_img(args, device, task_id=1):
         mask = mask.to(device)
 
         optimizer = torch.optim.Adam([fake_x], lr=0.1)
+
+        organ_pixels = 0
         for iter_idx in range(n_iters):
             output = pretrained(fake_x)
             fake_label = F.softmax(output, dim=1)
@@ -184,16 +191,22 @@ def gen_img(args, device, task_id=1):
 
             print(f"{iter_idx + 1}/{n_iters}| L1: {loss_var_l1:.2f}|"
                   f" L2: {loss_var_l2:.2f}| Batch_Norm:{loss_bn:.2f}| Dice: {dice_loss}", end='\r')
-        print()
 
-        organ_pixels = torch.count_nonzero(torch.argmax(fake_label, dim=1), dim=(1, 2, 3)).detach().cpu()
-        fake_x = fake_x.detach().cpu()
-        fake_label = fake_label.detach().cpu()
-        print(organ_pixels)
+            # check if image meets condition
+            if iter_idx in img_check_points:
+                assert fake_label.shape[0] == 1, 'batch size must be 1.'
+                organ_pixels = torch.count_nonzero(torch.argmax(fake_label, dim=1), dim=(1, 2, 3)).item()
+                if organ_pixels / pixels >= organ_percentage:
+                    break
 
-        for img_idx in range(batch_size):
-            if cnt < n_imgs and save_preds(cnt, fake_x[img_idx, 0], fake_label[img_idx], organ_pixels[img_idx], root_p):
-                cnt += 1
+        print()  # formatting
+
+        # save image
+        if organ_pixels / pixels >= organ_percentage and cnt < n_imgs:
+            fake_x = fake_x.detach().cpu()
+            fake_label = fake_label.detach().cpu()
+            save_preds(cnt, fake_x[0, 0], fake_label[0], root_p)
+            cnt += 1
 
 
 def gen_img_args():
@@ -220,4 +233,4 @@ if __name__ == '__main__':
     args = gen_parser.parse_args()
     print(args)
 
-    gen_img(args, device, task_id=4)
+    gen_img_mask(args, device, task_id=4)
