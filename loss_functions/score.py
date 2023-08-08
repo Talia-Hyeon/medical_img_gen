@@ -72,16 +72,14 @@ class ArgmaxDiceScore(nn.Module):
 
         all_score = []
         # one channel & multi-class
-        predict = torch.argmax(predict, dim=1)
+        predict = torch.argmax(predict, dim=1, keepdim=True)  # (B, 1, H, W, D)
         # mutil-channel & binary class
-        predict = self.extend_channel_classes(predict)
-        predict = torch.unsqueeze(predict, dim=0)
-
+        predict = self.extend_channel_classes(predict)  # (B, num_classes, H, W, D)
         for i in range(1, self.num_classes):  # 1: evaluate score from organs(liver)
-            dice_score = self.dice(predict[:, i], target[:, i])
-            all_score.append(dice_score.item())  # append each organ
+            dice_score = self.dice(predict[:, i], target[:, i]).unsqueeze(1)  # (B, 1)
+            all_score.append(dice_score)  # append each organ
 
-        total_score = torch.tensor(all_score)
+        total_score = torch.cat(all_score, dim=1)  # (B, num_classes-1)
         return total_score
 
     def extend_channel_classes(self, label):
@@ -96,8 +94,8 @@ class ArgmaxDiceScore(nn.Module):
             label_list.append(label_i)
 
         label_list = [bg] + label_list
-        stacked_label = torch.cat(label_list, dim=0)
-        return stacked_label
+        concated_label = torch.cat(label_list, dim=1)
+        return concated_label
 
 
 class BinaryDiceLoss(nn.Module):
