@@ -52,6 +52,11 @@ class FAKEDataSet(data.Dataset):
         # add channel
         image = image[np.newaxis, :]
 
+        # probability to binary
+        organ_num = label.shape[0]
+        label = np.argmax(label, axis=0)
+        label = extend_channel_classes(label, organ_num)
+
         # 50% flip
         # if np.random.rand(1) <= 0.5:  # W
         #     image = image[:, :, :, ::-1]
