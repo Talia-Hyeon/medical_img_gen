@@ -65,10 +65,10 @@ class FLAREDataSet(data.Dataset):
         image = pad_image(image, [self.crop_h, self.crop_w, self.crop_d])
         label = pad_image(label, [self.crop_h, self.crop_w, self.crop_d])
 
-        # crop
+        # crop & down sampling
         image, label = center_crop_3d(image, label, self.crop_h, self.crop_w, self.crop_d)
         image = resize(image, (self.crop_h / 2, self.crop_w / 2, self.crop_d / 2))
-        label = resize(label, (self.crop_h / 2, self.crop_w / 2, self.crop_d / 2))
+        label = np.rint(resize(label, (self.crop_h / 2, self.crop_w / 2, self.crop_d / 2)))   # int -> float -> int
 
         # normalization
         image = truncate(image)  # -1 <= image <= 1
