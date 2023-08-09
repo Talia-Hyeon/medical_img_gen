@@ -38,7 +38,7 @@ class BinaryDiceScore(nn.Module):
         intersection = torch.sum(torch.mul(predict, target), dim=1)
         union = torch.sum(predict, dim=1) + torch.sum(target, dim=1)
 
-        dice_score = 2 * intersection / (union + self.smooth)
+        dice_score = (2 * intersection + self.smooth) / (union + self.smooth)
         return dice_score
 
 
@@ -150,7 +150,7 @@ class BinaryDiceLoss(nn.Module):
         intersection = torch.sum(torch.mul(predict, target), dim=1)
         union = torch.sum(predict, dim=1) + torch.sum(target, dim=1)
 
-        dice_score = 2 * intersection / (union + self.smooth)
+        dice_score = (2 * intersection + self.smooth) / (union + self.smooth)
         dice_loss = 1 - dice_score
 
         return dice_loss
@@ -192,7 +192,7 @@ class MarginalLoss(nn.Module):
     def __init__(self, task_id=1):
         super(MarginalLoss, self).__init__()
         self.task_id = task_id
-        self.criterion = nn.BCEWithLogitsLoss()
+        self.criterion = nn.BCELoss()
 
     def forward(self, predict, target):
         predict = F.softmax(predict, dim=1)
@@ -216,7 +216,7 @@ class KnowledgeDistillationLoss(nn.Module):
     def __init__(self, task_id=1):
         super(KnowledgeDistillationLoss, self).__init__()
         self.task_id = task_id
-        self.criterion = nn.BCEWithLogitsLoss()
+        self.criterion = nn.BCELoss()
 
     def forward(self, predict, prior_pred):
         predict = F.softmax(predict, dim=1)
@@ -241,7 +241,7 @@ class CELoss(nn.Module):
         super(CELoss, self).__init__()
         self.weight = weight
         self.num_classes = num_classes
-        self.criterion = nn.BCEWithLogitsLoss()
+        self.criterion = nn.BCELoss()
 
     def forward(self, predict, target):
         assert predict.shape == target.shape, 'predict & target shape do not match'
