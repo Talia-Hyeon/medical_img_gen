@@ -88,7 +88,8 @@ def main():
     model = nn.DataParallel(model).to(device)
 
     # loss function
-    loss_function = DiceLoss(num_classes=n_classes)
+    # loss_function = DiceLoss(num_classes=n_classes)
+    loss_function = CELoss(num_classes=n_classes)
     loss_function.to(device)
 
     # data loader
