@@ -104,7 +104,7 @@ class ClassLoss(nn.Module):
         # # gt[:, 0] = 0  # don't contain the background into generated class
         # gt = F.softmax(gt, dim=1)
 
-        gt = torch.tensor([[0.05, 0.35, 0.2, 0.25, 0.15]]).to(x.device) * torch.ones_like(x)
+        gt = torch.tensor([[0.05, 0.35, 0.2, 0.25, 0.15]])[:, :self.num_classes].to(x.device) * torch.ones_like(x)
         return self.loss(x, gt)
 
 
@@ -138,13 +138,12 @@ def gen_img_vector(args, device, task_id=1):
     n_iters = args.gen_epochs
     img_check_points = [(n_iters // 10) * (i + 1) for i in range(9)]
 
-    num_classes = args.num_classes
     batch_size = args.gen_batch_size
     pre_path = './save_model/epoch145_best_model.pth'
-    input_size = (80, 96, 96)
-    pixels = input_size[0] * input_size[1] * input_size[2]
 
-    organ_percentage = 0.007
+    input_size = (160, 192, 192)
+    pixels = input_size[0] * input_size[1] * input_size[2]
+    organ_percentage = 7e-6
 
     cudnn.benchmark = True
     seed = args.random_seed
@@ -153,7 +152,7 @@ def gen_img_vector(args, device, task_id=1):
         torch.cuda.manual_seed(seed)
 
     # make directory
-    root_p = f"./sample/mask/{task_id}"
+    root_p = f"./sample/vector"
     os.makedirs(root_p, exist_ok=True)
     os.makedirs(f"{root_p}/Img", exist_ok=True)
     os.makedirs(f"{root_p}/Pred", exist_ok=True)
@@ -182,7 +181,7 @@ def gen_img_vector(args, device, task_id=1):
         class_loss_fn = ClassLoss(r_args=[(4, 1, 0.1, 7), (0.5, 0.1, 0.1, 1),  # background, liver
                                           (2, 0.4, 0.1, 4), (1, 0.3, 0.1, 3), (3, 0.5, 0.1, 5)],
                                   # kidney, spleen, pancreas
-                                  num_classes=num_classes)
+                                  num_classes=task_id + 1)
         class_loss_fn.to(device)
 
         optimizer = torch.optim.Adam([fake_x], lr=0.1)
@@ -232,26 +231,26 @@ def gen_img_vector(args, device, task_id=1):
 
 def gen_img_args():
     parser = argparse.ArgumentParser(description="image generation")
-    parser.add_argument("--num_classes", type=int, default=5)
+    parser.add_argument("--task_id", type=int, default=4)
+    parser.add_argument("--gpu", type=str, default='0')
     parser.add_argument("--itrs_each_epoch", type=int, default=250)
     parser.add_argument("--gen_epochs", type=int, default=5000)
     parser.add_argument("--num_imgs", type=int, default=288)
     parser.add_argument("--gen_batch_size", type=int, default=4)
     parser.add_argument("--num_workers", type=int, default=4)
     parser.add_argument("--random_seed", type=int, default=1234)
-    parser.add_argument("--power", type=float, default=0.9)
     return parser
 
 
 if __name__ == '__main__':
-    # device
-    os.environ['CUDA_DEVICE_ORDER'] = 'PCI_BUS_ID'
-    os.environ['CUDA_VISIBLE_DEVICES'] = '4,5,6,7'
-    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-
     # parser
     gen_parser = gen_img_args()
     args = gen_parser.parse_args()
     print(args)
 
-    gen_img_vector(args, device, task_id=4)
+    # device
+    os.environ['CUDA_DEVICE_ORDER'] = 'PCI_BUS_ID'
+    os.environ['CUDA_VISIBLE_DEVICES'] = args.gpu
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+
+    gen_img_vector(args, device, task_id=args.task_id)
