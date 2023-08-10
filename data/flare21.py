@@ -3,11 +3,11 @@ import os.path as osp
 import random
 import math
 
+from torch.utils import data
 import numpy as np
 from sklearn.model_selection import train_test_split
-from torch.utils import data
-import nibabel as nib
 from skimage.transform import resize
+import nibabel as nib
 from batchgenerators.transforms.color_transforms import BrightnessMultiplicativeTransform, GammaTransform, \
     BrightnessTransform, ContrastAugmentationTransform
 from batchgenerators.transforms.noise_transforms import GaussianNoiseTransform, GaussianBlurTransform
@@ -67,8 +67,8 @@ class FLAREDataSet(data.Dataset):
 
         # crop & down sampling
         image, label = center_crop_3d(image, label, self.crop_h, self.crop_w, self.crop_d)
-        image = resize(image, (self.crop_h / 2, self.crop_w / 2, self.crop_d / 2))
-        label = np.rint(resize(label, (self.crop_h / 2, self.crop_w / 2, self.crop_d / 2)))   # int -> float -> int
+        # image = resize(image, (self.crop_h / 2, self.crop_w / 2, self.crop_d / 2))
+        # label = np.rint(resize(label, (self.crop_h / 2, self.crop_w / 2, self.crop_d / 2)))   # int -> float -> int
 
         # normalization
         image = truncate(image)  # -1 <= image <= 1
