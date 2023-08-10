@@ -211,13 +211,14 @@ def gen_img_vector(args, device, task_id=1):
             if iter_idx in img_check_points:
                 assert fake_label.shape[0] == 1, 'batch size must be 1.'
                 organ_pixels = torch.count_nonzero(torch.argmax(fake_label, dim=1), dim=(1, 2, 3)).item()
-                if organ_pixels / pixels >= organ_percentage:
+                if loss_bn < 10.0 and (organ_pixels / pixels >= organ_percentage):
                     break
 
         print()  # formatting
 
         # save image
         if organ_pixels / pixels >= organ_percentage and cnt < n_imgs:
+            print('ratio of foreground: {0.2f}%'.format((organ_pixels / pixels) * 100))
             fake_x = fake_x.detach().cpu()
             fake_label = fake_label.detach().cpu()
             save_preds(cnt, fake_x[0, 0], fake_label[0], root_p)
