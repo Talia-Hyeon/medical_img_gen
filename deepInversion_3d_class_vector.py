@@ -139,7 +139,7 @@ def gen_img_vector(args, device, task_id=1):
     img_check_points = [(n_iters // 10) * (i + 1) for i in range(9)]
 
     batch_size = args.gen_batch_size
-    pre_path = './save_model/epoch145_best_model.pth'
+    pre_path = './save_model/last_model.pth'
 
     input_size = (160, 192, 192)
     pixels = input_size[0] * input_size[1] * input_size[2]
