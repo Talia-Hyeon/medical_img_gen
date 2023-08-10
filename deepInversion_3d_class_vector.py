@@ -1,11 +1,8 @@
 import argparse
 import os
 import timeit
-from itertools import cycle
-import random
 
 import torch
-from torch.utils import data
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.backends.cudnn as cudnn
@@ -13,8 +10,6 @@ import numpy as np
 import nibabel as nib
 
 from model.unet3D import UNet3D
-from data.flare21 import FLAREDataSet
-from loss_functions.score import DiceLoss
 
 start = timeit.default_timer()
 
@@ -236,7 +231,7 @@ def gen_img_args():
     parser.add_argument("--itrs_each_epoch", type=int, default=250)
     parser.add_argument("--gen_epochs", type=int, default=5000)
     parser.add_argument("--num_imgs", type=int, default=288)
-    parser.add_argument("--gen_batch_size", type=int, default=4)
+    parser.add_argument("--gen_batch_size", type=int, default=1)
     parser.add_argument("--num_workers", type=int, default=4)
     parser.add_argument("--random_seed", type=int, default=1234)
     return parser
