@@ -178,8 +178,8 @@ def gen_img_vector(args, device, task_id=1):
         fake_x = torch.randn([batch_size, 1] + list(input_size), requires_grad=True, device=device)
 
         # class loss
-        class_loss_fn = ClassLoss(r_args=[(4, 1, 0.1, 7), (0.5, 0.1, 0.1, 1),  # background, liver
-                                          (2, 0.4, 0.1, 4), (1, 0.3, 0.1, 3), (3, 0.5, 0.1, 5)],
+        class_loss_fn = ClassLoss(r_args=[(5, 1, 0.5, 10), (5, 1, 0.5, 10),  # background, liver
+                                          (5, 1, 0.5, 10), (5, 1, 0.5, 10), (5, 1, 0.5, 10)],
                                   # kidney, spleen, pancreas
                                   num_classes=task_id + 1)
         class_loss_fn.to(device)
