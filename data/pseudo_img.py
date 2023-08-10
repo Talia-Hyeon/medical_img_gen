@@ -1,11 +1,17 @@
-import matplotlib.pyplot as plt
-import torch
-
+import os
+import os.path as osp
 import sys
 
-sys.path.append('..')
+import numpy as np
+import nibabel as nib
+import matplotlib.pyplot as plt
+import torch
+from torch.utils import data
+
 from test_unet import decode_segmap, find_best_view
-from data.flare21 import *
+from data.flare21 import truncate, extend_channel_classes
+
+sys.path.append('..')
 
 
 class FAKEDataSet(data.Dataset):
@@ -45,28 +51,28 @@ class FAKEDataSet(data.Dataset):
         image = imageNII.get_fdata()
         label = labelNII.get_fdata()
         name = datafiles["name"]
+        organ_num = label.shape[0]
 
         # normalization
         image = truncate(image)
 
         # add channel
         image = image[np.newaxis, :]
+        label = np.argmax(label, axis=0)[np.newaxis, :]
 
         # probability to binary
-        organ_num = label.shape[0]
-        label = np.argmax(label, axis=0)
         label = extend_channel_classes(label, organ_num)
 
         # 50% flip
-        # if np.random.rand(1) <= 0.5:  # W
-        #     image = image[:, :, :, ::-1]
-        #     label = label[:, :, :, ::-1]
-        # if np.random.rand(1) <= 0.5:  # H
-        #     image = image[:, :, ::-1, :]
-        #     label = label[:, :, ::-1, :]
-        # if np.random.rand(1) <= 0.5:  # D
-        #     image = image[:, ::-1, :, :]
-        #     label = label[:, ::-1, :, :]
+        if np.random.rand(1) <= 0.5:  # W
+            image = image[:, :, :, ::-1]
+            label = label[:, :, :, ::-1]
+        if np.random.rand(1) <= 0.5:  # H
+            image = image[:, :, ::-1, :]
+            label = label[:, :, ::-1, :]
+        if np.random.rand(1) <= 0.5:  # D
+            image = image[:, ::-1, :, :]
+            label = label[:, ::-1, :, :]
 
         image = image.astype(np.float32)
         label = label.astype(np.float32)
@@ -98,13 +104,18 @@ def visualization(img, label, root, iter, num_classes):
 
 
 if __name__ == '__main__':
-    num_classes = 5
-    save_path = f'../fig/gen_img/mask/4'
+    train_type = 'hrhf'
+    r_value = 10
+    # r_value = 1
+    task_id = 4
+    save_path = f'../fig/gen_img/{train_type}/{r_value}'
+    # train_type = 'mask'
+    # save_path = f'../fig/gen_img/{train_type}'
     os.makedirs(save_path, exist_ok=True)
-    val_path = f'../sample/mask/4'
+    val_path = f'../sample/{train_type}/{r_value}'
     val_data = FAKEDataSet(root=val_path)
     val_loader = data.DataLoader(dataset=val_data, batch_size=1, shuffle=False, num_workers=4)
     for val_iter, pack in enumerate(val_loader):
         img_ = pack[0]
         label_ = pack[1]
-        visualization(img_, label_, save_path, val_iter, num_classes)
+        visualization(img_, label_, save_path, val_iter, num_classes=task_id + 1)
