@@ -111,7 +111,7 @@ def gen_img_mask(args, device, task_id=1):
     input_size = (160, 192, 192)
     pixels = input_size[0] * input_size[1] * input_size[2]
 
-    organ_percentage = 0.07
+    organ_percentage = 0.05
 
     cudnn.benchmark = True
     seed = args.random_seed
