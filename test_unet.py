@@ -2,7 +2,7 @@ import os
 import argparse
 
 import torch
-from torch.utils.data import DataLoader, ConcatDataset
+from torch.utils.data import DataLoader
 from matplotlib import pyplot as plt
 
 from data.flare21 import FLAREDataSet
@@ -31,6 +31,7 @@ def decode_segmap(base, temp, num_classes):
     rgb[:, :, 1] = g / 255.0
     rgb[:, :, 2] = b / 255.0
     return rgb
+
 
 def find_best_view(img, num_classes):
     d1, d2, d3 = img.shape
@@ -108,7 +109,7 @@ def evaluate(model, test_data_loader, num_class, device):
 
     total_dice = torch.stack(dice_list)
     # total_dice = torch.cat(dice_list, dim=0)
-    dice_score = torch.mean(total_dice, dim=0)  # mean of all batches
+    dice_score = torch.mean(total_dice, dim=0)
     return dice_score
 
 
@@ -132,7 +133,7 @@ def get_args():
     parser.add_argument("--num_classes", type=int, default=5)
     parser.add_argument("--num_workers", type=int, default=4)
     parser.add_argument("--gpu", type=str, default='0')
-    parser.add_argument("--model_path", type=str, default='./save_model/epoch145_best_model.pth')
+    parser.add_argument("--model_path", type=str, default='./save_model/last_model.pth')
     return parser
 
 

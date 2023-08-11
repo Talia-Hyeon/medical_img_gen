@@ -2,7 +2,7 @@ import os
 import argparse
 
 import torch
-from torch.utils.data import DataLoader, ConcatDataset
+from torch.utils.data import DataLoader
 from matplotlib import pyplot as plt
 
 from data.flare21 import FLAREDataSet
@@ -84,7 +84,7 @@ def visualization(img, label, pred, name, path, num_classes):
     plt.close()
 
 
-def evaluate(model, test_data_loader, num_class, device):
+def evaluate(model, test_data_loader, task_id, num_class, device):
     path = f'./fig/prediction_map/ft'
     os.makedirs(path, exist_ok=True)
 
@@ -109,7 +109,7 @@ def evaluate(model, test_data_loader, num_class, device):
 
     total_dice = torch.stack(dice_list)
     # total_dice = torch.cat(dice_list, dim=0)
-    dice_score = torch.mean(total_dice, dim=0)  # mean of all batches
+    dice_score = torch.mean(total_dice, dim=0)
     return dice_score
 
 
@@ -133,7 +133,6 @@ def get_args():
     parser.add_argument("--num_classes", type=int, default=5)
     parser.add_argument("--num_workers", type=int, default=4)
     parser.add_argument("--gpu", type=str, default='0')
-    parser.add_argument("--model_path", type=str, default='./save_model/epoch145_best_model.pth')
     return parser
 
 
@@ -158,8 +157,6 @@ if __name__ == '__main__':
 
     # model
     model = UNet3D(num_classes=n_classes)
-    checkpoint = torch.load(args.model_path)
-    model.load_state_dict(checkpoint['model'], strict=False)
     model = nn.DataParallel(model).to(device)
 
     # evaluation
