@@ -195,7 +195,7 @@ def gen_img_mask(args, device, task_id=1):
         print()  # formatting
 
         # save image
-        if organ_pixels / pixels >= organ_percentage and cnt < n_imgs:
+        if loss_bn < 20.0 and dice_loss < 0.5 and cnt < n_imgs:
             print('ratio of foreground: {:.2f}%'.format((organ_pixels / pixels) * 100))
             fake_x = fake_x.detach().cpu()
             fake_label = fake_label.detach().cpu()
