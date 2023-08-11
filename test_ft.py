@@ -32,6 +32,7 @@ def decode_segmap(base, temp, num_classes):
     rgb[:, :, 2] = b / 255.0
     return rgb
 
+
 def find_best_view(img, num_classes):
     d1, d2, d3 = img.shape
     max_score = 0
