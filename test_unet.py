@@ -84,7 +84,7 @@ def visualization(img, label, pred, name, path, num_classes):
 
 
 def evaluate(model, test_data_loader, num_class, device):
-    path = os.path.join('./fig', 'prediction_map')
+    path = f'./fig/prediction_map/real_img'
     os.makedirs(path, exist_ok=True)
 
     metric = ArgmaxDiceScore(num_classes=num_class)
