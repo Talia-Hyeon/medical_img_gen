@@ -192,7 +192,7 @@ class MarginalLoss(nn.Module):
     def __init__(self, task_id=1):
         super(MarginalLoss, self).__init__()
         self.task_id = task_id
-        self.criterion = nn.BCELoss()
+        self.criterion = BinaryDiceLoss()
 
     def forward(self, predict, target):
         predict = F.softmax(predict, dim=1)
@@ -216,7 +216,7 @@ class KnowledgeDistillationLoss(nn.Module):
     def __init__(self, task_id=1):
         super(KnowledgeDistillationLoss, self).__init__()
         self.task_id = task_id
-        self.criterion = nn.BCELoss()
+        self.criterion = BinaryDiceLoss()
 
     def forward(self, predict, prior_pred):
         predict = F.softmax(predict, dim=1)
