@@ -92,16 +92,10 @@ def save_nii(a, p):  # img_data, path
     nib.save(nibimg, p)
 
 
-def save_preds(cnt, fake_x, fake_label, organ_pixels, root, percentage=0.007):
-    h, w, d = fake_x.shape
-
-    if (organ_pixels / (h * w * d)) >= percentage:
-        save_nii(fake_x.numpy(), f"{root}/Img/{cnt}img.nii.gz")
-        save_nii(fake_label.numpy(), f"{root}/Pred/{cnt}pred.nii.gz")
-        print(f"img{cnt} is saved.")
-        return True
-    else:
-        return False
+def save_preds(cnt, fake_x, fake_label, root):
+    save_nii(fake_x.numpy(), f"{root}/Img/{cnt}img.nii.gz")
+    save_nii(fake_label.numpy(), f"{root}/Pred/{cnt}pred.nii.gz")
+    print(f"img{cnt} is saved.")
 
 
 def gen_img_mask(args, device, task_id=1):
@@ -117,7 +111,7 @@ def gen_img_mask(args, device, task_id=1):
     input_size = (160, 192, 192)
     pixels = input_size[0] * input_size[1] * input_size[2]
 
-    organ_percentage = 0.007
+    organ_percentage = 0.07
 
     cudnn.benchmark = True
     seed = args.random_seed
@@ -181,7 +175,7 @@ def gen_img_mask(args, device, task_id=1):
             # dice loss
             dice_loss = loss_fn(output, mask)
             # total loss
-            loss = dice_loss * 1 + loss_bn * 1 + loss_var_l1 * 2.5e-5 + loss_var_l2 * 3e-8
+            loss = dice_loss * 1e-3 + loss_bn * 1 + loss_var_l1 * 2.5e-5 + loss_var_l2 * 3e-8
 
             pretrained.zero_grad()
             optimizer.zero_grad()
@@ -195,14 +189,14 @@ def gen_img_mask(args, device, task_id=1):
             if iter_idx in img_check_points:
                 assert fake_label.shape[0] == 1, 'batch size must be 1.'
                 organ_pixels = torch.count_nonzero(torch.argmax(fake_label, dim=1), dim=(1, 2, 3)).item()
-                if loss_bn < 10.0 and (organ_pixels / pixels >= organ_percentage):
+                if loss_bn < 20.0 and (organ_pixels / pixels >= organ_percentage):
                     break
 
         print()  # formatting
 
         # save image
         if organ_pixels / pixels >= organ_percentage and cnt < n_imgs:
-            print('ratio of foreground: {0.2f}%'.format((organ_pixels / pixels)*100))
+            print('ratio of foreground: {:.2f}%'.format((organ_pixels / pixels) * 100))
             fake_x = fake_x.detach().cpu()
             fake_label = fake_label.detach().cpu()
             save_preds(cnt, fake_x[0, 0], fake_label[0], root_p)

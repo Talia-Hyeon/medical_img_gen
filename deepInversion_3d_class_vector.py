@@ -99,7 +99,7 @@ class ClassLoss(nn.Module):
         # # gt[:, 0] = 0  # don't contain the background into generated class
         # gt = F.softmax(gt, dim=1)
 
-        gt = torch.tensor([[0.05, 0.35, 0.2, 0.25, 0.15]])[:, :self.num_classes].to(x.device) * torch.ones_like(x)
+        gt = torch.tensor([[0.5, 0.2, 0.1, 0.1, 0.1]])[:, :self.num_classes].to(x.device) * torch.ones_like(x)
         return self.loss(x, gt)
 
 
@@ -138,7 +138,7 @@ def gen_img_vector(args, device, task_id=1):
 
     input_size = (160, 192, 192)
     pixels = input_size[0] * input_size[1] * input_size[2]
-    organ_percentage = 7e-6
+    organ_percentage = 0.1
 
     cudnn.benchmark = True
     seed = args.random_seed
@@ -197,7 +197,7 @@ def gen_img_vector(args, device, task_id=1):
             # class loss
             class_loss = class_loss_fn(fake_label)
             # total loss
-            loss = class_loss * 1 + loss_bn * 1 + loss_var_l1 * 2.5e-5 + loss_var_l2 * 3e-8
+            loss = class_loss + loss_bn * 1 + loss_var_l1 * 2.5e-5 + loss_var_l2 * 3e-8
 
             pretrained.zero_grad()
             optimizer.zero_grad()
@@ -211,14 +211,14 @@ def gen_img_vector(args, device, task_id=1):
             if iter_idx in img_check_points:
                 assert fake_label.shape[0] == 1, 'batch size must be 1.'
                 organ_pixels = torch.count_nonzero(torch.argmax(fake_label, dim=1), dim=(1, 2, 3)).item()
-                if loss_bn < 10.0 and (organ_pixels / pixels >= organ_percentage):
+                if loss_bn < 20.0 and (organ_pixels / pixels >= organ_percentage):
                     break
 
         print()  # formatting
 
         # save image
         if organ_pixels / pixels >= organ_percentage and cnt < n_imgs:
-            print('ratio of foreground: {0.2f}%'.format((organ_pixels / pixels) * 100))
+            print('ratio of foreground: {:.2f}%'.format((organ_pixels / pixels) * 100))
             fake_x = fake_x.detach().cpu()
             fake_label = fake_label.detach().cpu()
             save_preds(cnt, fake_x[0, 0], fake_label[0], root_p)
