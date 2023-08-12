@@ -141,7 +141,7 @@ def gen_img_vector(args, device, task_id=1):
         torch.cuda.manual_seed(seed)
 
     # make directory
-    root_p = f"./sample/vector"
+    root_p = f"./sample/r"
     os.makedirs(root_p, exist_ok=True)
     os.makedirs(f"{root_p}/Img", exist_ok=True)
     os.makedirs(f"{root_p}/Pred", exist_ok=True)
