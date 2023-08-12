@@ -1,10 +1,8 @@
 import argparse
 import os
 import timeit
-from itertools import cycle
 
 import torch
-from torch.utils import data
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.backends.cudnn as cudnn
@@ -12,8 +10,6 @@ import numpy as np
 import nibabel as nib
 
 from model.unet3D import UNet3D
-from data.flare21 import FLAREDataSet
-from loss_functions.score import DiceLoss
 
 start = timeit.default_timer()
 
@@ -76,6 +72,26 @@ def get_image_prior_losses(img):
     return loss_var_l1, loss_var_l2
 
 
+class ClassLoss(nn.Module):
+    def __init__(self, r_args, num_classes):
+        super().__init__()
+        self.loss = nn.CrossEntropyLoss()
+        self.num_classes = num_classes
+
+        r = torch.tensor(r_args).reshape(1, num_classes)  # add batch
+        self.register_buffer('r', r)  # store the untrained value
+
+    def forward(self, x):
+        B, C, D, H, W = x.shape
+        assert C == self.r.size(1), "channel's size don't match"
+
+        x = (1 / self.r) * torch.log(
+            torch.sum(torch.exp(self.r[..., None, None, None] * x), dim=(2, 3, 4)) / (D * H * W))  # shape = (B,C)
+
+        gt = torch.tensor([[0.5, 0.2, 0.1, 0.1, 0.1]])[:, :self.num_classes].to(x.device) * torch.ones_like(x)
+        return self.loss(x, gt)
+
+
 def lr_poly(base_lr, iter_idx, max_iter, power):
     return base_lr * ((1 - float(iter_idx) / max_iter) ** (power))
 
@@ -96,9 +112,10 @@ def save_preds(cnt, fake_x, fake_label, root):
     save_nii(fake_x.numpy(), f"{root}/Img/{cnt}img.nii.gz")
     save_nii(fake_label.numpy(), f"{root}/Pred/{cnt}pred.nii.gz")
     print(f"img{cnt} is saved.")
+    return
 
 
-def gen_img_mask(args, device, task_id=1):
+def gen_img_vector(args, device, task_id=1):
     # hyper-parameter
     cnt = 0
     n_imgs = args.num_imgs
@@ -106,13 +123,16 @@ def gen_img_mask(args, device, task_id=1):
     img_check_points = [(n_iters // 10) * (i + 1) for i in range(9)]
 
     batch_size = args.gen_batch_size
-    num_workers = args.num_workers
-
     pre_path = './save_model/last_model.pth'
+
+    r_value = args.r
+    r = []
+    for i in range(task_id + 1):
+        r.append(r_value)
 
     input_size = (160, 192, 192)
     pixels = input_size[0] * input_size[1] * input_size[2]
-    organ_percentage = 0.05
+    organ_percentage = 0.1
 
     cudnn.benchmark = True
     seed = args.random_seed
@@ -121,7 +141,7 @@ def gen_img_mask(args, device, task_id=1):
         torch.cuda.manual_seed(seed)
 
     # make directory
-    root_p = f"./sample/mask/{task_id}"
+    root_p = f"./sample/vector"
     os.makedirs(root_p, exist_ok=True)
     os.makedirs(f"{root_p}/Img", exist_ok=True)
     os.makedirs(f"{root_p}/Pred", exist_ok=True)
@@ -141,24 +161,14 @@ def gen_img_mask(args, device, task_id=1):
         if isinstance(module, nn.BatchNorm3d):
             loss_r_feature_layers.append(DeepInversionFeatureHook(module))
 
-    # dice loss
-    loss_fn = DiceLoss(num_classes=task_id + 1)
-    loss_fn.to(device)
-
-    # define the dataset
-    real_data = FLAREDataSet(root='./dataset/FLARE21', split='train', task_id=task_id)
-    real_dataloader = data.DataLoader(dataset=real_data, batch_size=batch_size,
-                                      num_workers=num_workers, shuffle=True)
-    real_dataloader_infinite_iter = iter(cycle(real_dataloader))
-
     # generate fake images
     pretrained.eval()
     while cnt < n_imgs:
         fake_x = torch.randn([batch_size, 1] + list(input_size), requires_grad=True, device=device)
 
-        # define the mask
-        img, mask, name = next(real_dataloader_infinite_iter)
-        mask = mask.to(device)
+        # class loss
+        class_loss_fn = ClassLoss(r_args=r, num_classes=task_id + 1)
+        class_loss_fn.to(device)
 
         optimizer = torch.optim.Adam([fake_x], lr=0.1)
 
@@ -173,10 +183,10 @@ def gen_img_mask(args, device, task_id=1):
             rescale = [10] + [1. for _ in range(len(loss_r_feature_layers) - 1)]
             bn_diff = [mod.r_feature * rescale[idx] for (idx, mod) in enumerate(loss_r_feature_layers)]
             loss_bn = torch.sum(torch.tensor(bn_diff, requires_grad=True)) / len(loss_r_feature_layers)
-            # dice loss
-            dice_loss = loss_fn(output, mask)
+            # class loss
+            class_loss = class_loss_fn(fake_label)
             # total loss
-            loss = dice_loss * 1e-3 + loss_bn * 1 + loss_var_l1 * 2.5e-5 + loss_var_l2 * 3e-8
+            loss = class_loss + loss_bn * 1 + loss_var_l1 * 2.5e-5 + loss_var_l2 * 3e-8
 
             pretrained.zero_grad()
             optimizer.zero_grad()
@@ -184,7 +194,7 @@ def gen_img_mask(args, device, task_id=1):
             optimizer.step()
 
             print(f"{iter_idx + 1}/{n_iters}| L1: {loss_var_l1:.2f}|"
-                  f" L2: {loss_var_l2:.2f}| Batch_Norm:{loss_bn:.2f}| Dice: {dice_loss}", end='\r')
+                  f" L2: {loss_var_l2:.2f}| Batch_Norm:{loss_bn:.2f}| class: {class_loss}", end='\r')
 
             # check if image meets condition
             if iter_idx in img_check_points:
@@ -196,20 +206,21 @@ def gen_img_mask(args, device, task_id=1):
         print()  # formatting
 
         # save image
-        if loss_bn < 20.0 and (organ_pixels / pixels >= organ_percentage) and cnt < n_imgs:
-            print('ratio of foreground: {:.2f}%'.format((organ_pixels / pixels) * 100))
+        if loss_bn < 20.0 and organ_pixels / pixels >= organ_percentage and cnt < n_imgs:
             fake_x = fake_x.detach().cpu()
             fake_label = fake_label.detach().cpu()
             save_preds(cnt, fake_x[0, 0], fake_label[0], root_p)
             cnt += 1
+        print('ratio of foreground: {:.2f}%'.format((organ_pixels / pixels) * 100))
 
 
 def gen_img_args():
     parser = argparse.ArgumentParser(description="image generation")
     parser.add_argument("--task_id", type=int, default=4)
     parser.add_argument("--gpu", type=str, default='0')
+    parser.add_argument("--r", type=int, default=5)
     parser.add_argument("--gen_epochs", type=int, default=2000)
-    parser.add_argument("--num_imgs", type=int, default=288)
+    parser.add_argument("--num_imgs", type=int, default=5)
     parser.add_argument("--gen_batch_size", type=int, default=1)
     parser.add_argument("--num_workers", type=int, default=4)
     parser.add_argument("--random_seed", type=int, default=1234)
@@ -227,4 +238,4 @@ if __name__ == '__main__':
     os.environ['CUDA_VISIBLE_DEVICES'] = args.gpu
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
-    gen_img_mask(args, device, task_id=args.task_id)
+    gen_img_vector(args, device, task_id=args.task_id)
