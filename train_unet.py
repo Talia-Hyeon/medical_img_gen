@@ -152,8 +152,7 @@ def main():
                 iter_dice = metric(pred_val, label_val)
                 dice_list.append(iter_dice)
 
-            total_dice = torch.stack(dice_list)
-            # total_dice = torch.cat(dice_list, dim=0)
+            total_dice = torch.cat(dice_list, dim=0)
             dice_score = torch.mean(total_dice, dim=0)
             avg_dice = torch.mean(dice_score).item()
 
