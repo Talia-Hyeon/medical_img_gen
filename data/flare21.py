@@ -2,9 +2,11 @@ import os
 import os.path as osp
 import random
 import math
+import sys
 
 from torch.utils import data
 import numpy as np
+from matplotlib import pyplot as plt
 from sklearn.model_selection import train_test_split
 from skimage.transform import resize
 import nibabel as nib
@@ -13,6 +15,10 @@ from batchgenerators.transforms.color_transforms import BrightnessMultiplicative
 from batchgenerators.transforms.noise_transforms import GaussianNoiseTransform, GaussianBlurTransform
 from batchgenerators.transforms.resample_transforms import SimulateLowResolutionTransform
 from batchgenerators.transforms.abstract_transforms import Compose
+
+sys.path.append('..')
+
+from test_unet import find_best_view
 
 global index_organs
 index_organs = ['background', 'liver', 'kidney', 'spleen', 'pancreas']
@@ -224,15 +230,50 @@ def my_collate(batch):
     return data_dict
 
 
+def decode_label(temp, num_classes):
+    colors = [[0, 0, 0],  # "unlabelled"
+              [150, 0, 0],
+              [0, 0, 142],
+              [150, 170, 0],
+              [70, 0, 100]]
+    label_colours = dict(zip(range(num_classes), colors))  # key: label's index, value: color
+
+    r = temp.copy()
+    g = temp.copy()
+    b = temp.copy()
+    for l in range(1, num_classes):
+        r[temp == l] = label_colours[l][0]
+        g[temp == l] = label_colours[l][1]
+        b[temp == l] = label_colours[l][2]
+
+    rgb = np.zeros((temp.shape[0], temp.shape[1], 3))
+    rgb[:, :, 0] = r / 255.0
+    rgb[:, :, 1] = g / 255.0
+    rgb[:, :, 2] = b / 255.0
+    return rgb
+
+
 if __name__ == '__main__':
-    flare = FLAREDataSet(root='../dataset/FLARE21', split='train', task_id=4)
-    img_, label_, name_ = flare[0]
+    # flare = FLAREDataSet(root='../dataset/FLARE21', split='train', task_id=4)
+    # img_, label_, name_ = flare[0]
     # print("img's shape: {}\nlabel's shape: {}".format(img_.shape, label_.shape))
 
-    # flare = FLAREDataSet(root='../dataset/FLARE21', split='train', task_id=4)
-    # train_loader = data.DataLoader(dataset=flare, batch_size=1, shuffle=False, num_workers=4, collate_fn=my_collate)
-    # for train_iter, pack in enumerate(train_loader):
-    #     img_ = pack['image']
-    #     label_ = pack['label']
-    #     name_ = pack['name']
-    #     print("img's shape: {}\nlabel's shape: {}".format(img_.shape, label_.shape))
+    num_classes = 5
+    path = './temp'
+    flare = FLAREDataSet(root='./test', split='test', task_id=num_classes - 1)
+    train_loader = data.DataLoader(dataset=flare, batch_size=1, shuffle=False)
+    for train_iter, pack in enumerate(train_loader):
+        img_ = pack[0]
+        label_ = pack[1]
+        name_ = pack[2]
+
+        max_score_idx = find_best_view(label_, num_classes)
+        img_ = img_[max_score_idx, :, :]
+        label_ = label_[max_score_idx, :, :]
+        col_label = decode_label(label_, num_classes)
+
+        plt.figure()
+        plt.imshow(col_label)
+        plt.title('Prediction Map')
+        plt.savefig(f'{path}/{name_}.png')
+        plt.close()
