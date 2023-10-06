@@ -18,7 +18,7 @@ from batchgenerators.transforms.abstract_transforms import Compose
 
 sys.path.append('..')
 
-from test_unet import find_best_view
+# from test_unet import find_best_view
 
 global index_organs
 index_organs = ['background', 'liver', 'kidney', 'spleen', 'pancreas']
@@ -268,13 +268,13 @@ if __name__ == '__main__':
         label_ = pack[1]
         name_ = pack[2]
 
-        max_score_idx = find_best_view(label_, num_classes)
-        img_ = img_[max_score_idx, :, :]
-        label_ = label_[max_score_idx, :, :]
-        col_label = decode_label(label_, num_classes)
-
-        plt.figure()
-        plt.imshow(col_label)
-        plt.title('Prediction Map')
-        plt.savefig(f'{path}/{name_}.png')
-        plt.close()
+        # max_score_idx = find_best_view(label_, num_classes)
+        # img_ = img_[max_score_idx, :, :]
+        # label_ = label_[max_score_idx, :, :]
+        # col_label = decode_label(label_, num_classes)
+        #
+        # plt.figure()
+        # plt.imshow(col_label)
+        # plt.title('Prediction Map')
+        # plt.savefig(f'{path}/{name_}.png')
+        # plt.close()
