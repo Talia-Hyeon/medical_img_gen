@@ -25,7 +25,7 @@ index_organs = ['background', 'liver', 'kidney', 'spleen', 'pancreas']
 
 
 class FLAREDataSet(data.Dataset):
-    def __init__(self, root, split='train', task_id=1, crop_size=(160, 192, 192)):
+    def __init__(self, root, split='train', task_id=4, crop_size=(160, 192, 192)):
         self.root = root
         self.split = split
         self.task_id = task_id
@@ -38,8 +38,9 @@ class FLAREDataSet(data.Dataset):
         img_list = os.listdir(image_path)
 
         # split train/val/test set
-        train_data, rest_data = train_test_split(img_list, test_size=0.20, shuffle=True, random_state=0)
-        val_data, test_data = train_test_split(rest_data, test_size=0.50, shuffle=True, random_state=0)
+        train_all_data, eval_data = train_test_split(img_list, test_size=0.20, shuffle=True, random_state=0)
+        rest_data, train_data = train_test_split(train_all_data, test_size=0.25, shuffle=True, random_state=0)
+        val_data, test_data = train_test_split(eval_data, test_size=0.50, shuffle=True, random_state=0)
 
         if self.split == 'train':
             all_files = self.load_data(train_data, image_path, label_path)
