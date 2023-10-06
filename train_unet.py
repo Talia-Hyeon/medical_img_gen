@@ -22,7 +22,7 @@ def get_args():
     parser.add_argument("--batch_size", type=int, default=8)
     parser.add_argument("--num_workers", type=int, default=4)
     parser.add_argument("--gpu", type=str, default='0,1,2,3,4,5,6,7')
-    parser.add_argument("--log_dir", type=str, default='./log')
+    parser.add_argument("--log_dir", type=str, default='./log_72img')
     parser.add_argument("--pretrained_model", type=str, default=None)
     return parser
 
