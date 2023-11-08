@@ -12,6 +12,7 @@ from data.flare21 import FLAREDataSet
 from data.flare21 import my_collate
 from model.unet3D import UNet3D
 from loss_functions.score import *
+from util import save_model
 
 
 def get_args():

@@ -13,6 +13,7 @@ from loss_functions.score import *
 from data.flare21 import index_organs
 from data.one_organ import BinaryDataSet
 from model.unet3D import UNet3D
+from util import save_model
 
 
 def train_upperbound(args):
@@ -24,7 +25,6 @@ def train_upperbound(args):
     # hyper-parameter
     num_epochs = args.epoch
     n_classes = args.num_classes
-    batch_size = args.batch_size
     num_workers = args.num_workers
     train_type = args.type
     logdir = args.log_dir
@@ -66,13 +66,25 @@ def train_upperbound(args):
     flare_loss_fn.to(device)
 
     # data loader
+    liver_data = BinaryDataSet(task_id=1)
+    liver_loader = DataLoader(liver_data, batch_size=1, shuffle=True,
+                              num_workers=num_workers, collate_fn=my_collate)
+    kidney_data = BinaryDataSet(task_id=2)
+    kidney_loader = DataLoader(kidney_data, batch_size=1, shuffle=True,
+                               num_workers=num_workers, collate_fn=my_collate)
+    spleen_data = BinaryDataSet(task_id=3)
+    spleen_loader = DataLoader(spleen_data, batch_size=1, shuffle=True,
+                               num_workers=num_workers, collate_fn=my_collate)
+    pancreas_data = BinaryDataSet(task_id=4)
+    pancreas_loader = DataLoader(pancreas_data, batch_size=1, shuffle=True,
+                                 num_workers=num_workers, collate_fn=my_collate)
 
     flare_path = './dataset/FLARE21'
     flare_train = FLAREDataSet(root=flare_path, split='train', task_id=n_classes - 1)
-    flare_loader = DataLoader(dataset=flare_train, batch_size=batch_size, shuffle=True,
+    flare_loader = DataLoader(dataset=flare_train, batch_size=1, shuffle=True,
                               num_workers=num_workers, collate_fn=my_collate)
 
-    flare_valid = FLAREDataSet(root=flare_path, split='val', task_id=n_classes)
+    flare_valid = FLAREDataSet(root=flare_path, split='val', task_id=n_classes - 1)
     valid_loader = DataLoader(dataset=flare_valid, batch_size=1, shuffle=False, num_workers=num_workers)
 
     # setup metrics
@@ -83,19 +95,49 @@ def train_upperbound(args):
 
     # training
     for epoch in range(num_epochs):
-        args.global_epoch += 1
         model.train()
         epoch_start = time()
         iter_start = time()
 
-        for train_iter, pack in enumerate(zip()):
-            img = pack['image']
-            img = torch.tensor(img).to(device)
-            label = pack['label']
-            label = torch.tensor(label).to(device)
+        for train_iter, (flare_pack, liver_pack, kidney_pack, spleen_pack, pancreas_pack) in enumerate(
+                zip(flare_loader, liver_loader, kidney_loader, spleen_loader, pancreas_loader)):
 
-            pred = model(img)
-            loss = train_loss_fn(pred, label)
+            flare_img = flare_pack['image']
+            flare_img = torch.tensor(flare_img).to(device)
+            flare_label = flare_pack['label']
+            flare_label = torch.tensor(flare_label).to(device)
+            flare_pred = model(flare_img)
+            flare_loss = flare_loss_fn(flare_pred, flare_label)
+
+            liver_img = liver_pack['image']
+            liver_img = torch.tensor(liver_img).to(device)
+            liver_label = liver_pack['label']
+            liver_label = torch.tensor(liver_label).to(device)
+            liver_pred = model(liver_img)
+            liver_loss = liver_loss_fn(liver_pred, liver_label)
+
+            kidney_img = kidney_pack['image']
+            kidney_img = torch.tensor(kidney_img).to(device)
+            kidney_label = kidney_pack['label']
+            kidney_label = torch.tensor(kidney_label).to(device)
+            kidney_pred = model(kidney_img)
+            kidney_loss = kidney_loss_fn(kidney_pred, kidney_label)
+
+            spleen_img = spleen_pack['image']
+            spleen_img = torch.tensor(spleen_img).to(device)
+            spleen_label = spleen_pack['label']
+            spleen_label = torch.tensor(spleen_label).to(device)
+            spleen_pred = model(spleen_img)
+            spleen_loss = spleen_loss_fn(spleen_pred, spleen_label)
+
+            pancreas_img = pancreas_pack['image']
+            pancreas_img = torch.tensor(pancreas_img).to(device)
+            pancreas_label = pancreas_pack['label']
+            pancreas_label = torch.tensor(pancreas_label).to(device)
+            pancreas_pred = model(pancreas_img)
+            pancreas_loss = pancreas_loss_fn(pancreas_pred, pancreas_label)
+
+            loss = flare_loss + liver_loss + kidney_loss + spleen_loss + pancreas_loss
             train_loss_meter.update(loss.item())
 
             optimizer.zero_grad()
@@ -122,7 +164,7 @@ def train_upperbound(args):
                 label_val = pack[1].to(device)
                 pred_val = model(img_val)
 
-                val_loss = val_loss_fn(pred_val, label_val)
+                val_loss = flare_loss_fn(pred_val, label_val)
                 val_loss_meter.update(val_loss.item())
 
                 iter_dice = metric(pred_val, label_val)
@@ -152,15 +194,15 @@ def train_upperbound(args):
 
         if avg_dice >= best_avg_dice:
             best_avg_dice = avg_dice
-            save_model(path=f'./save_model/{train_type}/{task_id}/best_model.pth',
+            save_model(path=f'./save_model/{train_type}/best_model.pth',
                        model=model, optim=optimizer, lr_sch=lr_scheduler, epoch=epoch)
 
         elif epoch % 20 == 0:
-            save_model(path=f'./save_model/{train_type}/{task_id}/epoch{epoch}_model.pth',
+            save_model(path=f'./save_model/{train_type}/epoch{epoch}_model.pth',
                        model=model, optim=optimizer, lr_sch=lr_scheduler, epoch=epoch)
 
         elif epoch == num_epochs - 1:
-            save_model(path=f'./save_model/{train_type}/{task_id}/last_model.pth',
+            save_model(path=f'./save_model/{train_type}/last_model.pth',
                        model=model, optim=optimizer, lr_sch=lr_scheduler, epoch=epoch)
 
         epoch_end = time()
@@ -174,7 +216,6 @@ def unet_args():
     # train unet
     parser.add_argument("--epoch", type=int, default=100)
     parser.add_argument("--num_classes", type=int, default=5)
-    parser.add_argument("--batch_size", type=int, default=5)
     parser.add_argument("--num_workers", type=int, default=4)
     parser.add_argument("--gpu", type=str, default='0,1,2,3,4')
     parser.add_argument("--type", type=str, default='upper_bound')
