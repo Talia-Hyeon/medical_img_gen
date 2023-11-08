@@ -7,12 +7,11 @@ import torch.optim as optim
 from torch.utils.data import DataLoader
 from torch.utils.tensorboard import SummaryWriter
 
-from data.flare21_supervised import FLAREDataSet
-from data.flare21_supervised import my_collate
+from data.flare21 import FLAREDataSet
+from data.flare21 import my_collate
 from loss_functions.score import *
 from data.flare21 import index_organs
 from data.one_organ import BinaryDataSet
-from util import save_model
 from model.unet3D import UNet3D
 
 

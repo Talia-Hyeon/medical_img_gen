@@ -18,8 +18,6 @@ from batchgenerators.transforms.abstract_transforms import Compose
 
 sys.path.append('..')
 
-# from test_unet import find_best_view
-
 global index_organs
 index_organs = ['background', 'liver', 'kidney', 'spleen', 'pancreas']
 
@@ -163,24 +161,6 @@ def pad_image(img, target_size):
 
     padded_img = np.pad(img, ((0, rows_missing), (0, cols_missing), (0, dept_missing)), 'constant')
     return padded_img
-
-
-def label_to_binary(label, task_id):
-    label_list = []
-
-    label_backg = label.copy()
-    label_backg[np.where(label != 0)] = 0
-    label_backg[np.where(label == 0)] = 1
-    label_list.append(label_backg)
-
-    label_foreg = label.copy()
-    label_foreg[np.where(label != task_id)] = 0
-    label_foreg[np.where(label == task_id)] = 1
-    label_list.append(label_foreg)
-
-    stacked_label = np.stack(label_list, axis=1)
-    stacked_label = np.squeeze(stacked_label)
-    return stacked_label
 
 
 def extend_channel_classes(label, num_classes):
