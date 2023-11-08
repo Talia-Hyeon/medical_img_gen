@@ -149,6 +149,37 @@ class DiceLoss(nn.Module):
         return avg_loss
 
 
+class KnowledgeDistillationLoss(nn.Module):
+    def __init__(self, reduction='mean', alpha=1., kd_cil_weights=False):
+        super().__init__()
+        self.reduction = reduction
+        self.alpha = alpha  # teacher 모델의 출력을 얼마나 강력하게 사용할 지
+        self.kd_cil_weights = kd_cil_weights
+
+    def forward(self, inputs, targets, mask=None):
+        inputs = inputs.narrow(1, 0, targets.shape[1])
+        # 1:channel 축소 & 0, targets.shape[1]: indexing background to # of prior channel
+        outputs = torch.log_softmax(inputs, dim=1)
+        labels = torch.softmax(targets * self.alpha, dim=1)
+
+        loss = (outputs * labels).mean(dim=1)
+
+        if self.kd_cil_weights:
+            w = -(torch.softmax(targets, dim=1) * torch.log_softmax(targets, dim=1)).sum(dim=1) + 1.0
+            loss = loss * w[:, None]
+
+        if mask is not None:
+            loss = loss * mask.float()
+
+        if self.reduction == 'mean':
+            outputs = -torch.mean(loss)
+        elif self.reduction == 'sum':
+            outputs = -torch.sum(loss)
+        else:
+            outputs = -loss
+        return outputs
+
+
 class MarginalLoss(nn.Module):
     def __init__(self, task_id=1):
         super(MarginalLoss, self).__init__()
@@ -165,32 +196,38 @@ class MarginalLoss(nn.Module):
 
         total_loss = []
         for i in range(2):  # 0: background, 1: foreground
-            ce_loss = self.criterion(marg_pred[:, i], target[:, i])
-            total_loss.append(ce_loss)  # append each organ
+            dice_loss = self.criterion(marg_pred[:, i], target[:, i])
+            total_loss.append(dice_loss)  # append each organ
 
         total_loss = torch.stack(total_loss)
         avg_loss = torch.mean(total_loss)  # mean of all organs
         return avg_loss
 
 
-class KnowledgeDistillationLoss(nn.Module):
-    def __init__(self, task_id=1):
-        super(KnowledgeDistillationLoss, self).__init__()
+class MarginalLossSupervised(nn.Module):
+    def __init__(self, task_id=1, num_classes=5):
+        super(MarginalLossSupervised, self).__init__()
         self.task_id = task_id
+        self.num_classes = num_classes
         self.criterion = BinaryDiceLoss()
 
-    def forward(self, predict, prior_pred):
+    def forward(self, predict, target):
         predict = F.softmax(predict, dim=1)
 
-        exc_pred = torch.zeros_like(prior_pred)
-        for organ in range(self.task_id):
-            exc_pred[:, organ] += predict[:, organ]
-        exc_pred[:, 0] += predict[:, -1]
+        marg_pred = torch.zeros_like(target)
+        for organ in range(0, self.task_id):
+            marg_pred[:, 0] += predict[:, organ]
+
+        marg_pred[:, self.task_id] += predict[:, self.task_id]
+
+        if self.task_id + 1 < self.num_classes:
+            for organ in range(self.task_id + 1, self.num_classes):
+                marg_pred[:, 0] += predict[:, organ]
 
         total_loss = []
-        for i in range(self.task_id):
-            ce_loss = self.criterion(exc_pred[:, i], prior_pred[:, i])
-            total_loss.append(ce_loss)  # append each organ
+        for i in range(self.num_classes):
+            dice_loss = self.criterion(marg_pred[:, i], target[:, i])
+            total_loss.append(dice_loss)  # append each organ
 
         total_loss = torch.stack(total_loss)
         avg_loss = torch.mean(total_loss)  # mean of all organs
