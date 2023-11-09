@@ -144,14 +144,14 @@ class MarginalLossSupervised(nn.Module):
         for organ in range(0, self.task_id):
             marg_pred[:, 0] += predict[:, organ]
 
-        marg_pred[:, self.task_id] += predict[:, self.task_id]
+        marg_pred[:, 1] += predict[:, self.task_id]
 
         if self.task_id + 1 < self.num_classes:
             for organ in range(self.task_id + 1, self.num_classes):
                 marg_pred[:, 0] += predict[:, organ]
 
         total_loss = []
-        for i in range(self.num_classes):
+        for i in range(2):
             dice_loss = self.criterion(marg_pred[:, i], target[:, i])
             total_loss.append(dice_loss)  # append each organ
 
