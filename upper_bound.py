@@ -28,7 +28,6 @@ def train_upperbound(args):
     num_workers = args.num_workers
     train_type = args.type
     logdir = args.log_dir
-    writer = args.writer
 
     seed = args.random_seed
     torch.manual_seed(seed)
@@ -42,7 +41,7 @@ def train_upperbound(args):
 
     # logger
     logdir = args.log_dir + f'/{train_type}'
-    args.writer = SummaryWriter(logdir)
+    writer = SummaryWriter(logdir)
 
     # define model
     model = UNet3D(num_classes=n_classes)
@@ -54,16 +53,10 @@ def train_upperbound(args):
                                                   milestones=[30, 60, 90, 120, 150, 180], gamma=0.5)
 
     # loss function
-    liver_loss_fn = MarginalLossSupervised(task_id=1)
-    liver_loss_fn.to(device)
-    kidney_loss_fn = MarginalLossSupervised(task_id=2)
-    kidney_loss_fn.to(device)
-    spleen_loss_fn = MarginalLossSupervised(task_id=3)
-    spleen_loss_fn.to(device)
-    pancreas_loss_fn = MarginalLossSupervised(task_id=4)
-    pancreas_loss_fn.to(device)
-    flare_loss_fn = DiceLoss(num_classes=n_classes)
-    flare_loss_fn.to(device)
+    train_loss_fn = SupervisedLoss(num_classes=n_classes)
+    train_loss_fn.to(device)
+    val_loss_fn = DiceLoss(num_classes=n_classes)
+    val_loss_fn.to(device)
 
     # data loader
     liver_data = BinaryDataSet(task_id=1)
@@ -103,41 +96,37 @@ def train_upperbound(args):
                 zip(flare_loader, liver_loader, kidney_loader, spleen_loader, pancreas_loader)):
 
             flare_img = flare_pack['image']
-            flare_img = torch.tensor(flare_img).to(device)
+            flare_img = torch.tensor(flare_img)
             flare_label = flare_pack['label']
-            flare_label = torch.tensor(flare_label).to(device)
-            flare_pred = model(flare_img)
-            flare_loss = flare_loss_fn(flare_pred, flare_label)
+            flare_label = torch.tensor(flare_label)
 
             liver_img = liver_pack['image']
-            liver_img = torch.tensor(liver_img).to(device)
+            liver_img = torch.tensor(liver_img)
             liver_label = liver_pack['label']
-            liver_label = torch.tensor(liver_label).to(device)
-            liver_pred = model(liver_img)
-            liver_loss = liver_loss_fn(liver_pred, liver_label)
+            liver_label = torch.tensor(liver_label)
 
             kidney_img = kidney_pack['image']
-            kidney_img = torch.tensor(kidney_img).to(device)
+            kidney_img = torch.tensor(kidney_img)
             kidney_label = kidney_pack['label']
-            kidney_label = torch.tensor(kidney_label).to(device)
-            kidney_pred = model(kidney_img)
-            kidney_loss = kidney_loss_fn(kidney_pred, kidney_label)
+            kidney_label = torch.tensor(kidney_label)
 
             spleen_img = spleen_pack['image']
-            spleen_img = torch.tensor(spleen_img).to(device)
+            spleen_img = torch.tensor(spleen_img)
             spleen_label = spleen_pack['label']
-            spleen_label = torch.tensor(spleen_label).to(device)
-            spleen_pred = model(spleen_img)
-            spleen_loss = spleen_loss_fn(spleen_pred, spleen_label)
+            spleen_label = torch.tensor(spleen_label)
 
             pancreas_img = pancreas_pack['image']
-            pancreas_img = torch.tensor(pancreas_img).to(device)
+            pancreas_img = torch.tensor(pancreas_img)
             pancreas_label = pancreas_pack['label']
-            pancreas_label = torch.tensor(pancreas_label).to(device)
-            pancreas_pred = model(pancreas_img)
-            pancreas_loss = pancreas_loss_fn(pancreas_pred, pancreas_label)
+            pancreas_label = torch.tensor(pancreas_label)
 
-            loss = flare_loss + liver_loss + kidney_loss + spleen_loss + pancreas_loss
+            concat_img = torch.cat([flare_img, liver_img, kidney_img, spleen_img, pancreas_img], dim=0)
+            concat_img.to(device)
+            concat_label = torch.cat([flare_label, liver_label, kidney_label, spleen_label, pancreas_label], dim=0)
+            concat_label.to(device)
+            concat_pred = model(concat_img)
+
+            loss = train_loss_fn(concat_pred, concat_label)
             train_loss_meter.update(loss.item())
 
             optimizer.zero_grad()
@@ -164,7 +153,7 @@ def train_upperbound(args):
                 label_val = pack[1].to(device)
                 pred_val = model(img_val)
 
-                val_loss = flare_loss_fn(pred_val, label_val)
+                val_loss = val_loss_fn(pred_val, label_val)
                 val_loss_meter.update(val_loss.item())
 
                 iter_dice = metric(pred_val, label_val)
@@ -220,6 +209,7 @@ def unet_args():
     parser.add_argument("--gpu", type=str, default='0,1,2,3,4')
     parser.add_argument("--type", type=str, default='upper_bound')
     parser.add_argument("--log_dir", type=str, default='./log_con')
+    parser.add_argument("--random_seed", type=int, default=1234)
     return parser
 
 

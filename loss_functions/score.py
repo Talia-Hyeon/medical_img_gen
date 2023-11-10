@@ -130,9 +130,9 @@ class DiceLoss(nn.Module):
         return avg_loss
 
 
-class MarginalLossSupervised(nn.Module):
+class MarginalLoss(nn.Module):
     def __init__(self, task_id=1, num_classes=5):
-        super(MarginalLossSupervised, self).__init__()
+        super(MarginalLoss, self).__init__()
         self.task_id = task_id
         self.num_classes = num_classes
         self.criterion = BinaryDiceLoss()
@@ -151,13 +151,37 @@ class MarginalLossSupervised(nn.Module):
                 marg_pred[:, 0] += predict[:, organ]
 
         total_loss = []
-        for i in range(2):
+        for i in range(2):  # backgroun, foreground
             dice_loss = self.criterion(marg_pred[:, i], target[:, i])
-            total_loss.append(dice_loss)  # append each organ
+            total_loss.append(dice_loss)
 
         total_loss = torch.stack(total_loss)
-        avg_loss = torch.mean(total_loss)  # mean of all organs
+        avg_loss = torch.mean(total_loss)  # mean of bg/fg
         return avg_loss
+
+
+class SupervisedLoss(nn.Module):
+    def __init__(self, num_classes=5):
+        super(SupervisedLoss, self).__init__()
+        self.num_classes = num_classes
+        self.flare_criterion = DiceLoss
+
+    def forward(self, con_predict, con_target):
+        flare_predict = con_predict[0].unsqueeze(dim=0)
+        flare_target = con_target[0].unsqueeze(dim=0)
+        flare_loss = self.criterion(flare_predict, flare_target)
+
+        binary_loss_l = []
+        for task_id in range(1, self.num_classes):
+            binary_predict = con_predict[task_id].unsqueeze(dim=0)
+            binary_target = con_target[task_id].unsqueeze(dim=0)
+
+            binary_criterion = MarginalLoss(task_id=task_id, num_classes=self.num_classes)
+            binary_loss = binary_criterion(binary_predict, binary_target)
+            binary_loss_l.append(binary_loss)
+
+        loss = flare_loss + sum(binary_loss_l)
+        return loss
 
 
 class CELoss(nn.Module):
