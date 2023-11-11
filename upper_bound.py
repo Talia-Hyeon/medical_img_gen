@@ -53,10 +53,10 @@ def train_upperbound(args):
                                                   milestones=[30, 60, 90, 120, 150, 180], gamma=0.5)
 
     # loss function
-    train_loss_fn = SupervisedLoss(num_classes=n_classes)
-    train_loss_fn.to(device)
-    val_loss_fn = DiceLoss(num_classes=n_classes)
-    val_loss_fn.to(device)
+    binary_loss_fn = SupervisedLoss(num_classes=n_classes)
+    binary_loss_fn.to(device)
+    flare_loss_fn = DiceLoss(num_classes=n_classes)
+    flare_loss_fn.to(device)
 
     # data loader
     liver_data = BinaryDataSet(task_id=1)
@@ -98,7 +98,7 @@ def train_upperbound(args):
             flare_img = flare_pack['image']
             flare_img = torch.tensor(flare_img)
             flare_label = flare_pack['label']
-            flare_label = torch.tensor(flare_label)
+            flare_label = torch.tensor(flare_label).to(device)
 
             liver_img = liver_pack['image']
             liver_img = torch.tensor(liver_img)
@@ -122,11 +122,18 @@ def train_upperbound(args):
 
             concat_img = torch.cat([flare_img, liver_img, kidney_img, spleen_img, pancreas_img], dim=0)
             concat_img.to(device)
-            concat_label = torch.cat([flare_label, liver_label, kidney_label, spleen_label, pancreas_label], dim=0)
-            concat_label.to(device)
+
             concat_pred = model(concat_img)
 
-            loss = train_loss_fn(concat_pred, concat_label)
+            flare_pred = concat_pred[0].unsqueeze(dim=0)
+            flare_loss = flare_loss_fn(flare_pred, flare_label)
+
+            concat_pred = concat_pred[1:]
+            concat_label = torch.cat([liver_label, kidney_label, spleen_label, pancreas_label], dim=0)
+            concat_label.to(device)
+            binary_loss = binary_loss_fn(concat_pred, concat_label)
+
+            loss = flare_loss + binary_loss
             train_loss_meter.update(loss.item())
 
             optimizer.zero_grad()
@@ -153,7 +160,7 @@ def train_upperbound(args):
                 label_val = pack[1].to(device)
                 pred_val = model(img_val)
 
-                val_loss = val_loss_fn(pred_val, label_val)
+                val_loss = flare_loss_fn(pred_val, label_val)
                 val_loss_meter.update(val_loss.item())
 
                 iter_dice = metric(pred_val, label_val)
