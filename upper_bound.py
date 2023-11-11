@@ -170,14 +170,14 @@ def train_upperbound(args):
 
             # logger
             loss_report['val_loss'] = val_loss_meter.avg
-            writer.add_scalars('Train/Val Loss', loss_report, args.global_epoch)
+            writer.add_scalars('Train/Val Loss', loss_report, epoch)
 
             organ_num = dice_score.shape[0]
             score_report = dict()
             for idx in range(organ_num):
                 score_report[index_organs[idx + 1]] = dice_score[idx]
-            writer.add_scalars('Dice Score Per Organ', score_report, args.global_epoch)
-            writer.add_scalar('Avg Dice Score', avg_dice, args.global_epoch)
+            writer.add_scalars('Dice Score Per Organ', score_report, epoch)
+            writer.add_scalar('Avg Dice Score', avg_dice, epoch)
 
             val_end = time()
             print('Epoch: {} | Valid loss: {:.4f} | Time: {:.4f}'.format(
