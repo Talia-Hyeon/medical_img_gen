@@ -36,8 +36,8 @@ class FLAREDataSet(data.Dataset):
         img_list = os.listdir(image_path)
 
         # split train/val/test set
-        train_all_data, eval_data = train_test_split(img_list, test_size=0.20, shuffle=True, random_state=0)
-        rest_data, train_data = train_test_split(train_all_data, test_size=0.25, shuffle=True, random_state=0)
+        train_data, eval_data = train_test_split(img_list, test_size=0.20, shuffle=True, random_state=0)
+        # rest_data, train_data = train_test_split(train_all_data, test_size=0.25, shuffle=True, random_state=0)
         val_data, test_data = train_test_split(eval_data, test_size=0.50, shuffle=True, random_state=0)
 
         if self.split == 'train':
