@@ -54,9 +54,7 @@ def train_upperbound(args):
 
     # loss function
     binary_loss_fn = SupervisedLoss(num_classes=n_classes)
-    binary_loss_fn.to(device)
     flare_loss_fn = DiceLoss(num_classes=n_classes)
-    flare_loss_fn.to(device)
 
     # data loader
     liver_data = BinaryDataSet(task_id=1)
@@ -130,7 +128,7 @@ def train_upperbound(args):
 
             concat_pred = concat_pred[1:]
             concat_label = torch.cat([liver_label, kidney_label, spleen_label, pancreas_label], dim=0)
-            concat_label.to(device)
+            concat_label = concat_label.to(device)
             binary_loss = binary_loss_fn(concat_pred, concat_label)
 
             loss = flare_loss + binary_loss
