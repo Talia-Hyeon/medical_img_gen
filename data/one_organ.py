@@ -15,13 +15,13 @@ class BinaryDataSet(data.Dataset):
         self.crop_d, self.crop_h, self.crop_w = crop_size
 
         if self.task_id == 1:
-            self.root = './dataset/Decathlon/Task03_Liver'
+            self.root = '../MOSInversion/dataset/Decathlon/Task03_Liver'
         elif self.task_id == 2:
-            self.root = './dataset/KITS/data'
+            self.root = '../MOSInversion/dataset/KITS/data'
         elif self.task_id == 3:
-            self.root = './dataset/Decathlon/Task09_Spleen'
+            self.root = '../MOSInversion/dataset/Decathlon/Task09_Spleen'
         elif self.task_id == 4:
-            self.root = './dataset/Decathlon/Task07_Pancreas'
+            self.root = '../MOSInversion/dataset/Decathlon/Task07_Pancreas'
 
         print("Start preprocessing....")
         # load data
