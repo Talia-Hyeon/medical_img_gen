@@ -161,17 +161,19 @@ class MarginalLoss(nn.Module):
 
 
 class SupervisedLoss(nn.Module):
-    def __init__(self, num_classes=5):
+    def __init__(self, device, num_classes=5):
         super(SupervisedLoss, self).__init__()
+        self.device = device
         self.num_classes = num_classes
 
     def forward(self, con_predict, con_target):
         binary_loss_l = []
         for task_id in range(1, self.num_classes):
-            binary_predict = con_predict[task_id-1].unsqueeze(dim=0)
-            binary_target = con_target[task_id-1].unsqueeze(dim=0)
+            binary_predict = con_predict[task_id - 1].unsqueeze(dim=0)
+            binary_target = con_target[task_id - 1].unsqueeze(dim=0)
 
             binary_criterion = MarginalLoss(task_id=task_id, num_classes=self.num_classes)
+            binary_criterion.to(self.device)
             binary_loss = binary_criterion(binary_predict, binary_target)
             binary_loss_l.append(binary_loss)
 
