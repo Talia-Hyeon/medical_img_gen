@@ -84,8 +84,8 @@ def visualization(img, label, pred, name, path, num_classes):
     plt.close()
 
 
-def evaluate(model, test_data_loader, num_class, device):
-    path = f'./fig/prediction_map/real_img'
+def evaluate(model, test_data_loader, num_class, device, train_type):
+    path = f'./fig/prediction_map/{train_type}'
     os.makedirs(path, exist_ok=True)
 
     metric = ArgmaxDiceScore(num_classes=num_class)
@@ -132,6 +132,7 @@ def get_args():
     parser.add_argument("--num_classes", type=int, default=5)
     parser.add_argument("--num_workers", type=int, default=4)
     parser.add_argument("--gpu", type=str, default='0')
+    parser.add_argument("--type", type=str, default='upper_bound')
     parser.add_argument("--model_path", type=str, default='./save_model/last_model.pth')
     return parser
 
@@ -147,6 +148,7 @@ if __name__ == '__main__':
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
     # hyper-parameter
+    train_type = args.type
     n_classes = args.num_classes
     num_workers = args.num_workers
 
@@ -162,5 +164,5 @@ if __name__ == '__main__':
     model = nn.DataParallel(model).to(device)
 
     # evaluation
-    dice = evaluate(model, test_loader, n_classes, device=device)
+    dice = evaluate(model, test_loader, n_classes, device=device, train_type=train_type)
     print_dice(dice)
