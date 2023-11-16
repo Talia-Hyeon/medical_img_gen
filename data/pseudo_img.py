@@ -13,8 +13,6 @@ from torch.utils import data
 from test_unet import decode_segmap, find_best_view
 from data.flare21 import truncate, extend_channel_classes
 
-sys.path.append('..')
-
 
 class FAKEDataSet(data.Dataset):
     def __init__(self, root):
@@ -91,7 +89,7 @@ def visualization(img, label, root, iter, num_classes):
     max_score_idx = find_best_view(label, num_classes)
     image = image[max_score_idx, :, :]
     label = label[max_score_idx, :, :]
-    col_label = decode_segmap(label, num_classes)
+    col_label = decode_segmap(image, label, num_classes)
 
     plt.figure()
     plt.subplot(1, 2, 1)
@@ -106,15 +104,11 @@ def visualization(img, label, root, iter, num_classes):
 
 
 if __name__ == '__main__':
-    train_type = 'hrhf'
-    r_value = 10
-    # r_value = 1
     task_id = 4
-    save_path = f'../fig/gen_img/{train_type}/{r_value}'
-    # train_type = 'mask'
-    # save_path = f'../fig/gen_img/{train_type}'
+    train_type = 'mask'
+    save_path = f'../fig/gen_img/{train_type}'
     os.makedirs(save_path, exist_ok=True)
-    val_path = f'../sample/{train_type}/{r_value}'
+    val_path = f'../sample/{train_type}'
     val_data = FAKEDataSet(root=val_path)
     val_loader = data.DataLoader(dataset=val_data, batch_size=1, shuffle=False, num_workers=4)
     for val_iter, pack in enumerate(val_loader):
