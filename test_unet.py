@@ -11,6 +11,13 @@ from loss_functions.score import *
 
 
 def decode_segmap(base, temp, num_classes):
+    # m = np.mean(base)
+    # s = np.std(base)
+    # base = ((base - m) / np.sqrt(0.2 * s) + 0.5).clip(0.0, 1.0)
+    # base = (base + 1) / 2.0  # 0-1 float
+    base = base * 255  # 0-255
+    # base = np.array(base, dtype='u1')  # uint8
+
     colors = [[0, 0, 0],  # "unlabelled"
               [150, 0, 0],
               [0, 0, 142],
@@ -30,6 +37,7 @@ def decode_segmap(base, temp, num_classes):
     rgb[:, :, 0] = r / 255.0
     rgb[:, :, 1] = g / 255.0
     rgb[:, :, 2] = b / 255.0
+    # print("rgb's dtype: {}".format(rgb.dtype))
     return rgb
 
 
