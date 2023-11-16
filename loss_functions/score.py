@@ -140,15 +140,19 @@ class MarginalLoss(nn.Module):
     def forward(self, predict, target):
         predict = F.softmax(predict, dim=1)
 
-        marg_pred = torch.zeros_like(target)
-        for organ in range(0, self.task_id):
-            marg_pred[:, 0] += predict[:, organ]
+        # marg_pred = torch.zeros_like(target)
+        # for organ in range(0, self.task_id):
+        #     marg_pred[:, 0] += predict[:, organ]
+        #
+        # marg_pred[:, 1] += predict[:, self.task_id]
+        #
+        # if self.task_id + 1 < self.num_classes:
+        #     for organ in range(self.task_id + 1, self.num_classes):
+        #         marg_pred[:, 0] += predict[:, organ]
 
-        marg_pred[:, 1] += predict[:, self.task_id]
-
-        if self.task_id + 1 < self.num_classes:
-            for organ in range(self.task_id + 1, self.num_classes):
-                marg_pred[:, 0] += predict[:, organ]
+        marg_pred = torch.ones_like(target)
+        marg_pred[:, 0] -= predict[:, self.task_id]
+        marg_pred[:, 1] = predict[:, self.task_id]
 
         total_loss = []
         for i in range(2):  # backgroun, foreground
