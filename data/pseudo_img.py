@@ -2,6 +2,8 @@ import os
 import os.path as osp
 import sys
 
+sys.path.append('..')
+
 import numpy as np
 import nibabel as nib
 import matplotlib.pyplot as plt
