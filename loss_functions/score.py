@@ -188,7 +188,7 @@ class CELoss(nn.Module):
         super(CELoss, self).__init__()
         self.weight = weight
         self.num_classes = num_classes
-        self.criterion = nn.BCELoss()
+        self.criterion = cross_entropy_loss
 
     def forward(self, predict, target):
         assert predict.shape == target.shape, 'predict & target shape do not match'
@@ -216,7 +216,7 @@ class CELoss(nn.Module):
 
 
 def cross_entropy_loss(prediction, label):
-    prediction = F.softmax(prediction, dim=1)
+    # prediction = F.softmax(prediction, dim=1)
 
     # flatten
     prediction = prediction.view(-1)
