@@ -213,3 +213,14 @@ class CELoss(nn.Module):
         total_loss = torch.stack(total_loss)
         avg_loss = torch.mean(total_loss)  # mean of all organs
         return avg_loss
+
+
+def cross_entropy_loss(predictions, labels):
+  predictions = predictions.view(-1, predictions.shape[-1])
+  labels = labels.view(-1)
+
+  predictions = F.softmax(predictions, dim=1)
+
+  loss = -torch.sum(labels * torch.log(predictions) + (1 - labels) * torch.log(1 - predictions))
+
+  return loss

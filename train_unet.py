@@ -119,7 +119,8 @@ def main():
             label = torch.tensor(label).to(device)
 
             pred = model(img)
-            loss = loss_function(pred, label)
+            # loss = loss_function(pred, label)
+            loss = cross_entropy_loss(pred, label)
             train_loss_meter.update(loss.item())
 
             optimizer.zero_grad()
@@ -146,7 +147,8 @@ def main():
                 label_val = pack[1].to(device)
                 pred_val = model(img_val)
 
-                val_loss = loss_function(pred_val, label_val)
+                # val_loss = loss_function(pred_val, label_val)
+                val_loss = cross_entropy_loss(pred_val, label_val)
                 val_loss_meter.update(val_loss.item())
 
                 iter_dice = metric(pred_val, label_val)
