@@ -215,12 +215,13 @@ class CELoss(nn.Module):
         return avg_loss
 
 
-def cross_entropy_loss(predictions, labels):
-  predictions = predictions.view(-1, predictions.shape[-1])
-  labels = labels.view(-1)
+def cross_entropy_loss(prediction, label):
+    prediction = F.softmax(prediction, dim=1)
 
-  predictions = F.softmax(predictions, dim=1)
+    # flatten
+    prediction = prediction.view(-1)
+    label = label.view(-1)
 
-  loss = -torch.sum(labels * torch.log(predictions) + (1 - labels) * torch.log(1 - predictions))
-
-  return loss
+    # loss = -torch.sum(label * torch.log(prediction))
+    loss = -torch.sum(label * torch.log(prediction) + (1 - label) * torch.log(1 - prediction))
+    return loss
