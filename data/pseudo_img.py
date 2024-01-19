@@ -2,42 +2,25 @@ import os
 import os.path as osp
 import sys
 
-sys.path.append('..')
-
 import numpy as np
-import nibabel as nib
 import matplotlib.pyplot as plt
 import torch
 from torch.utils import data
 
-from test_unet import decode_segmap, find_best_view
-from data.flare21 import truncate, extend_channel_classes
+sys.path.append('..')
+from util import visualization
+from data.flare21 import random_flip, load_data, FLAREDataSet
 
 
-class FAKEDataSet(data.Dataset):
-    def __init__(self, root):
-        self.root = root
-        self.files = []
+class FAKEDataSet(FLAREDataSet):
+    def __init__(self, task_id, root):
+        self.task_id = task_id
+        self.root = osp.join(root, str(task_id))  # data for prior step
 
-        print("Start preprocessing....")
         # load data
-        image_path = osp.join(self.root, 'Img')
-        label_path = osp.join(self.root, 'Pred')
-
+        image_path = osp.join(self.root, 'img')
         img_list = os.listdir(image_path)
-        all_files = []
-        for i, item in enumerate(img_list):
-            img_file = osp.join(image_path, item)
-            label_item = item.replace('img', 'pred')
-            label_file = osp.join(label_path, label_item)
-
-            all_files.append({
-                "image": img_file,
-                "label": label_file,
-                "name": item
-            })
-
-        self.files = all_files
+        self.files = load_data(img_list, image_path)
         print('{} images are loaded!'.format(len(self.files)))
 
     def __len__(self):
@@ -45,73 +28,36 @@ class FAKEDataSet(data.Dataset):
 
     def __getitem__(self, index):
         datafiles = self.files[index]
-        # read nii file
-        imageNII = nib.load(datafiles["image"])
-        labelNII = nib.load(datafiles["label"])
-        image = imageNII.get_fdata()
-        label = labelNII.get_fdata()
-        name = datafiles["name"]
-        organ_num = label.shape[0]
+        image = datafiles['image']
+        label = datafiles['label']
+        name = datafiles['name']
 
-        # normalization
-        image = truncate(image)
-
-        # add channel
-        image = image[np.newaxis, :]
-        label = np.argmax(label, axis=0)[np.newaxis, :]
-
-        # probability to binary
-        label = extend_channel_classes(label, organ_num)
+        # load numpy array
+        image = np.load(image)
+        label = np.load(label)
 
         # 50% flip
-        if np.random.rand(1) <= 0.5:  # W
-            image = image[:, :, :, ::-1]
-            label = label[:, :, :, ::-1]
-        if np.random.rand(1) <= 0.5:  # H
-            image = image[:, :, ::-1, :]
-            label = label[:, :, ::-1, :]
-        if np.random.rand(1) <= 0.5:  # D
-            image = image[:, ::-1, :, :]
-            label = label[:, ::-1, :, :]
+        image, label = random_flip(image, label)
+
+        # extend label's channel for val/test
+        label = self.extend_channel_classes(label)
 
         image = image.astype(np.float32)
         label = label.astype(np.float32)
         return image, label, name
 
 
-def visualization(img, label, root, iter, num_classes):
-    # delete batch
-    image = torch.squeeze(img).numpy()
-    label = torch.squeeze(label).numpy()
-    label = np.argmax(label, axis=0)
-
-    # slice into the best view
-    max_score_idx = find_best_view(label, num_classes)
-    image = image[max_score_idx, :, :]
-    label = label[max_score_idx, :, :]
-    col_label = decode_segmap(image, label, num_classes)
-
-    plt.figure()
-    plt.subplot(1, 2, 1)
-    plt.imshow(image, cmap='gray')
-    plt.title('Image')
-    plt.subplot(1, 2, 2)
-    plt.imshow(col_label)
-    plt.title('Ground Truth')
-    plt.savefig(f'{root}/{iter}.png')
-
-    plt.close()
-
-
 if __name__ == '__main__':
-    task_id = 4
-    train_type = 'mask'
-    save_path = f'../fig/gen_img/{train_type}'
+    task_id = 2
+    train_type = 'hrhf'
+    # train_type = 'di_mask'
+    save_path = f'../fig/gen_img/{train_type}/{task_id}'
     os.makedirs(save_path, exist_ok=True)
     val_path = f'../sample/{train_type}'
-    val_data = FAKEDataSet(root=val_path)
+    val_data = FAKEDataSet(task_id=task_id, root=val_path)
     val_loader = data.DataLoader(dataset=val_data, batch_size=1, shuffle=False, num_workers=4)
     for val_iter, pack in enumerate(val_loader):
         img_ = pack[0]
         label_ = pack[1]
-        visualization(img_, label_, save_path, val_iter, num_classes=task_id + 1)
+        name = pack[2][0]
+        visualization(img_, label_, save_path, name, num_classes=task_id + 1)
