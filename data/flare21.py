@@ -14,7 +14,7 @@ index_organs = ['background', 'liver', 'kidney', 'spleen', 'pancreas']
 
 
 class FLAREDataSet(data.Dataset):
-    def __init__(self, root='../dataset/FLARE_Dataset', split='train', task_id=4):
+    def __init__(self, root='../../MOSInversion/dataset/FLARE_Dataset', split='train', task_id=4):
         self.root = root
         self.split = split
         self.task_id = task_id
@@ -96,7 +96,7 @@ def load_data(data_l, image_path):
 
 if __name__ == '__main__':
     for task_id in range(1, 5):
-        flare = FLAREDataSet(root='../dataset/FLARE_Dataset', split='train', task_id=task_id)
+        flare = FLAREDataSet(split='train', task_id=task_id)
 
     # task_id = 4
     # save_path = '../fig/preprocessed_data/flare'
