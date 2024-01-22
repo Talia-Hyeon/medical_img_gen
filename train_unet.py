@@ -2,41 +2,29 @@ import os
 from time import time
 import argparse
 
-import matplotlib.pyplot as plt
 import torch
 from torch import optim
 from torch.utils.data import DataLoader
 from torch.utils.tensorboard import SummaryWriter
 
-from data.flare21 import FLAREDataSet
-from data.flare21 import my_collate
+from data.flare21 import FLAREDataSet, index_organs
+from util import my_collate
 from model.unet3D import UNet3D
 from loss_functions.score import *
-from util import save_model
+from util import save_model, load_model
 
 
 def get_args():
     parser = argparse.ArgumentParser(description="train_pretrained_UNet")
-    parser.add_argument("--epoch", type=int, default=200)
+    parser.add_argument("--epoch", type=int, default=170)
     parser.add_argument("--num_classes", type=int, default=5)
     parser.add_argument("--task_id", type=int, default=4)
     parser.add_argument("--batch_size", type=int, default=8)
     parser.add_argument("--num_workers", type=int, default=4)
     parser.add_argument("--gpu", type=str, default='0,1,2,3,4,5,6,7')
-    parser.add_argument("--log_dir", type=str, default='./log_72img')
-    parser.add_argument("--pretrained_model", type=str, default=None)
+    parser.add_argument("--log_dir", type=str, default='./log_new_loader')
+    parser.add_argument("--resume", type=bool, default=False)
     return parser
-
-
-def save_model(path, model, optim, lr_sch, epoch):
-    net_state = model.module.state_dict()
-    states = {
-        'model': net_state,
-        'optimizer': optim.state_dict(),
-        'scheduler': lr_sch.state_dict(),
-        'epoch': epoch + 1
-    }
-    torch.save(states, path)
 
 
 def main():
@@ -68,33 +56,32 @@ def main():
     optimizer = optim.Adam(model.parameters(), lr=2e-4, weight_decay=1e-5, betas=(0.9, 0.99))
     lr_scheduler = optim.lr_scheduler.MultiStepLR(optimizer, milestones=[40, 80, 120, 160], gamma=0.5)
 
-    # resume
-    if args.pretrained_model != None:
-        checkpoint = torch.load(args.pretrained_model)
-        model.load_state_dict(checkpoint['model'], strict=False)
+    # check resume & define model
+    if args.resume == True:
+        model, checkpoint = load_model(args.train_type, args.start_task_id, check_point=True)
+        # load define optimizer, lr_scheduler, start_epoch
         optimizer.load_state_dict(checkpoint['optimizer'])
         lr_scheduler.load_state_dict(checkpoint['scheduler'])
         start_epoch = checkpoint['epoch']
 
-        for state in optimizer.state.values():
-            for k, v in state.items():
-                if torch.is_tensor(v):
-                    state[k] = v.to(device)
-
+        # for state in optimizer.state.values():
+        #     for k, v in state.items():
+        #         if torch.is_tensor(v):
+        #             state[k] = v.to(device)
         print('pretrained model is loaded!')
 
     else:
         start_epoch = 0
-    num_epochs = args.epoch + start_epoch
+
+    num_epochs = args.epoch
     model = nn.DataParallel(model).to(device)
 
     # loss function
-    # loss_function = DiceLoss(num_classes=n_classes)
-    loss_function = CELoss(num_classes=n_classes)
-    loss_function.to(device)
+    dice_loss_fn = DiceLoss(num_classes=n_classes)
+    ce_loss_fn = CELoss()
 
     # data loader
-    flared_path = './dataset/FLARE21'
+    flared_path = '../MOSInversion/dataset/FLARE_Dataset'
     flared_train = FLAREDataSet(root=flared_path, split='train', task_id=task_id)
     flared_valid = FLAREDataSet(root=flared_path, split='val', task_id=task_id)
     train_loader = DataLoader(dataset=flared_train, batch_size=batch_size, shuffle=True,
@@ -120,7 +107,9 @@ def main():
             label = torch.tensor(label).to(device)
 
             pred = model(img)
-            loss = loss_function(pred, label)
+            dice_loss = dice_loss_fn(pred, label)
+            ce_loss = ce_loss_fn(pred, label)
+            loss = dice_loss + ce_loss
             train_loss_meter.update(loss.item())
 
             optimizer.zero_grad()
@@ -147,7 +136,9 @@ def main():
                 label_val = pack[1].to(device)
                 pred_val = model(img_val)
 
-                val_loss = loss_function(pred_val, label_val)
+                val_dice_loss = dice_loss_fn(pred_val, label_val)
+                val_ce_loss = ce_loss_fn(pred_val, label_val)
+                val_loss = val_dice_loss + val_ce_loss
                 val_loss_meter.update(val_loss.item())
 
                 iter_dice = metric(pred_val, label_val)
@@ -177,7 +168,7 @@ def main():
 
         if avg_dice >= best_avg_dice:
             best_avg_dice = avg_dice
-            save_model(path=f'./save_model/epoch{epoch}_best_model.pth',
+            save_model(path=f'./save_model/best_model.pth',
                        model=model, optim=optimizer, lr_sch=lr_scheduler, epoch=epoch)
 
         if epoch % 20 == 0:
