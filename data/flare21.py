@@ -90,15 +90,13 @@ def load_data(data_l, image_path):
 
 
 if __name__ == '__main__':
-    for task_id in range(1, 5):
-        flare = FLAREDataSet(split='train')
-
-    # save_path = '../fig/preprocessed_data/flare'
-    # os.makedirs(save_path, exist_ok=True)
-    # flare = FLAREDataSet(root='../dataset/FLARE_Dataset', split='val')
-    # val_loader = data.DataLoader(dataset=flare, batch_size=1, shuffle=False)
-    # for val_iter, pack in enumerate(val_loader):
-    #     img_ = pack[0]
-    #     label_ = pack[1]
-    #     name_ = pack[2][0]
-    #     visualization(img_, label_, save_path, name_, 5)
+    flare = FLAREDataSet(split='train')
+    save_path = '../fig/preprocessed_data/flare'
+    os.makedirs(save_path, exist_ok=True)
+    flare = FLAREDataSet(root='../dataset/FLARE_Dataset', split='val')
+    val_loader = data.DataLoader(dataset=flare, batch_size=1, shuffle=False)
+    for val_iter, pack in enumerate(val_loader):
+        img_ = pack[0]
+        label_ = pack[1]
+        name_ = pack[2][0]
+        visualization(img_, label_, save_path, name_, 5)
