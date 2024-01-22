@@ -81,9 +81,9 @@ def main():
     ce_loss_fn = CELoss()
 
     # data loader
-    flared_path = '../MOSInversion/dataset/FLARE_Dataset'
-    flared_train = FLAREDataSet(root=flared_path, split='train', task_id=task_id)
-    flared_valid = FLAREDataSet(root=flared_path, split='val', task_id=task_id)
+    flared_path = './dataset/FLARE_Dataset'
+    flared_train = FLAREDataSet(root=flared_path, split='train')
+    flared_valid = FLAREDataSet(root=flared_path, split='val')
     train_loader = DataLoader(dataset=flared_train, batch_size=batch_size, shuffle=True,
                               num_workers=num_workers, collate_fn=my_collate)
     valid_loader = DataLoader(dataset=flared_valid, batch_size=1, shuffle=False, num_workers=num_workers)
