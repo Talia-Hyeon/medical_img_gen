@@ -147,8 +147,8 @@ if __name__ == '__main__':
     num_workers = args.num_workers
 
     # dataloader
-    flared_path = '../MOSInversion/dataset/FLARE_Dataset'
-    flared_test = FLAREDataSet(root=flared_path, split='test', task_id=n_classes - 1)
+    flared_path = './dataset/FLARE_Dataset'
+    flared_test = FLAREDataSet(root=flared_path, split='test')
     test_loader = DataLoader(dataset=flared_test, batch_size=1, shuffle=False, num_workers=num_workers)
 
     # model
