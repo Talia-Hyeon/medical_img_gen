@@ -4,10 +4,12 @@ import argparse
 import torch
 from torch.utils.data import DataLoader
 from matplotlib import pyplot as plt
+import numpy as np
 
-from data.flare21 import FLAREDataSet
+from data.flare21 import FLAREDataSet, index_organs
 from model.unet3D import UNet3D
 from loss_functions.score import *
+from util import find_best_view
 
 
 def decode_segmap(base, temp, num_classes):
@@ -39,22 +41,6 @@ def decode_segmap(base, temp, num_classes):
     rgb[:, :, 2] = b / 255.0
     # print("rgb's dtype: {}".format(rgb.dtype))
     return rgb
-
-
-def find_best_view(img, num_classes):
-    d1, d2, d3 = img.shape
-    max_score = 0
-    max_score_idx = 0
-    for i in range(d1):
-        sagital_pred = img[i, :, :]
-        classes = np.unique(sagital_pred)
-        if classes.size >= 2:
-            counts = np.array([max(np.where(sagital_pred == c)[0].size, 1e-8) for c in range(num_classes)])
-            score = np.exp(np.sum(np.log(counts)) - num_classes * np.log(np.sum(counts)))
-            if score > max_score:
-                max_score = score
-                max_score_idx = i
-    return max_score_idx
 
 
 def visualization(img, label, pred, name, path, num_classes):
@@ -140,8 +126,8 @@ def get_args():
     parser.add_argument("--num_classes", type=int, default=5)
     parser.add_argument("--num_workers", type=int, default=4)
     parser.add_argument("--gpu", type=str, default='0')
-    parser.add_argument("--type", type=str, default='upper_bound')
-    parser.add_argument("--model_path", type=str, default='./save_model/last_model.pth')
+    parser.add_argument("--type", type=str, default='flare')
+    parser.add_argument("--model_path", type=str, default='./save_model/best_model.pth')
     return parser
 
 
@@ -161,7 +147,7 @@ if __name__ == '__main__':
     num_workers = args.num_workers
 
     # dataloader
-    flared_path = './dataset/FLARE21'
+    flared_path = '../MOSInversion/dataset/FLARE_Dataset'
     flared_test = FLAREDataSet(root=flared_path, split='test', task_id=n_classes - 1)
     test_loader = DataLoader(dataset=flared_test, batch_size=1, shuffle=False, num_workers=num_workers)
 
