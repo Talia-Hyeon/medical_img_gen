@@ -18,7 +18,6 @@ def get_args():
     parser = argparse.ArgumentParser(description="train_pretrained_UNet")
     parser.add_argument("--epoch", type=int, default=170)
     parser.add_argument("--num_classes", type=int, default=5)
-    parser.add_argument("--task_id", type=int, default=4)
     parser.add_argument("--batch_size", type=int, default=16)
     parser.add_argument("--num_workers", type=int, default=8)
     parser.add_argument("--gpu", type=str, default='0,1,2,3,4,5,6,7')
@@ -39,7 +38,6 @@ def main():
 
     # hyper-parameter
     n_classes = args.num_classes
-    task_id = args.task_id
     batch_size = args.batch_size
     num_workers = args.num_workers
     logdir = args.log_dir
@@ -58,7 +56,7 @@ def main():
 
     # check resume & define model
     if args.resume == True:
-        model, checkpoint = load_model(args.train_type, args.start_task_id, check_point=True)
+        model, checkpoint = load_model(n_classes, check_point=True)
         # load define optimizer, lr_scheduler, start_epoch
         optimizer.load_state_dict(checkpoint['optimizer'])
         lr_scheduler.load_state_dict(checkpoint['scheduler'])

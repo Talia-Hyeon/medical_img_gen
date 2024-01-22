@@ -23,13 +23,13 @@ def save_model(path, model, optim, lr_sch, epoch):
     torch.save(states, path)
 
 
-def load_model(train_type, task_id, check_point=False):
-    pre_path = f'./save_model/{train_type}/{task_id}/last_model.pth'
+def load_model(num_classes=5, check_point=False):
+    pre_path = f'./save_model/last_model.pth'
     if os.path.exists(pre_path) != True:
         dirname, basename = os.path.split(pre_path)
         pre_path = dirname + '/best_model.pth'
 
-    pretrained = UNet3D(num_classes=task_id + 1)
+    pretrained = UNet3D(num_classes=num_classes)
     checkpoint = torch.load(pre_path)
     pretrained.load_state_dict(checkpoint['model'], strict=False)
 
