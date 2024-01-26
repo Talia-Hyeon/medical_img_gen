@@ -12,7 +12,7 @@ from util import visualization
 
 
 class BinaryDataSet(data.Dataset):
-    def __init__(self, root='../dataset/OneOrgan_Dataset', task_id=1):
+    def __init__(self, root='./dataset/OneOrgan_Dataset', task_id=1):
         self.task_id = task_id
 
         # read image path
