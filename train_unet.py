@@ -41,6 +41,7 @@ def main():
 
     # hyper-parameter
     n_classes = args.num_classes
+    num_epochs = args.epoch
     batch_size = args.batch_size
     num_workers = args.num_workers
     logdir = args.log_dir
@@ -81,8 +82,6 @@ def main():
 
     else:
         start_epoch = 0
-
-    num_epochs = args.epoch
     model = nn.DataParallel(model).to(device)
 
     # loss function
@@ -105,7 +104,7 @@ def main():
 
     # training
     for epoch in range(start_epoch, num_epochs):
-
+        model.train()
         epoch_start = time()
         iter_start = time()
 
