@@ -163,9 +163,10 @@ class MarginalLoss(nn.Module):
 
 
 class SupervisedLoss(nn.Module):
-    def __init__(self, num_classes=5):
+    def __init__(self, num_classes=5, batch_size=3):
         super(SupervisedLoss, self).__init__()
         self.num_classes = num_classes
+        self.batch_size = batch_size
 
     def forward(self, con_predict, con_target):
         binary_loss_l = []

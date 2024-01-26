@@ -24,6 +24,7 @@ def train_upperbound(args):
 
     # hyper-parameter
     num_epochs = args.epoch
+    each_batch_size = args.batch_size // 5
     n_classes = args.num_classes
     num_workers = args.num_workers
     train_type = args.type
@@ -71,24 +72,23 @@ def train_upperbound(args):
 
     # data loader
     liver_data = BinaryDataSet(task_id=1)
-    liver_loader = DataLoader(liver_data, batch_size=1, shuffle=True,
+    liver_loader = DataLoader(liver_data, batch_size=each_batch_size, shuffle=True,
                               num_workers=num_workers, collate_fn=my_collate)
     kidney_data = BinaryDataSet(task_id=2)
-    kidney_loader = DataLoader(kidney_data, batch_size=1, shuffle=True,
+    kidney_loader = DataLoader(kidney_data, batch_size=each_batch_size, shuffle=True,
                                num_workers=num_workers, collate_fn=my_collate)
     spleen_data = BinaryDataSet(task_id=3)
-    spleen_loader = DataLoader(spleen_data, batch_size=1, shuffle=True,
+    spleen_loader = DataLoader(spleen_data, batch_size=each_batch_size, shuffle=True,
                                num_workers=num_workers, collate_fn=my_collate)
     pancreas_data = BinaryDataSet(task_id=4)
-    pancreas_loader = DataLoader(pancreas_data, batch_size=1, shuffle=True,
+    pancreas_loader = DataLoader(pancreas_data, batch_size=each_batch_size, shuffle=True,
                                  num_workers=num_workers, collate_fn=my_collate)
-
-    flare_path = './dataset/FLARE21'
-    flare_train = FLAREDataSet(root=flare_path, split='train', task_id=n_classes - 1)
-    flare_loader = DataLoader(dataset=flare_train, batch_size=1, shuffle=True,
+    flare_path = './dataset/FLARE_Dataset'
+    flare_train = FLAREDataSet(root=flare_path, split='train')
+    flare_loader = DataLoader(dataset=flare_train, batch_size=each_batch_size, shuffle=True,
                               num_workers=num_workers, collate_fn=my_collate)
 
-    flare_valid = FLAREDataSet(root=flare_path, split='val', task_id=n_classes - 1)
+    flare_valid = FLAREDataSet(root=flare_path, split='val')
     valid_loader = DataLoader(dataset=flare_valid, batch_size=1, shuffle=False, num_workers=num_workers)
 
     # setup metrics
@@ -223,8 +223,9 @@ def unet_args():
     # train unet
     parser.add_argument("--epoch", type=int, default=170)
     parser.add_argument("--num_classes", type=int, default=5)
+    parser.add_argument("--batch_size", type=int, default=16)
     parser.add_argument("--num_workers", type=int, default=4)
-    parser.add_argument("--gpu", type=str, default='0,1,2,3,4')
+    parser.add_argument("--gpu", type=str, default='0,1,2,3,4,5,6,7')
     parser.add_argument("--type", type=str, default='upper_bound')
     parser.add_argument("--log_dir", type=str, default='./log_con')
     parser.add_argument("--random_seed", type=int, default=1234)
