@@ -118,11 +118,6 @@ class DiceLoss(nn.Module):
             dice_loss = torch.mean(dice_loss)  # mean of batch
             total_loss.append(dice_loss)  # append each organ
 
-        # msg = 'DiceLoss '
-        # for k, v in enumerate(total_loss):
-        #     msg += f'| {index_organs[k]}: {v.item()} '
-        # print(msg, end='\r')
-
         total_loss = torch.stack(total_loss)
         avg_loss = torch.mean(total_loss)  # mean of all organs
         return avg_loss
@@ -138,22 +133,12 @@ class MarginalLoss(nn.Module):
     def forward(self, predict, target):
         predict = F.softmax(predict, dim=1)
 
-        # marg_pred = torch.zeros_like(target)
-        # for organ in range(0, self.task_id):
-        #     marg_pred[:, 0] += predict[:, organ]
-        #
-        # marg_pred[:, 1] += predict[:, self.task_id]
-        #
-        # if self.task_id + 1 < self.num_classes:
-        #     for organ in range(self.task_id + 1, self.num_classes):
-        #         marg_pred[:, 0] += predict[:, organ]
-
         marg_pred = torch.ones_like(target)
         marg_pred[:, 0] -= predict[:, self.task_id]
         marg_pred[:, 1] = predict[:, self.task_id]
 
         total_loss = []
-        for i in range(2):  # backgroun, foreground
+        for i in range(2):  # 0: background, 1: foreground
             dice_loss = self.criterion(marg_pred[:, i], target[:, i])
             total_loss.append(dice_loss)
 
@@ -170,11 +155,11 @@ class SupervisedLoss(nn.Module):
 
     def forward(self, con_predict, con_target):
         binary_loss_l = []
-        for task_id in range(1, self.num_classes):
-            binary_predict = con_predict[task_id - 1].unsqueeze(dim=0)
-            binary_target = con_target[task_id - 1].unsqueeze(dim=0)
+        for task_id in range(0, self.num_classes - 1):
+            binary_predict = con_predict[task_id * self.batch_size:(task_id + 1) * self.batch_size]
+            binary_target = con_target[task_id * self.batch_size:(task_id + 1) * self.batch_size]
 
-            binary_criterion = MarginalLoss(task_id=task_id, num_classes=self.num_classes)
+            binary_criterion = MarginalLoss(task_id=task_id + 1, num_classes=self.num_classes)
             binary_loss = binary_criterion(binary_predict, binary_target)
             binary_loss_l.append(binary_loss)
 

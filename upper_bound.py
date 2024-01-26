@@ -136,10 +136,10 @@ def train_upperbound(args):
 
             concat_pred = model(concat_img)
 
-            flare_pred = concat_pred[0].unsqueeze(dim=0)
+            flare_pred = concat_pred[0:each_batch_size]
             flare_loss = flare_loss_fn(flare_pred, flare_label)
 
-            concat_pred = concat_pred[1:]
+            concat_pred = concat_pred[each_batch_size:]
             concat_label = torch.cat([liver_label, kidney_label, spleen_label, pancreas_label], dim=0)
             concat_label = concat_label.to(device)
             binary_loss = binary_loss_fn(concat_pred, concat_label)
