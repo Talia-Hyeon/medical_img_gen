@@ -13,7 +13,7 @@ from data.flare21 import FLAREDataSet, index_organs
 from data.one_organ import BinaryDataSet
 from loss_functions.score import *
 from model.unet3D import UNet3D
-from util import save_model, my_collate
+from util import load_model, save_model, my_collate
 
 
 def train_upperbound(args):
@@ -46,14 +46,24 @@ def train_upperbound(args):
     logdir = args.log_dir + f'/{train_type}'
     writer = SummaryWriter(logdir)
 
-    # define model
+    # define model, optimizer, lr_scheduler
     model = UNet3D(num_classes=n_classes)
-    model = nn.DataParallel(model).to(device)
-
-    # define optimizer, lr_scheduler
     optimizer = optim.Adam(model.parameters(), lr=3e-4, weight_decay=1e-5, betas=(0.9, 0.99))
     lr_scheduler = optim.lr_scheduler.MultiStepLR(optimizer,
                                                   milestones=[30, 60, 90, 120, 150, 180], gamma=0.5)
+
+    # check resume & define model
+    if args.resume == True:
+        model, checkpoint = load_model(n_classes, check_point=True)
+        # load define optimizer, lr_scheduler, start_epoch
+        optimizer.load_state_dict(checkpoint['optimizer'])
+        lr_scheduler.load_state_dict(checkpoint['scheduler'])
+        start_epoch = checkpoint['epoch']
+        print('pretrained model is loaded!')
+
+    else:
+        start_epoch = 0
+    model = nn.DataParallel(model).to(device)
 
     # loss function
     binary_loss_fn = SupervisedLoss(num_classes=n_classes)
@@ -88,7 +98,7 @@ def train_upperbound(args):
     best_avg_dice = -100.0
 
     # training
-    for epoch in range(num_epochs):
+    for epoch in range(start_epoch, num_epochs):
         model.train()
         epoch_start = time()
         iter_start = time()
