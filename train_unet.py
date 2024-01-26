@@ -1,7 +1,9 @@
 import os
+import random
 from time import time
 import argparse
 
+import numpy as np
 import torch
 from torch import optim
 from torch.utils.data import DataLoader
@@ -22,6 +24,7 @@ def get_args():
     parser.add_argument("--num_workers", type=int, default=8)
     parser.add_argument("--gpu", type=str, default='0,1,2,3,4,5,6,7')
     parser.add_argument("--log_dir", type=str, default='./log_new_loader')
+    parser.add_argument("--random_seed", type=int, default=1234)
     parser.add_argument("--resume", type=bool, default=False)
     return parser
 
@@ -41,6 +44,14 @@ def main():
     batch_size = args.batch_size
     num_workers = args.num_workers
     logdir = args.log_dir
+
+    seed = args.random_seed
+    random.seed(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    if torch.cuda.is_available():
+        torch.cuda.manual_seed(seed)
+        torch.backends.cudnn.deterministic = True
 
     # make directory
     os.makedirs('./save_model', exist_ok=True)
@@ -75,7 +86,7 @@ def main():
     model = nn.DataParallel(model).to(device)
 
     # loss function
-    dice_loss_fn = DiceLoss(num_classes=n_classes)
+    # dice_loss_fn = DiceLoss(num_classes=n_classes)
     ce_loss_fn = CELoss()
 
     # data loader
@@ -105,9 +116,9 @@ def main():
             label = torch.tensor(label).to(device)
 
             pred = model(img)
-            dice_loss = dice_loss_fn(pred, label)
-            ce_loss = ce_loss_fn(pred, label)
-            loss = dice_loss + ce_loss
+            # dice_loss = dice_loss_fn(pred, label)
+            loss = ce_loss_fn(pred, label)
+            # loss = dice_loss + ce_loss
             train_loss_meter.update(loss.item())
 
             optimizer.zero_grad()
@@ -134,9 +145,9 @@ def main():
                 label_val = pack[1].to(device)
                 pred_val = model(img_val)
 
-                val_dice_loss = dice_loss_fn(pred_val, label_val)
-                val_ce_loss = ce_loss_fn(pred_val, label_val)
-                val_loss = val_dice_loss + val_ce_loss
+                # val_dice_loss = dice_loss_fn(pred_val, label_val)
+                val_loss = ce_loss_fn(pred_val, label_val)
+                # val_loss = val_dice_loss + val_ce_loss
                 val_loss_meter.update(val_loss.item())
 
                 iter_dice = metric(pred_val, label_val)

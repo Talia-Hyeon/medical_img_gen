@@ -1,19 +1,19 @@
 import os
+import random
 from time import time
 import argparse
 
+import numpy as np
 import torch.backends.cudnn
 import torch.optim as optim
 from torch.utils.data import DataLoader
 from torch.utils.tensorboard import SummaryWriter
 
-from data.flare21 import FLAREDataSet
-from data.flare21 import my_collate
-from loss_functions.score import *
-from data.flare21 import index_organs
+from data.flare21 import FLAREDataSet, index_organs
 from data.one_organ import BinaryDataSet
+from loss_functions.score import *
 from model.unet3D import UNet3D
-from util import save_model
+from util import save_model, my_collate
 
 
 def train_upperbound(args):
@@ -30,6 +30,8 @@ def train_upperbound(args):
     logdir = args.log_dir
 
     seed = args.random_seed
+    random.seed(seed)
+    np.random.seed(seed)
     torch.manual_seed(seed)
     if torch.cuda.is_available():
         torch.cuda.manual_seed(seed)
@@ -208,13 +210,14 @@ def train_upperbound(args):
 def unet_args():
     parser = argparse.ArgumentParser(description="supervised learning")
     # train unet
-    parser.add_argument("--epoch", type=int, default=100)
+    parser.add_argument("--epoch", type=int, default=170)
     parser.add_argument("--num_classes", type=int, default=5)
     parser.add_argument("--num_workers", type=int, default=4)
     parser.add_argument("--gpu", type=str, default='0,1,2,3,4')
     parser.add_argument("--type", type=str, default='upper_bound')
     parser.add_argument("--log_dir", type=str, default='./log_con')
     parser.add_argument("--random_seed", type=int, default=1234)
+    parser.add_argument("--resume", type=bool, default=False)
     return parser
 
 
