@@ -56,7 +56,6 @@ def main():
 
     # make directory
     os.makedirs('./save_model', exist_ok=True)
-    os.makedirs('./fig', exist_ok=True)
     os.makedirs(logdir, exist_ok=True)
 
     writer = SummaryWriter(logdir)
