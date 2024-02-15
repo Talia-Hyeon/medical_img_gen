@@ -31,6 +31,7 @@ class FLAREDataSet(data.Dataset):
         image = self.files[index]['image']
         label = self.files[index]['label']
         name = self.files[index]['name']
+        task_id = 5  # 5: fully annotated data
 
         # load numpy array
         image = np.load(image)
@@ -45,7 +46,7 @@ class FLAREDataSet(data.Dataset):
 
         image = image.astype(np.float32)
         label = label.astype(np.float32)
-        return image, label, name
+        return image, label, name, task_id
 
     def extend_channel_classes(self, label):
         label_list = []

@@ -43,7 +43,7 @@ class BinaryDataSet(data.Dataset):
 
         image = image.astype(np.float32)
         label = label.astype(np.float32)
-        return image, label, name
+        return image, label, name, self.task_id
 
     def add_background(self, label):
         bg = np.ones_like(label)
