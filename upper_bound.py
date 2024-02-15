@@ -6,7 +6,7 @@ import argparse
 import numpy as np
 import torch.backends.cudnn
 import torch.optim as optim
-from torch.utils.data import DataLoader
+from torch.utils.data import DataLoader, RandomSampler
 from torch.utils.tensorboard import SummaryWriter
 
 from data.flare21 import FLAREDataSet, index_organs
@@ -24,7 +24,7 @@ def train_upperbound(args):
 
     # hyper-parameter
     num_epochs = args.epoch
-    each_batch_size = args.batch_size // 5
+    batch_size = args.batch_size
     n_classes = args.num_classes
     num_workers = args.num_workers
     train_type = args.type
@@ -51,7 +51,7 @@ def train_upperbound(args):
     model = UNet3D(num_classes=n_classes)
     optimizer = optim.Adam(model.parameters(), lr=3e-4, weight_decay=1e-5, betas=(0.9, 0.99))
     lr_scheduler = optim.lr_scheduler.MultiStepLR(optimizer,
-                                                  milestones=[30, 60, 90, 120, 150, 180], gamma=0.5)
+                                                  milestones=[60, 120, 180], gamma=0.5)
 
     # check resume & define model
     if args.resume == True:
@@ -67,25 +67,18 @@ def train_upperbound(args):
     model = nn.DataParallel(model).to(device)
 
     # loss function
-    binary_loss_fn = SupervisedLoss(num_classes=n_classes)
-    flare_loss_fn = DiceLoss(num_classes=n_classes)
+    train_loss_fn = SupervisedLoss(num_classes=n_classes)
+    val_loss_fn=DiceLoss()
 
     # data loader
     liver_data = BinaryDataSet(task_id=1)
-    liver_loader = DataLoader(liver_data, batch_size=each_batch_size, shuffle=True,
-                              num_workers=num_workers, collate_fn=my_collate)
     kidney_data = BinaryDataSet(task_id=2)
-    kidney_loader = DataLoader(kidney_data, batch_size=each_batch_size, shuffle=True,
-                               num_workers=num_workers, collate_fn=my_collate)
     spleen_data = BinaryDataSet(task_id=3)
-    spleen_loader = DataLoader(spleen_data, batch_size=each_batch_size, shuffle=True,
-                               num_workers=num_workers, collate_fn=my_collate)
     pancreas_data = BinaryDataSet(task_id=4)
-    pancreas_loader = DataLoader(pancreas_data, batch_size=each_batch_size, shuffle=True,
-                                 num_workers=num_workers, collate_fn=my_collate)
     flare_path = './dataset/FLARE_Dataset'
     flare_train = FLAREDataSet(root=flare_path, split='train')
-    flare_loader = DataLoader(dataset=flare_train, batch_size=each_batch_size, shuffle=True,
+    train_loader = DataLoader(dataset=[liver_data, kidney_data, spleen_data, pancreas_data, flare_train],
+                              batch_size=batch_size, sampler=RandomSampler,
                               num_workers=num_workers, collate_fn=my_collate)
 
     flare_valid = FLAREDataSet(root=flare_path, split='val')
@@ -103,48 +96,16 @@ def train_upperbound(args):
         epoch_start = time()
         iter_start = time()
 
-        for train_iter, (flare_pack, liver_pack, kidney_pack, spleen_pack, pancreas_pack) in enumerate(
-                zip(flare_loader, liver_loader, kidney_loader, spleen_loader, pancreas_loader)):
+        for train_iter, pack in enumerate(train_loader):
+            img = pack['image']
+            img = torch.tensor(img).to(device)
+            label = pack['label']
+            label = torch.tensor(label).to(device)
+            task_id = pack['task_id']
+            task_id = torch.tensor(task_id)  #### 확인
 
-            flare_img = flare_pack['image']
-            flare_img = torch.tensor(flare_img)
-            flare_label = flare_pack['label']
-            flare_label = torch.tensor(flare_label).to(device)
-
-            liver_img = liver_pack['image']
-            liver_img = torch.tensor(liver_img)
-            liver_label = liver_pack['label']
-            liver_label = torch.tensor(liver_label)
-
-            kidney_img = kidney_pack['image']
-            kidney_img = torch.tensor(kidney_img)
-            kidney_label = kidney_pack['label']
-            kidney_label = torch.tensor(kidney_label)
-
-            spleen_img = spleen_pack['image']
-            spleen_img = torch.tensor(spleen_img)
-            spleen_label = spleen_pack['label']
-            spleen_label = torch.tensor(spleen_label)
-
-            pancreas_img = pancreas_pack['image']
-            pancreas_img = torch.tensor(pancreas_img)
-            pancreas_label = pancreas_pack['label']
-            pancreas_label = torch.tensor(pancreas_label)
-
-            concat_img = torch.cat([flare_img, liver_img, kidney_img, spleen_img, pancreas_img], dim=0)
-            concat_img.to(device)
-
-            concat_pred = model(concat_img)
-
-            flare_pred = concat_pred[0:each_batch_size]
-            flare_loss = flare_loss_fn(flare_pred, flare_label)
-
-            concat_pred = concat_pred[each_batch_size:]
-            concat_label = torch.cat([liver_label, kidney_label, spleen_label, pancreas_label], dim=0)
-            concat_label = concat_label.to(device)
-            binary_loss = binary_loss_fn(concat_pred, concat_label)
-
-            loss = flare_loss + binary_loss
+            pred = model(img)
+            loss = train_loss_fn(pred, label)
             train_loss_meter.update(loss.item())
 
             optimizer.zero_grad()
@@ -171,7 +132,7 @@ def train_upperbound(args):
                 label_val = pack[1].to(device)
                 pred_val = model(img_val)
 
-                val_loss = flare_loss_fn(pred_val, label_val)
+                val_loss = val_loss_fn(pred_val, label_val)
                 val_loss_meter.update(val_loss.item())
 
                 iter_dice = metric(pred_val, label_val)
