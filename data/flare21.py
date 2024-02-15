@@ -91,10 +91,9 @@ def load_data(data_l, image_path):
 
 
 if __name__ == '__main__':
-    flare = FLAREDataSet(split='train')
     save_path = '../fig/preprocessed_data/flare'
     os.makedirs(save_path, exist_ok=True)
-    flare = FLAREDataSet(root='../dataset/FLARE_Dataset', split='val')
+    flare = FLAREDataSet(root='../dataset/FLARE_Dataset', split='train')
     val_loader = data.DataLoader(dataset=flare, batch_size=1, shuffle=False)
     for val_iter, pack in enumerate(val_loader):
         img_ = pack[0]

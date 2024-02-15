@@ -1,7 +1,9 @@
 import os
+import random
 from time import time
 import argparse
 
+import numpy as np
 import torch
 from torch import optim
 from torch.utils.data import DataLoader
@@ -22,6 +24,7 @@ def get_args():
     parser.add_argument("--num_workers", type=int, default=8)
     parser.add_argument("--gpu", type=str, default='0,1,2,3,4,5,6,7')
     parser.add_argument("--log_dir", type=str, default='./log_new_loader')
+    parser.add_argument("--random_seed", type=int, default=1234)
     parser.add_argument("--resume", type=bool, default=False)
     return parser
 
@@ -38,13 +41,22 @@ def main():
 
     # hyper-parameter
     n_classes = args.num_classes
+    num_epochs = args.epoch
     batch_size = args.batch_size
     num_workers = args.num_workers
     logdir = args.log_dir
 
+    seed = args.random_seed
+    random.seed(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    if device == 'cuda':
+        torch.cuda.manual_seed_all(seed)
+    torch.backends.cudnn.deterministic = True
+    torch.backends.cudnn.benchmark = False
+
     # make directory
     os.makedirs('./save_model', exist_ok=True)
-    os.makedirs('./fig', exist_ok=True)
     os.makedirs(logdir, exist_ok=True)
 
     writer = SummaryWriter(logdir)
@@ -70,8 +82,6 @@ def main():
 
     else:
         start_epoch = 0
-
-    num_epochs = args.epoch
     model = nn.DataParallel(model).to(device)
 
     # loss function
@@ -94,7 +104,7 @@ def main():
 
     # training
     for epoch in range(start_epoch, num_epochs):
-
+        model.train()
         epoch_start = time()
         iter_start = time()
 
