@@ -102,7 +102,7 @@ def train_upperbound(args):
             label = pack['label']
             label = torch.tensor(label).to(device)
             task_id = pack['task_id']
-            task_id = torch.tensor(task_id)  #### 확인
+            task_id = torch.tensor(task_id)
 
             pred = model(img)
             loss = train_loss_fn(pred, label)
@@ -182,7 +182,7 @@ def train_upperbound(args):
 def unet_args():
     parser = argparse.ArgumentParser(description="supervised learning")
     # train unet
-    parser.add_argument("--epoch", type=int, default=500)
+    parser.add_argument("--epoch", type=int, default=200)
     parser.add_argument("--num_classes", type=int, default=5)
     parser.add_argument("--batch_size", type=int, default=16)
     parser.add_argument("--num_workers", type=int, default=4)
