@@ -147,23 +147,42 @@ class MarginalLoss(nn.Module):
         return avg_loss
 
 
+# class SupervisedLoss(nn.Module):
+#     def __init__(self, num_classes=5, batch_size=3):
+#         super(SupervisedLoss, self).__init__()
+#         self.num_classes = num_classes
+#         self.batch_size = batch_size
+#
+#     def forward(self, con_predict, con_target):
+#         binary_loss_l = []
+#         for task_id in range(0, self.num_classes - 1):
+#             binary_predict = con_predict[task_id * self.batch_size:(task_id + 1) * self.batch_size]
+#             binary_target = con_target[task_id * self.batch_size:(task_id + 1) * self.batch_size]
+#
+#             binary_criterion = MarginalLoss(task_id=task_id + 1, num_classes=self.num_classes)
+#             binary_loss = binary_criterion(binary_predict, binary_target)
+#             binary_loss_l.append(binary_loss)
+#
+#         loss = sum(binary_loss_l)
+#         return loss
+
 class SupervisedLoss(nn.Module):
-    def __init__(self, num_classes=5, batch_size=3):
+    def __init__(self, num_classes=5):
         super(SupervisedLoss, self).__init__()
         self.num_classes = num_classes
-        self.batch_size = batch_size
+        self.dice = DiceLoss()
 
-    def forward(self, con_predict, con_target):
-        binary_loss_l = []
-        for task_id in range(0, self.num_classes - 1):
-            binary_predict = con_predict[task_id * self.batch_size:(task_id + 1) * self.batch_size]
-            binary_target = con_target[task_id * self.batch_size:(task_id + 1) * self.batch_size]
-
-            binary_criterion = MarginalLoss(task_id=task_id + 1, num_classes=self.num_classes)
-            binary_loss = binary_criterion(binary_predict, binary_target)
-            binary_loss_l.append(binary_loss)
-
-        loss = sum(binary_loss_l)
+    def forward(self, predict, target, task_id):
+        loss_l = []
+        for batch_id in range(len(task_id)):
+            batch_task_id = task_id[batch_id]
+            if batch_task_id == 5:  # fully annotated
+                batch_loss = self.dice(predict[batch_id, :], target[batch_id, :])
+            else:
+                marg_fn = MarginalLoss(task_id=batch_task_id)
+                batch_loss = marg_fn(predict[batch_id, :], target[batch_id, :])
+            loss_l.append(batch_loss)
+        loss = sum(loss_l)
         return loss
 
 
