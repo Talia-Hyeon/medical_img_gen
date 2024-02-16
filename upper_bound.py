@@ -102,7 +102,7 @@ def train_upperbound(args):
             label = pack['label']
             label = torch.tensor(label).to(device)
             task_id = pack['task_id']
-            task_id = torch.tensor(task_id)
+            # task_id = torch.tensor(task_id)
 
             pred = model(img)
             loss = train_loss_fn(pred, label)
