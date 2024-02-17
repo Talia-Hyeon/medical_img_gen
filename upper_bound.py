@@ -24,7 +24,8 @@ def train_upperbound(args):
 
     # hyper-parameter
     num_epochs = args.epoch
-    batch_size = args.batch_size
+    flare_batch_size = round(args.batch_size * 0.2)
+    con_batch_size = round(args.batch_size * 0.8)
     n_classes = args.num_classes
     num_workers = args.num_workers
     train_type = args.type
@@ -66,21 +67,23 @@ def train_upperbound(args):
     model = nn.DataParallel(model).to(device)
 
     # loss function
-    train_loss_fn = SupervisedLoss(num_classes=n_classes)
-    val_loss_fn = DiceLoss()
+    binary_loss_fn = SupervisedLoss(num_classes=n_classes)
+    flare_loss_fn = DiceLoss()
 
     # data loader
     liver_data = BinaryDataSet(task_id=1)
     kidney_data = BinaryDataSet(task_id=2)
     spleen_data = BinaryDataSet(task_id=3)
     pancreas_data = BinaryDataSet(task_id=4)
+    binary_data = ConcatDataset([liver_data, kidney_data, spleen_data, pancreas_data])
+    sampler = RandomSampler(binary_data)
+    binary_loader = DataLoader(dataset=binary_data, batch_size=con_batch_size, drop_last=True,
+                               sampler=sampler, num_workers=num_workers, collate_fn=my_collate)
+
     flare_path = './dataset/FLARE_Dataset'
     flare_train = FLAREDataSet(root=flare_path, split='train')
-    concat_data = ConcatDataset([liver_data, kidney_data, spleen_data, pancreas_data, flare_train])
-    sampler = RandomSampler(concat_data)
-    train_loader = DataLoader(dataset=concat_data, batch_size=batch_size,
-                              sampler=sampler, num_workers=num_workers, collate_fn=my_collate)
-
+    flare_train_loader = DataLoader(dataset=flare_train, batch_size=flare_batch_size, drop_last=True,
+                                    shuffle=True, num_workers=num_workers, collate_fn=my_collate)
     flare_valid = FLAREDataSet(root=flare_path, split='val')
     valid_loader = DataLoader(dataset=flare_valid, batch_size=1, shuffle=False, num_workers=num_workers)
 
@@ -96,16 +99,27 @@ def train_upperbound(args):
         epoch_start = time()
         iter_start = time()
 
-        for train_iter, pack in enumerate(train_loader):
-            img = pack['image']
-            img = torch.tensor(img).to(device)
-            label = pack['label']
-            label = torch.tensor(label).to(device)
-            task_id = pack['task_id']
+        for train_iter, (flare_pack, binary_pack) in enumerate(zip(flare_train_loader, binary_loader)):
+            flare_img = flare_pack['image']
+            flare_img = torch.tensor(flare_img).to(device)
+            flare_label = flare_pack['label']
+            flare_label = torch.tensor(flare_label).to(device)
+
+            binary_img = binary_pack['image']
+            binary_img = torch.tensor(binary_img).to(device)
+            binary_label = binary_pack['label']
+            binary_label = torch.tensor(binary_label).to(device)
+            task_id = binary_pack['task_id']
             # task_id = torch.tensor(task_id)
 
-            pred = model(img)
-            loss = train_loss_fn(pred, label)
+            con_img = torch.cat([flare_img, binary_img], dim=0)
+            con_pred = model(con_img)
+            flare_pred = con_pred[:flare_batch_size]
+            binary_pred = con_pred[flare_batch_size:]
+
+            flare_loss = flare_loss_fn(flare_pred, flare_label)
+            binary_loss = binary_loss_fn(binary_pred, binary_label, task_id)
+            loss = flare_loss + binary_loss
             train_loss_meter.update(loss.item())
 
             optimizer.zero_grad()
@@ -132,7 +146,7 @@ def train_upperbound(args):
                 label_val = pack[1].to(device)
                 pred_val = model(img_val)
 
-                val_loss = val_loss_fn(pred_val, label_val)
+                val_loss = flare_loss_fn(pred_val, label_val)
                 val_loss_meter.update(val_loss.item())
 
                 iter_dice = metric(pred_val, label_val)
