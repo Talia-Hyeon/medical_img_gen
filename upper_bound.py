@@ -6,7 +6,7 @@ import argparse
 import numpy as np
 import torch.backends.cudnn
 import torch.optim as optim
-from torch.utils.data import DataLoader, RandomSampler
+from torch.utils.data import DataLoader, RandomSampler, ConcatDataset
 from torch.utils.tensorboard import SummaryWriter
 
 from data.flare21 import FLAREDataSet, index_organs
@@ -50,8 +50,7 @@ def train_upperbound(args):
     # define model, optimizer, lr_scheduler
     model = UNet3D(num_classes=n_classes)
     optimizer = optim.Adam(model.parameters(), lr=3e-4, weight_decay=1e-5, betas=(0.9, 0.99))
-    lr_scheduler = optim.lr_scheduler.MultiStepLR(optimizer,
-                                                  milestones=[60, 120, 180], gamma=0.5)
+    lr_scheduler = optim.lr_scheduler.MultiStepLR(optimizer, milestones=[60, 120, 180], gamma=0.5)
 
     # check resume & define model
     if args.resume == True:
@@ -68,7 +67,7 @@ def train_upperbound(args):
 
     # loss function
     train_loss_fn = SupervisedLoss(num_classes=n_classes)
-    val_loss_fn=DiceLoss()
+    val_loss_fn = DiceLoss()
 
     # data loader
     liver_data = BinaryDataSet(task_id=1)
@@ -77,9 +76,10 @@ def train_upperbound(args):
     pancreas_data = BinaryDataSet(task_id=4)
     flare_path = './dataset/FLARE_Dataset'
     flare_train = FLAREDataSet(root=flare_path, split='train')
-    train_loader = DataLoader(dataset=[liver_data, kidney_data, spleen_data, pancreas_data, flare_train],
-                              batch_size=batch_size, sampler=RandomSampler,
-                              num_workers=num_workers, collate_fn=my_collate)
+    concat_data = ConcatDataset([liver_data, kidney_data, spleen_data, pancreas_data, flare_train])
+    sampler = RandomSampler(concat_data)
+    train_loader = DataLoader(dataset=concat_data, batch_size=batch_size,
+                              sampler=sampler, num_workers=num_workers, collate_fn=my_collate)
 
     flare_valid = FLAREDataSet(root=flare_path, split='val')
     valid_loader = DataLoader(dataset=flare_valid, batch_size=1, shuffle=False, num_workers=num_workers)
@@ -185,10 +185,10 @@ def unet_args():
     parser.add_argument("--epoch", type=int, default=200)
     parser.add_argument("--num_classes", type=int, default=5)
     parser.add_argument("--batch_size", type=int, default=16)
-    parser.add_argument("--num_workers", type=int, default=4)
+    parser.add_argument("--num_workers", type=int, default=8)
     parser.add_argument("--gpu", type=str, default='0,1,2,3,4,5,6,7')
     parser.add_argument("--type", type=str, default='upper_bound')
-    parser.add_argument("--log_dir", type=str, default='./log_con')
+    parser.add_argument("--log_dir", type=str, default='./log_upperbound')
     parser.add_argument("--random_seed", type=int, default=1234)
     parser.add_argument("--resume", type=bool, default=False)
     return parser
