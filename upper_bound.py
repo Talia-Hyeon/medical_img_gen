@@ -67,7 +67,7 @@ def train_upperbound(args):
     model = nn.DataParallel(model).to(device)
 
     # loss function
-    binary_loss_fn = SupervisedLoss(num_classes=n_classes)
+    binary_loss_fn = BinaryLoss()
     flare_loss_fn = DiceLoss()
 
     # data loader
