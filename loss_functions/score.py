@@ -134,7 +134,7 @@ class MarginalLoss(nn.Module):
         predict = F.softmax(predict, dim=1)
 
         marg_pred = torch.ones_like(target)
-        marg_pred = marg_pred[:1]  # remain only 0: background, 1: foreground
+        marg_pred = marg_pred[:2]  # remain only 0: background, 1: foreground
         marg_pred[0] -= predict[self.task_id]
         marg_pred[1] = predict[self.task_id]
 
