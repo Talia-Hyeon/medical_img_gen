@@ -134,11 +134,12 @@ class MarginalLoss(nn.Module):
         predict = F.softmax(predict, dim=1)
 
         marg_pred = torch.ones_like(target)
-        marg_pred[:, 0] -= predict[:, self.task_id]
-        marg_pred[:, 1] = predict[:, self.task_id]
+        marg_pred = marg_pred[:1]  # remain only 0: background, 1: foreground
+        marg_pred[0] -= predict[self.task_id]
+        marg_pred[1] = predict[self.task_id]
 
         total_loss = []
-        for i in range(2):  # 0: background, 1: foreground
+        for i in range(2):
             dice_loss = self.criterion(marg_pred[:, i], target[:, i])
             total_loss.append(dice_loss)
 
@@ -157,7 +158,7 @@ class BinaryLoss(nn.Module):
         for batch_id in range(len(task_id)):
             batch_task_id = task_id[batch_id]
             marg_fn = MarginalLoss(task_id=batch_task_id)
-            batch_loss = marg_fn(predict[batch_id], target[batch_id])
+            batch_loss = marg_fn(predict[batch_id], target[batch_id])  # c:5, d, h, w
             loss_l.append(batch_loss)
         loss = sum(loss_l)
         return loss
