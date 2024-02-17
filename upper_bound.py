@@ -13,7 +13,7 @@ from data.flare21 import FLAREDataSet, index_organs
 from data.one_organ import BinaryDataSet
 from loss_functions.score import *
 from model.unet3D import UNet3D
-from util import load_model, save_model, my_collate
+from util import load_model, save_model, my_collate, task_collate
 
 
 def train_upperbound(args):
@@ -78,7 +78,7 @@ def train_upperbound(args):
     binary_data = ConcatDataset([liver_data, kidney_data, spleen_data, pancreas_data])
     sampler = RandomSampler(binary_data)
     binary_loader = DataLoader(dataset=binary_data, batch_size=con_batch_size, drop_last=True,
-                               sampler=sampler, num_workers=num_workers, collate_fn=my_collate)
+                               sampler=sampler, num_workers=num_workers, collate_fn=task_collate)
 
     flare_path = './dataset/FLARE_Dataset'
     flare_train = FLAREDataSet(root=flare_path, split='train')

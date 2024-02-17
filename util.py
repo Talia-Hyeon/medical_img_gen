@@ -143,6 +143,19 @@ def get_train_transform():
 
 
 def my_collate(batch):
+    image, label, name = zip(*batch)
+    image = np.stack(image, 0)
+    label = np.stack(label, 0)
+    name = np.stack(name, 0)
+    data_dict = {'image': image,
+                 'label': label,
+                 'name': name}
+    tr_transforms = get_train_transform()
+    data_dict = tr_transforms(**data_dict)
+    return data_dict
+
+
+def task_collate(batch):
     image, label, name, task_id = zip(*batch)
     image = np.stack(image, 0)
     label = np.stack(label, 0)
@@ -152,6 +165,7 @@ def my_collate(batch):
                  'label': label,
                  'name': name,
                  'task_id': task_id}
+
     tr_transforms = get_train_transform()
     data_dict = tr_transforms(**data_dict)
     return data_dict
