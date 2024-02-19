@@ -173,7 +173,7 @@ class MaskedLoss(nn.Module):
         loss_l = []
         for batch_id in range(len(task_id)):
             batch_task_id = task_id[batch_id]
-            batch_loss = self.criterion(predict[batch_id, batch_task_id - 1], target[batch_id])  # d, h, w
+            batch_loss = self.criterion(predict[batch_id, batch_task_id - 1], target[batch_id])  # 0 channel : task_id 1
             loss_l.append(batch_loss)
         loss = sum(loss_l)
         return loss
