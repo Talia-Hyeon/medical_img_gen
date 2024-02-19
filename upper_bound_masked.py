@@ -9,8 +9,8 @@ import torch.optim as optim
 from torch.utils.data import DataLoader, RandomSampler, ConcatDataset
 from torch.utils.tensorboard import SummaryWriter
 
-from data.flare21 import FLAREDataSet, index_organs
-from data.one_organ import BinaryDataSet
+from data.flare21_masked import FLAREDataSet, index_organs
+from data.one_organ_masked import BinaryDataSet
 from loss_functions.score import *
 from model.unet3D import UNet3D
 from util import load_model, save_model, my_collate, task_collate
