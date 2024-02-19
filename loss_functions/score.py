@@ -84,7 +84,7 @@ class MaskedDiceScore(nn.Module):
         self.dice = BinaryDiceScore()
 
     def forward(self, predict, target):
-        predict = F.sigmoid(predict)
+        predict = torch.sigmoid(predict)
 
         all_score = []
         for i in range(self.num_classes):
@@ -123,7 +123,7 @@ class DiceLoss(nn.Module):
 
     def forward(self, predict, target):
         # predict = F.softmax(predict, dim=1)
-        predict = F.sigmoid(predict)
+        predict = torch.sigmoid(predict)
 
         total_loss = []
         for i in range(self.num_classes):
@@ -189,7 +189,7 @@ class MaskedLoss(nn.Module):
         self.criterion = BinaryDiceLoss()
 
     def forward(self, predict, target, task_id):
-        predict = F.sigmoid(predict)
+        predict = torch.sigmoid(predict)
 
         loss_l = []
         for batch_id in range(len(task_id)):
