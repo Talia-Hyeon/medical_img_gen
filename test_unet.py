@@ -126,8 +126,8 @@ def get_args():
     parser.add_argument("--num_classes", type=int, default=5)
     parser.add_argument("--num_workers", type=int, default=4)
     parser.add_argument("--gpu", type=str, default='0')
-    parser.add_argument("--type", type=str, default='flare')
-    parser.add_argument("--model_path", type=str, default='./save_model/best_model.pth')
+    parser.add_argument("--type", type=str, default='upper_bound')
+    parser.add_argument("--model_path", type=str, default='./save_model/upper_bound/best_model.pth')
     return parser
 
 
