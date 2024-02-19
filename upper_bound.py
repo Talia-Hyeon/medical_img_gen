@@ -110,7 +110,6 @@ def train_upperbound(args):
             binary_label = binary_pack['label']
             binary_label = torch.tensor(binary_label).to(device)
             task_id = binary_pack['task_id']
-            # task_id = torch.tensor(task_id)
 
             con_img = torch.cat([flare_img, binary_img], dim=0)
             con_pred = model(con_img)
