@@ -164,6 +164,21 @@ class BinaryLoss(nn.Module):
         return loss
 
 
+class MaskedLoss(nn.Module):
+    def __init__(self):
+        super(MaskedLoss, self).__init__()
+        self.criterion = BinaryDiceLoss()
+
+    def forward(self, predict, target, task_id):
+        loss_l = []
+        for batch_id in range(len(task_id)):
+            batch_task_id = task_id[batch_id]
+            batch_loss = self.criterion(predict[batch_id, batch_task_id - 1], target[batch_id])  # d, h, w
+            loss_l.append(batch_loss)
+        loss = sum(loss_l)
+        return loss
+
+
 class CossEntropyFnc(nn.Module):
     def __init__(self, smooth=1e-5):
         super(CossEntropyFnc, self).__init__()
