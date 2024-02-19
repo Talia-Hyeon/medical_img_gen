@@ -68,7 +68,7 @@ def train_upperbound(args):
 
     # loss function
     binary_loss_fn = MaskedLoss()
-    flare_loss_fn = DiceLoss()
+    flare_loss_fn = DiceLoss(num_classes=n_classes)
 
     # data loader
     liver_data = BinaryDataSet(task_id=1)
