@@ -77,6 +77,24 @@ class ArgmaxDiceScore(nn.Module):
         return total_score
 
 
+class MaskedDiceScore(nn.Module):
+    def __init__(self, num_classes=5):
+        super(MaskedDiceScore, self).__init__()
+        self.num_classes = num_classes
+        self.dice = BinaryDiceScore()
+
+    def forward(self, predict, target):
+        predict = F.sigmoid(predict)
+
+        all_score = []
+        for i in range(self.num_classes):
+            dice_score = self.dice(predict[:, i], target[:, i]).unsqueeze(1)  # (B, 1)
+            all_score.append(dice_score)  # append each organ
+
+        total_score = torch.cat(all_score, dim=1)  # (B, num_classes-1)
+        return total_score
+
+
 class BinaryDiceLoss(nn.Module):
     def __init__(self, smooth=1e-5):
         super(BinaryDiceLoss, self).__init__()
