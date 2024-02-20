@@ -43,6 +43,19 @@ def decode_segmap(base, temp, num_classes):
     return rgb
 
 
+def add_bg_gt(label, num_classes):
+    label_list = []
+    bg = torch.ones_like(label[0].unsqueeze(dim=0))
+    for i in range(num_classes):
+        label_i = label[i].unsqueeze(dim=0)
+        bg -= label_i
+        label_list.append(label_i)
+    label_list = [bg] + label_list
+    stacked_label = torch.cat(label_list, dim=0)
+    gt = torch.argmax(stacked_label, dim=0)
+    return gt
+
+
 def visualization(img, label, pred, name, path, num_classes):
     # remove batch
     img = torch.squeeze(img)
@@ -99,7 +112,7 @@ def evaluate(model, test_data_loader, num_class, device, train_type):
             iter_dice = metric(pred, label)
             dice_list.append(iter_dice)
 
-            visualization(img, label, pred, name, path, num_class)
+            visualization(img, label, pred, name, path, num_class + 1)  # +1: add background
 
     total_dice = torch.cat(dice_list, dim=0)
     dice_score = torch.mean(total_dice, dim=0)
@@ -113,7 +126,7 @@ def print_dice(dice_score):
     dice_dict = {}
     for i in range(len(label_dict)):
         organ = label_dict[i]
-        dice_dict[organ] = dice_score[i-1].item()
+        dice_dict[organ] = dice_score[i].item()
 
     print(dice_dict)
     avg_dice = torch.mean(dice_score).item()
