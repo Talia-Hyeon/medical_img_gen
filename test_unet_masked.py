@@ -56,6 +56,9 @@ def add_bg_gt(label, num_classes):
     return gt
 
 
+def add_bg_pred(pred, num_classes, threshold):
+
+
 def visualization(img, label, pred, name, path, num_classes):
     # remove batch
     img = torch.squeeze(img)
@@ -64,7 +67,7 @@ def visualization(img, label, pred, name, path, num_classes):
 
     # change binary to multi-class
     pred = torch.argmax(pred, dim=0)
-    gt = torch.argmax(label, dim=0)
+    gt = add_bg_gt(label, num_classes)
 
     #  move to cpu & transform to numpy
     img = img.cpu().numpy()
