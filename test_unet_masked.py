@@ -57,8 +57,8 @@ def add_bg_gt(label, num_classes):
 
 
 def add_bg_pred(pred, threshold=0.2):
-    shape = pred[0]
-    bg = torch.full(size=shape, fill_value=threshold).unsqueeze(dim=0)
+    shape = pred[0].shape
+    bg = torch.full(size=shape, fill_value=threshold).unsqueeze(dim=0).to(device)
     bg_pred = torch.cat((bg, pred), dim=0)
     prediction = torch.argmax(bg_pred, dim=0)
     return prediction
@@ -72,7 +72,7 @@ def visualization(img, label, pred, name, path, num_classes):
 
     # change binary to multi-class
     pred = add_bg_pred(pred)
-    gt = add_bg_gt(label, num_classes)
+    gt = add_bg_gt(label, num_classes - 1)
 
     #  move to cpu & transform to numpy
     img = img.cpu().numpy()
