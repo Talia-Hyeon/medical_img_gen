@@ -184,8 +184,9 @@ class BinaryLoss(nn.Module):
 
 
 class MaskedLoss(nn.Module):
-    def __init__(self):
+    def __init__(self, num_classes=5):
         super(MaskedLoss, self).__init__()
+        self.num_classes = num_classes
         self.criterion = BinaryDiceLoss()
 
     def forward(self, predict, target, task_id):
