@@ -90,7 +90,7 @@ def train_upperbound(args):
     # setup metrics
     val_loss_meter = averageMeter()
     train_loss_meter = averageMeter()
-    metric = MaskedDiceScore(num_classes=n_classes)
+    metric = ArgmaxDiceScore(num_classes=n_classes)
     best_avg_dice = -100.0
 
     # training
@@ -196,12 +196,12 @@ def unet_args():
     parser = argparse.ArgumentParser(description="supervised learning")
     # train unet
     parser.add_argument("--epoch", type=int, default=200)
-    parser.add_argument("--num_classes", type=int, default=4)  # except background
+    parser.add_argument("--num_classes", type=int, default=5)
     parser.add_argument("--batch_size", type=int, default=16)
     parser.add_argument("--num_workers", type=int, default=8)
     parser.add_argument("--gpu", type=str, default='0,1,2,3,4,5,6,7')
-    parser.add_argument("--type", type=str, default='upper_bound_masked')
-    parser.add_argument("--log_dir", type=str, default='./log_upperbound_masked')
+    parser.add_argument("--type", type=str, default='upper_bound')
+    parser.add_argument("--log_dir", type=str, default='./log_upperbound')
     parser.add_argument("--random_seed", type=int, default=1234)
     parser.add_argument("--resume", type=bool, default=False)
     return parser

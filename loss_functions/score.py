@@ -91,7 +91,7 @@ class MaskedDiceScore(nn.Module):
             dice_score = self.dice(predict[:, i], target[:, i]).unsqueeze(1)  # (B, 1)
             all_score.append(dice_score)  # append each organ
 
-        total_score = torch.cat(all_score, dim=1)  # (B, num_classes-1)
+        total_score = torch.cat(all_score, dim=1)  # (B, num_classes)
         return total_score
 
 
@@ -122,8 +122,8 @@ class DiceLoss(nn.Module):
         self.dice = BinaryDiceLoss()
 
     def forward(self, predict, target):
-        # predict = F.softmax(predict, dim=1)
-        predict = torch.sigmoid(predict)
+        predict = F.softmax(predict, dim=1)
+        # predict = torch.sigmoid(predict)
 
         total_loss = []
         for i in range(self.num_classes):
@@ -189,13 +189,15 @@ class MaskedLoss(nn.Module):
         self.criterion = BinaryDiceLoss()
 
     def forward(self, predict, target, task_id):
-        predict = torch.sigmoid(predict)
+        # one channel & multi-class
+        predict = torch.argmax(predict, dim=1, keepdim=True)  # (B, 1, H, W, D)
+        # mutil-channel & binary class
+        predict = extend_channel_classes(predict, num_classes=self.num_classes)  # (B, num_classes, H, W, D)
 
         loss_l = []
         for batch_id in range(len(task_id)):
             batch_task_id = task_id[batch_id]
-            batch_loss = self.criterion(predict[batch_id, batch_task_id - 1].unsqueeze(dim=0), target[batch_id])
-            # batch_task_id - 1: 0 channel = task_id 1
+            batch_loss = self.criterion(predict[batch_id, batch_task_id].unsqueeze(dim=0), target[batch_id])
             loss_l.append(batch_loss)
         loss = sum(loss_l)
         return loss
