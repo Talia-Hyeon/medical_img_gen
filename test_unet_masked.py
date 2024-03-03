@@ -6,7 +6,7 @@ from torch.utils.data import DataLoader
 from matplotlib import pyplot as plt
 import numpy as np
 
-from data.flare21_masked import FLAREDataSet, index_organs
+from data.flare21 import FLAREDataSet, index_organs
 from model.unet3D import UNet3D
 from loss_functions.score import *
 from util import find_best_view
