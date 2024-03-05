@@ -32,9 +32,8 @@ def gen_img_mask(args, num, lock):
     n_imgs = args.num_imgs
 
     device_ids = [i for i in range(torch.cuda.device_count())]
-    num_batch = batch_size // len(device_ids)
     input_size = (40, 270, 220)
-    pixels = input_size[0] * input_size[1] * input_size[2] * num_batch
+    pixels = input_size[0] * input_size[1] * input_size[2]
 
     cudnn.benchmark = True
 
@@ -62,7 +61,7 @@ def gen_img_mask(args, num, lock):
     # generate fake images
     while cnt < n_imgs:
         start = timeit.default_timer()
-        fake_xs = [torch.randn([num_batch, 1] + list(input_size), requires_grad=True, device=device_ids[i]) for i in
+        fake_xs = [torch.randn([1, 1] + list(input_size), requires_grad=True, device=device_ids[i]) for i in
                    range(len(device_ids))]
         optimizers = [torch.optim.Adam([fake_xs[i]], lr=0.1) for i in range(len(device_ids))]
 
@@ -71,14 +70,12 @@ def gen_img_mask(args, num, lock):
         mask = files[0]
         name = files[1]
 
-        mask, name = item_concat(mask, name, batch_size, num_batch)
-
         children = list()
 
         for pid in range(len(device_ids)):
             child = mp.Process(target=gen_img, args=(
                 pid, pretraineds[pid], fake_xs[pid], optimizers[pid], mask[pid].to(device_ids[pid]), name[pid],
-                loss_fns[pid], root_p, logdir, pixels, num_batch, n_iters, n_imgs, num, lock))
+                loss_fns[pid], root_p, logdir, pixels, n_iters, n_imgs, num, lock))
             children.append(child)
             child.start()
 
@@ -92,7 +89,7 @@ def gen_img_mask(args, num, lock):
 
 
 def gen_img(pid, pretrained, fake_x, optimizer, mask, name, loss_fn,
-            root_p, logdir, pixels, num_batch, n_iters, n_imgs, num, lock):
+            root_p, logdir, pixels, n_iters, n_imgs, num, lock):
     writer = SummaryWriter(logdir, filename_suffix=name[0])
 
     # hook pretrained model
@@ -114,6 +111,9 @@ def gen_img(pid, pretrained, fake_x, optimizer, mask, name, loss_fn,
         loss_bn = sum([mod.r_feature * rescale[idx] for idx, mod in enumerate(loss_r_feature_layers)]) / len(
             loss_r_feature_layers)
         # dice loss
+        print('output ', output.shape)
+        mask=torch.unsqueeze(mask, dim=0)
+        print('mask ', mask.shape)
         dice_loss = loss_fn(output, mask)
         # total loss
         loss = dice_loss * 1e-2 + loss_bn * 1 + loss_var_l1 * 2.5e-5 + loss_var_l2 * 3e-8
@@ -132,8 +132,7 @@ def gen_img(pid, pretrained, fake_x, optimizer, mask, name, loss_fn,
             img_cnt = num.value
             fake_x_iter = fake_x.detach().cpu().numpy()
             fake_label_iter = fake_label.detach().cpu().numpy()
-            for i in range(num_batch):
-                save_nyp(img_cnt, fake_x_iter[i], fake_label_iter[i], root_p, name[i] + str(iter_idx) + 'iter')
+            save_nyp(img_cnt, fake_x_iter, fake_label_iter, root_p, name + '_iter' + str(iter_idx))
 
         # log
         loss_report = dict()
@@ -158,32 +157,16 @@ def gen_img(pid, pretrained, fake_x, optimizer, mask, name, loss_fn,
     lock.acquire()
     if num.value < n_imgs:
         img_cnt = num.value
-        num.value += num_batch
+        num.value += 1
         lock.release()
         fake_x = fake_x.detach().cpu().numpy()
         fake_label = fake_label.detach().cpu().numpy()
-        for i in range(num_batch):
-            save_nyp(img_cnt, fake_x[i], fake_label[i], root_p, name[i])
-            img_cnt += 1
+        save_nyp(img_cnt, fake_x, fake_label, root_p, name)
+        img_cnt += 1
     else:
         lock.release()
 
     print(f'process {pid} ratio of foreground: {((organ_pixels / pixels) * 100):.5f}')
-
-
-def item_concat(mask, name, batch_size, num_batch):
-    mask_list = []
-    name_list = []
-    for batch_i in range(0, batch_size, num_batch):
-        mask_l = []
-        name_l = []
-        for list_i in range(num_batch):
-            mask_l.append(mask[batch_i + list_i])
-            name_l.append(name[batch_i + list_i])
-        con_mask = torch.stack(mask_l, dim=0)
-        mask_list.append(con_mask)
-        name_list.append(name_l)
-    return mask_list, name_list
 
 
 def gen_img_args():
@@ -193,7 +176,7 @@ def gen_img_args():
     parser.add_argument("--gen_epochs", type=int, default=2000)
     parser.add_argument("--cnt", type=int, default=0)
     parser.add_argument("--num_imgs", type=int, default=10)
-    parser.add_argument("--batch_size", type=int, default=6)
+    parser.add_argument("--batch_size", type=int, default=3)
     parser.add_argument("--num_classes", type=int, default=5)
     parser.add_argument("--num_workers", type=int, default=8)
     parser.add_argument("--log_dir", type=str, default='./log_img')

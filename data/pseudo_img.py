@@ -47,8 +47,8 @@ class FAKEDataSet(FLAREDataSet):
 
 
 if __name__ == '__main__':
-    train_type = 'hrhf'
-    # train_type = 'di_mask'
+    # train_type = 'hrhf'
+    train_type = 'di_mask'
     save_path = f'../fig/gen_img/{train_type}/'
     os.makedirs(save_path, exist_ok=True)
     val_path = f'../sample/{train_type}'

@@ -107,15 +107,15 @@ def save_nyp(cnt, fake_x, fake_label, root, name=None):
     fake_x = truncate(fake_x)
 
     # add channel & probability to binary
-    fake_label = np.argmax(fake_label, axis=0)[np.newaxis, :]
+    fake_label = np.argmax(fake_label, axis=1)[np.newaxis, :]
 
     # save
     if name == None:  # vector
-        save_img_path = osp.join(root, 'img', str(cnt) + '.npy')
-        save_label_path = osp.join(root, 'mask', str(cnt) + '.npy')
+        save_img_path = osp.join(root, 'img', '.npy')
+        save_label_path = osp.join(root, 'mask', '.npy')
     else:  # mask
-        save_img_path = osp.join(root, 'img', name + '_' + str(cnt) + '.npy')
-        save_label_path = osp.join(root, 'mask', name + '_' + str(cnt) + '.npy')
+        save_img_path = osp.join(root, 'img', name + '.npy')
+        save_label_path = osp.join(root, 'mask', name + '.npy')
 
     np.save(save_img_path, fake_x)
     np.save(save_label_path, fake_label)
