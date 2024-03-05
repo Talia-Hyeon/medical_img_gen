@@ -71,8 +71,10 @@ def visualization(img, label, pred, name, path, num_classes):
     label = torch.squeeze(label)
 
     # change binary to multi-class
-    pred = add_bg_pred(pred)
-    gt = add_bg_gt(label, num_classes - 1)
+    # pred = add_bg_pred(pred)
+    # gt = add_bg_gt(label, num_classes - 1)
+    pred = torch.argmax(pred, dim=0)
+    gt = torch.argmax(label, dim=0)
 
     #  move to cpu & transform to numpy
     img = img.cpu().numpy()
@@ -120,7 +122,7 @@ def evaluate(model, test_data_loader, num_class, device, train_type):
             iter_dice = metric(pred, label)
             dice_list.append(iter_dice)
 
-            visualization(img, label, pred, name, path, num_class + 1)  # +1: add background
+            visualization(img, label, pred, name, path, num_class)  # +1: add background
 
     total_dice = torch.cat(dice_list, dim=0)
     dice_score = torch.mean(total_dice, dim=0)
@@ -144,11 +146,11 @@ def print_dice(dice_score):
 
 def get_args():
     parser = argparse.ArgumentParser(description="test_pretrained_UNet")
-    parser.add_argument("--num_classes", type=int, default=4)
+    parser.add_argument("--num_classes", type=int, default=5)
     parser.add_argument("--num_workers", type=int, default=4)
     parser.add_argument("--gpu", type=str, default='0')
-    parser.add_argument("--type", type=str, default='upper_bound_masked')
-    parser.add_argument("--model_path", type=str, default='./save_model/upper_bound_masked/best_model.pth')
+    parser.add_argument("--type", type=str, default='upper_bound')
+    parser.add_argument("--model_path", type=str, default='./save_model/upper_bound/best_model.pth')
     return parser
 
 
