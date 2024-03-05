@@ -20,16 +20,16 @@ from loss_functions.score import DiceLoss
 from util import load_model
 
 
-def gen_img_mask(args, num, lock, task_id=1):
+def gen_img_mask(args, num, lock):
     # hyper-parameter
     train_type = args.train_type
     batch_size = args.batch_size
+    num_classes = args.num_classes
     num_workers = args.num_workers
     n_iters = args.gen_epochs
     cnt = args.cnt
     num.value = cnt
-    n_imgs = args.num_imgs.split(',')
-    n_imgs = int(n_imgs[task_id - 1])
+    n_imgs = args.num_imgs
 
     device_ids = [i for i in range(torch.cuda.device_count())]
     num_batch = batch_size // len(device_ids)
@@ -39,22 +39,22 @@ def gen_img_mask(args, num, lock, task_id=1):
     cudnn.benchmark = True
 
     # make directory
-    root_p = f"./sample/{train_type}/{task_id}"
+    root_p = f"./sample/{train_type}/"
     os.makedirs(f'{root_p}/img', exist_ok=True)
     os.makedirs(f'{root_p}/mask', exist_ok=True)
     # logger
     logdir = args.log_dir + f'/{args.train_type}'
 
     # load the pretrained model
-    pretrained = load_model(train_type, task_id)
+    pretrained = load_model()
     pretrained.eval()
     pretraineds = [deepcopy(pretrained).to(device_ids[i]) for i in range(len(device_ids))]
 
     # dice loss
-    loss_fns = [DiceLoss(num_classes=task_id + 1).to(device_ids[i]) for i in range(len(device_ids))]
+    loss_fns = [DiceLoss(num_classes=num_classes).to(device_ids[i]) for i in range(len(device_ids))]
 
     # define the dataset
-    real_data = FLARE_Mask(root='./dataset/FLARE_Dataset/train', task_id=task_id)
+    real_data = FLARE_Mask(root='./dataset/FLARE_Dataset/train')
     real_dataloader = data.DataLoader(dataset=real_data, batch_size=batch_size, drop_last=True,
                                       num_workers=num_workers, shuffle=True)
     real_dataloader_infinite_iter = iter(cycle(real_dataloader))
@@ -189,12 +189,12 @@ def item_concat(mask, name, batch_size, num_batch):
 def gen_img_args():
     parser = argparse.ArgumentParser(description="image generation")
     parser.add_argument("--train_type", type=str, default='di_mask')
-    parser.add_argument("--task_id", type=int, default=1)
     parser.add_argument("--gpu", type=str, default='0,1,2,3,4,5,6,7')
     parser.add_argument("--gen_epochs", type=int, default=2000)
     parser.add_argument("--cnt", type=int, default=0)
-    parser.add_argument("--num_imgs", type=str, default='796, 165, 433')  # 136, 118, 121 # 796, 165, 433
+    parser.add_argument("--num_imgs", type=int, default=10)
     parser.add_argument("--batch_size", type=int, default=16)
+    parser.add_argument("--num_classes", type=int, default=5)
     parser.add_argument("--num_workers", type=int, default=8)
     parser.add_argument("--log_dir", type=str, default='./log_img')
     parser.add_argument("--random_seed", type=int, default=1234)
@@ -223,4 +223,4 @@ if __name__ == '__main__':
     mp.set_start_method('spawn')
     num = mp.Value('i', 0)
     lock = mp.Lock()
-    gen_img_mask(args, num=num, lock=lock, task_id=args.task_id)
+    gen_img_mask(args, num=num, lock=lock)
