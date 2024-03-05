@@ -14,9 +14,8 @@ from util import decode_segmap, find_best_view
 
 
 class FLARE_Mask(FLAREDataSet):
-    def __init__(self, root='../dataset/FLARE_Dataset/train', task_id=1):
+    def __init__(self, root='../dataset/FLARE_Dataset/train'):
         self.root = root
-        self.task_id = task_id
 
         # read path
         self.files = self.load_data()
@@ -38,14 +37,13 @@ class FLARE_Mask(FLAREDataSet):
 
     def load_data(self):
         all_files = []
-        for task_id in range(1, 5):
-            mask_path = osp.join(self.root, str(task_id), 'mask')
-            mask_list = os.listdir(mask_path)
+        mask_path = osp.join(self.root, 'mask')
+        mask_list = os.listdir(mask_path)
 
-            for i, item in enumerate(mask_list):
-                mask_file = osp.join(mask_path, item)
-                name = item.split('.')[0]
-                all_files.append({"label": mask_file, "name": name})
+        for i, item in enumerate(mask_list):
+            mask_file = osp.join(mask_path, item)
+            name = item.split('.')[0]
+            all_files.append({"label": mask_file, "name": name})
 
         return all_files
 
@@ -78,12 +76,12 @@ def visualization(mask, name, root, num_classes):
 
 
 if __name__ == '__main__':
-    task_id = 4
-    save_path = '../fig/preprocessed_data/mask'
+    task_id = 1
+    save_path = '../fig/preprocessed_data'
     os.makedirs(save_path, exist_ok=True)
     mask_set = FLARE_Mask(task_id=task_id)
     mask_loader = data.DataLoader(dataset=mask_set, batch_size=1, shuffle=False)
     for mask_iter, pack in enumerate(mask_loader):
         mask_ = pack[0]
         name_ = pack[1][0]
-        visualization(mask_, name_, save_path, task_id + 1)
+        visualization(mask_, name_, save_path, 5)
