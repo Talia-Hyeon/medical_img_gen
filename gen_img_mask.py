@@ -130,10 +130,10 @@ def gen_img(pid, pretrained, fake_x, optimizer, mask, name, loss_fn,
 
         if iter_idx % 100 == 0:
             img_cnt = num.value
-            fake_x = fake_x.detach().cpu().numpy()
-            fake_label = fake_label.detach().cpu().numpy()
+            fake_x_iter = fake_x.detach().cpu().numpy()
+            fake_label_iter = fake_label.detach().cpu().numpy()
             for i in range(num_batch):
-                save_nyp(img_cnt, fake_x[i], fake_label[i], root_p, name[i] + str(iter_idx) + 'iter')
+                save_nyp(img_cnt, fake_x_iter[i], fake_label_iter[i], root_p, name[i] + str(iter_idx) + 'iter')
 
         # log
         loss_report = dict()

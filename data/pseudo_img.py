@@ -13,9 +13,8 @@ from data.flare21 import random_flip, load_data, FLAREDataSet
 
 
 class FAKEDataSet(FLAREDataSet):
-    def __init__(self, task_id, root):
-        self.task_id = task_id
-        self.root = osp.join(root, str(task_id))  # data for prior step
+    def __init__(self, root):
+        self.root = root
 
         # load data
         image_path = osp.join(self.root, 'img')
@@ -48,16 +47,15 @@ class FAKEDataSet(FLAREDataSet):
 
 
 if __name__ == '__main__':
-    task_id = 2
     train_type = 'hrhf'
     # train_type = 'di_mask'
-    save_path = f'../fig/gen_img/{train_type}/{task_id}'
+    save_path = f'../fig/gen_img/{train_type}/'
     os.makedirs(save_path, exist_ok=True)
     val_path = f'../sample/{train_type}'
-    val_data = FAKEDataSet(task_id=task_id, root=val_path)
+    val_data = FAKEDataSet(root=val_path)
     val_loader = data.DataLoader(dataset=val_data, batch_size=1, shuffle=False, num_workers=4)
     for val_iter, pack in enumerate(val_loader):
         img_ = pack[0]
         label_ = pack[1]
         name = pack[2][0]
-        visualization(img_, label_, save_path, name, num_classes=task_id + 1)
+        visualization(img_, label_, save_path, name, num_classes=5)
