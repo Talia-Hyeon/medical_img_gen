@@ -189,11 +189,11 @@ def item_concat(mask, name, batch_size, num_batch):
 def gen_img_args():
     parser = argparse.ArgumentParser(description="image generation")
     parser.add_argument("--train_type", type=str, default='di_mask')
-    parser.add_argument("--gpu", type=str, default='0,1,2,3,4,5,6,7')
+    parser.add_argument("--gpu", type=str, default='1,2,3')
     parser.add_argument("--gen_epochs", type=int, default=2000)
     parser.add_argument("--cnt", type=int, default=0)
     parser.add_argument("--num_imgs", type=int, default=10)
-    parser.add_argument("--batch_size", type=int, default=16)
+    parser.add_argument("--batch_size", type=int, default=6)
     parser.add_argument("--num_classes", type=int, default=5)
     parser.add_argument("--num_workers", type=int, default=8)
     parser.add_argument("--log_dir", type=str, default='./log_img')
