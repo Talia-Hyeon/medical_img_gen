@@ -169,3 +169,17 @@ def task_collate(batch):
     tr_transforms = get_train_transform()
     data_dict = tr_transforms(**data_dict)
     return data_dict
+
+
+def truncate(CT):
+    min_HU = -325
+    max_HU = 325
+    subtract = 0
+    divide = 325.
+
+    # truncate
+    CT[np.where(CT <= min_HU)] = min_HU
+    CT[np.where(CT >= max_HU)] = max_HU
+    CT = CT - subtract
+    CT = CT / divide
+    return CT
