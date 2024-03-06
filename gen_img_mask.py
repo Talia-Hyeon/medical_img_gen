@@ -39,8 +39,6 @@ def gen_img_mask(args, num, lock):
 
     # make directory
     root_p = f"./sample/{train_type}/"
-    os.makedirs(f'{root_p}/img', exist_ok=True)
-    os.makedirs(f'{root_p}/mask', exist_ok=True)
     # logger
     logdir = args.log_dir + f'/{args.train_type}'
 
@@ -66,9 +64,7 @@ def gen_img_mask(args, num, lock):
         optimizers = [torch.optim.Adam([fake_xs[i]], lr=0.1) for i in range(len(device_ids))]
 
         # define the mask
-        files = next(real_dataloader_infinite_iter)
-        mask = files[0]
-        name = files[1]
+        mask, name = next(real_dataloader_infinite_iter)
 
         children = list()
 
@@ -90,7 +86,17 @@ def gen_img_mask(args, num, lock):
 
 def gen_img(pid, pretrained, fake_x, optimizer, mask, name, loss_fn,
             root_p, logdir, pixels, n_iters, n_imgs, num, lock):
-    writer = SummaryWriter(logdir, filename_suffix=name[0])
+    # make dirs
+    root_p = root_p + '/' + name
+    os.makedirs(f'{root_p}/img', exist_ok=True)
+    os.makedirs(f'{root_p}/mask', exist_ok=True)
+
+    # log
+    logdir = logdir + '/' + name
+    writer = SummaryWriter(logdir)
+
+    # add batch
+    mask = torch.unsqueeze(mask, dim=0)
 
     # hook pretrained model
     loss_r_feature_layers = []
@@ -111,9 +117,6 @@ def gen_img(pid, pretrained, fake_x, optimizer, mask, name, loss_fn,
         loss_bn = sum([mod.r_feature * rescale[idx] for idx, mod in enumerate(loss_r_feature_layers)]) / len(
             loss_r_feature_layers)
         # dice loss
-        print('output ', output.shape)
-        mask=torch.unsqueeze(mask, dim=0)
-        print('mask ', mask.shape)
         dice_loss = loss_fn(output, mask)
         # total loss
         loss = dice_loss * 1e-2 + loss_bn * 1 + loss_var_l1 * 2.5e-5 + loss_var_l2 * 3e-8
@@ -172,11 +175,11 @@ def gen_img(pid, pretrained, fake_x, optimizer, mask, name, loss_fn,
 def gen_img_args():
     parser = argparse.ArgumentParser(description="image generation")
     parser.add_argument("--train_type", type=str, default='di_mask')
-    parser.add_argument("--gpu", type=str, default='1,2,3')
+    parser.add_argument("--gpu", type=str, default='0,1,2,3,4,5,6,7')
     parser.add_argument("--gen_epochs", type=int, default=2000)
     parser.add_argument("--cnt", type=int, default=0)
-    parser.add_argument("--num_imgs", type=int, default=10)
-    parser.add_argument("--batch_size", type=int, default=3)
+    parser.add_argument("--num_imgs", type=int, default=20)
+    parser.add_argument("--batch_size", type=int, default=8)
     parser.add_argument("--num_classes", type=int, default=5)
     parser.add_argument("--num_workers", type=int, default=8)
     parser.add_argument("--log_dir", type=str, default='./log_img')
