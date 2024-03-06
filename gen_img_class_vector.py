@@ -16,7 +16,7 @@ from model.deepInversion_3d import DeepInversionFeatureHook, get_image_prior_los
 from util import load_model
 
 
-def gen_img_vector(args, num, lock, task_id=1):
+def gen_img_vector(args, num, lock):
     # hyper-parameter
     train_type = args.train_type
     batch_size = args.batch_size
@@ -44,7 +44,7 @@ def gen_img_vector(args, num, lock, task_id=1):
     pretraineds = [deepcopy(pretrained).to(device_ids[i]) for i in range(len(device_ids))]
 
     # naming saved images
-    tot_img_idx = list(range(n_imgs))
+    tot_img_idx = list(range(n_imgs + batch_size))
     img_idx = 0
 
     # generate fake images
