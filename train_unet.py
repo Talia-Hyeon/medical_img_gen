@@ -90,7 +90,7 @@ def main():
 
     # loss function
     dice_loss_fn = DiceLoss(num_classes=n_classes)
-    # ce_loss_fn = CELoss()
+    ce_loss_fn = CELoss()
 
     # data loader
     flared_path = './dataset/FLARE_Dataset'
@@ -119,9 +119,9 @@ def main():
             label = torch.tensor(label).to(device)
 
             pred = model(img)
-            loss = dice_loss_fn(pred, label)
-            # ce_loss = ce_loss_fn(pred, label)
-            # loss = dice_loss + ce_loss
+            dice_loss = dice_loss_fn(pred, label)
+            ce_loss = ce_loss_fn(pred, label)
+            loss = dice_loss + ce_loss
             train_loss_meter.update(loss.item())
 
             optimizer.zero_grad()
@@ -148,9 +148,9 @@ def main():
                 label_val = pack[1].to(device)
                 pred_val = model(img_val)
 
-                val_loss = dice_loss_fn(pred_val, label_val)
-                # val_ce_loss = ce_loss_fn(pred_val, label_val)
-                # val_loss = val_dice_loss + val_ce_loss
+                val_dice_loss = dice_loss_fn(pred_val, label_val)
+                val_ce_loss = ce_loss_fn(pred_val, label_val)
+                val_loss = val_dice_loss + val_ce_loss
                 val_loss_meter.update(val_loss.item())
 
                 iter_dice = metric(pred_val, label_val)
