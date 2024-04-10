@@ -18,12 +18,13 @@ from util import save_model, load_model
 
 def get_args():
     parser = argparse.ArgumentParser(description="train_pretrained_UNet")
-    parser.add_argument("--epoch", type=int, default=170)
+    parser.add_argument("--epoch", type=int, default=200)
     parser.add_argument("--num_classes", type=int, default=5)
     parser.add_argument("--batch_size", type=int, default=16)
     parser.add_argument("--num_workers", type=int, default=8)
     parser.add_argument("--gpu", type=str, default='0,1,2,3,4,5,6,7')
-    parser.add_argument("--log_dir", type=str, default='./log_new_loader')
+    parser.add_argument("--type", type=str, default='upper_bound_flare')
+    parser.add_argument("--log_dir", type=str, default='./log_upperbound_flare')
     parser.add_argument("--random_seed", type=int, default=1234)
     parser.add_argument("--resume", type=bool, default=False)
     return parser
@@ -44,6 +45,7 @@ def main():
     num_epochs = args.epoch
     batch_size = args.batch_size
     num_workers = args.num_workers
+    train_type = args.type
     logdir = args.log_dir
 
     seed = args.random_seed
@@ -56,9 +58,11 @@ def main():
     torch.backends.cudnn.benchmark = False
 
     # make directory
-    os.makedirs('./save_model', exist_ok=True)
+    os.makedirs(f'./save_model/{train_type}', exist_ok=True)
     os.makedirs(logdir, exist_ok=True)
 
+    # logger
+    logdir = args.log_dir + f'/{train_type}'
     writer = SummaryWriter(logdir)
 
     # define model, optimizer, lr_scheduler
@@ -86,7 +90,7 @@ def main():
 
     # loss function
     dice_loss_fn = DiceLoss(num_classes=n_classes)
-    ce_loss_fn = CELoss()
+    # ce_loss_fn = CELoss()
 
     # data loader
     flared_path = './dataset/FLARE_Dataset'
@@ -115,9 +119,9 @@ def main():
             label = torch.tensor(label).to(device)
 
             pred = model(img)
-            dice_loss = dice_loss_fn(pred, label)
-            ce_loss = ce_loss_fn(pred, label)
-            loss = dice_loss + ce_loss
+            loss = dice_loss_fn(pred, label)
+            # ce_loss = ce_loss_fn(pred, label)
+            # loss = dice_loss + ce_loss
             train_loss_meter.update(loss.item())
 
             optimizer.zero_grad()
@@ -144,9 +148,9 @@ def main():
                 label_val = pack[1].to(device)
                 pred_val = model(img_val)
 
-                val_dice_loss = dice_loss_fn(pred_val, label_val)
-                val_ce_loss = ce_loss_fn(pred_val, label_val)
-                val_loss = val_dice_loss + val_ce_loss
+                val_loss = dice_loss_fn(pred_val, label_val)
+                # val_ce_loss = ce_loss_fn(pred_val, label_val)
+                # val_loss = val_dice_loss + val_ce_loss
                 val_loss_meter.update(val_loss.item())
 
                 iter_dice = metric(pred_val, label_val)
@@ -176,15 +180,15 @@ def main():
 
         if avg_dice >= best_avg_dice:
             best_avg_dice = avg_dice
-            save_model(path=f'./save_model/best_model.pth',
+            save_model(path=f'./save_model/{train_type}/best_model.pth',
                        model=model, optim=optimizer, lr_sch=lr_scheduler, epoch=epoch)
 
         if epoch % 20 == 0:
-            save_model(path=f'./save_model/epoch{epoch}_model.pth',
+            save_model(path=f'./save_model/{train_type}/epoch{epoch}_model.pth',
                        model=model, optim=optimizer, lr_sch=lr_scheduler, epoch=epoch)
 
         elif epoch == num_epochs - 1:
-            save_model(path=f'./save_model/last_model.pth',
+            save_model(path=f'./save_model/{train_type}/last_model.pth',
                        model=model, optim=optimizer, lr_sch=lr_scheduler, epoch=epoch)
 
         epoch_end = time()
