@@ -21,7 +21,6 @@ def gen_img_vector(args, num, lock):
     train_type = args.train_type
     batch_size = args.batch_size
     num_classes = args.num_classes
-    num_workers = args.num_workers
     n_iters = args.gen_epochs
     cnt = args.cnt
     num.value = cnt
@@ -178,7 +177,6 @@ def gen_img_args():
     parser.add_argument("--num_imgs", type=int, default=20)
     parser.add_argument("--batch_size", type=int, default=8)
     parser.add_argument("--num_classes", type=int, default=5)
-    parser.add_argument("--num_workers", type=int, default=8)
     parser.add_argument("--log_dir", type=str, default='./log_img')
     parser.add_argument("--random_seed", type=int, default=1234)
     return parser
