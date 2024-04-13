@@ -102,7 +102,7 @@ def adjust_learning_rate(optimizer, i_iter, lr, num_stemps, power):
     return lr
 
 
-def save_nyp(cnt, fake_x, fake_label, root, name=None):
+def save_nyp(cnt, fake_x, fake_label, root, name):
     # normalization
     fake_x = truncate(fake_x)
 
@@ -110,12 +110,8 @@ def save_nyp(cnt, fake_x, fake_label, root, name=None):
     fake_label = np.argmax(fake_label, axis=1)[np.newaxis, :]
 
     # save
-    if name == None:  # vector
-        save_img_path = osp.join(root, 'img', '.npy')
-        save_label_path = osp.join(root, 'mask', '.npy')
-    else:  # mask
-        save_img_path = osp.join(root, 'img', name + '.npy')
-        save_label_path = osp.join(root, 'mask', name + '.npy')
+    save_img_path = osp.join(root, 'img', name + '.npy')
+    save_label_path = osp.join(root, 'mask', name + '.npy')
 
     np.save(save_img_path, fake_x)
     np.save(save_label_path, fake_label)
