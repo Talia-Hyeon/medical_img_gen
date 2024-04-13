@@ -130,10 +130,10 @@ def gen_img(pid, pretrained, fake_x, optimizer, img_idx, class_loss_fn,
                   end='\r')
 
         if iter_idx % 100 == 0:
-            img_cnt = num.value
+            img_cnt = num.value + pid
             fake_x_iter = fake_x.detach().cpu().numpy()
             fake_label_iter = fake_label.detach().cpu().numpy()
-            save_nyp(img_cnt, fake_x_iter, fake_label_iter, root_p, '_iter' + str(iter_idx))
+            save_nyp(img_cnt, fake_x_iter, fake_label_iter, root_p, 'iter' + str(iter_idx))
 
         # log
         loss_report = dict()
@@ -147,7 +147,7 @@ def gen_img(pid, pretrained, fake_x, optimizer, img_idx, class_loss_fn,
         organ_pixels = torch.count_nonzero(torch.argmax(fake_label, dim=1), dim=(0, 1, 2, 3)).item()
         ratio_organ = (organ_pixels / pixels) * 100
         organ_report['Ratio of Organ'] = ratio_organ
-        writer.add_scalars('Ratio of Organ', loss_report, iter_idx)
+        writer.add_scalars('Ratio of Organ', organ_report, iter_idx)
 
     # unhook pretrained model
     for mod in loss_r_feature_layers:
@@ -162,8 +162,7 @@ def gen_img(pid, pretrained, fake_x, optimizer, img_idx, class_loss_fn,
         lock.release()
         fake_x = fake_x.detach().cpu().numpy()
         fake_label = fake_label.detach().cpu().numpy()
-        save_nyp(img_cnt, fake_x, fake_label, root_p, name)
-        img_cnt += 1
+        save_nyp(img_cnt, fake_x, fake_label, root_p, 'final')
     else:
         lock.release()
 
