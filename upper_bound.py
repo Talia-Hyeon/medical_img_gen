@@ -148,7 +148,7 @@ def train_upperbound(args):
                 pred_val = model(img_val)
 
                 val_dice_loss = flare_dice_loss_fn(pred_val, label_val)
-                val_ce_loss = flare_ce_loss(pred_val, label_val)
+                val_ce_loss = flare_ce_loss_fn(pred_val, label_val)
                 val_loss = val_dice_loss + val_ce_loss
                 val_loss_meter.update(val_loss.item())
 
