@@ -77,24 +77,6 @@ class ArgmaxDiceScore(nn.Module):
         return total_score
 
 
-class MaskedDiceScore(nn.Module):
-    def __init__(self, num_classes=5):
-        super(MaskedDiceScore, self).__init__()
-        self.num_classes = num_classes
-        self.dice = BinaryDiceScore()
-
-    def forward(self, predict, target):
-        predict = torch.sigmoid(predict)
-
-        all_score = []
-        for i in range(self.num_classes):
-            dice_score = self.dice(predict[:, i], target[:, i]).unsqueeze(1)  # (B, 1)
-            all_score.append(dice_score)  # append each organ
-
-        total_score = torch.cat(all_score, dim=1)  # (B, num_classes)
-        return total_score
-
-
 class BinaryDiceLoss(nn.Module):
     def __init__(self, smooth=1e-5):
         super(BinaryDiceLoss, self).__init__()
@@ -142,52 +124,12 @@ class DiceLoss(nn.Module):
         return avg_loss
 
 
-class MarginalLoss(nn.Module):
-    def __init__(self, task_id=1, num_classes=5):
-        super(MarginalLoss, self).__init__()
-        self.task_id = task_id
-        self.num_classes = num_classes
-        self.criterion = BinaryDiceLoss()
-
-    def forward(self, predict, target):
-        predict = F.softmax(predict, dim=1)
-
-        marg_pred = torch.ones_like(target)
-        marg_pred = marg_pred[:2]  # remain only 0: background, 1: foreground
-        marg_pred[0] -= predict[self.task_id]
-        marg_pred[1] = predict[self.task_id]
-
-        total_loss = []
-        for i in range(2):
-            dice_loss = self.criterion(marg_pred[:, i], target[:, i])
-            total_loss.append(dice_loss)
-
-        total_loss = torch.stack(total_loss)
-        avg_loss = torch.mean(total_loss)  # mean of bg/fg
-        return avg_loss
-
-
-class BinaryLoss(nn.Module):
-    def __init__(self, num_classes=5):
-        super(BinaryLoss, self).__init__()
-        self.num_classes = num_classes
-
-    def forward(self, predict, target, task_id):
-        loss_l = []
-        for batch_id in range(len(task_id)):
-            batch_task_id = task_id[batch_id]
-            marg_fn = MarginalLoss(task_id=batch_task_id)
-            batch_loss = marg_fn(predict[batch_id], target[batch_id])  # c:5, d, h, w
-            loss_l.append(batch_loss)
-        loss = sum(loss_l)
-        return loss
-
-
 class MaskedLoss(nn.Module):
     def __init__(self, num_classes=5):
         super(MaskedLoss, self).__init__()
         self.num_classes = num_classes
-        self.criterion = BinaryDiceLoss()
+        self.dice = BinaryDiceLoss()
+        self.ce = CrossEntropyFnc()
 
     def forward(self, predict, target, task_id):
         # one channel & multi-class
@@ -198,15 +140,19 @@ class MaskedLoss(nn.Module):
         loss_l = []
         for batch_id in range(len(task_id)):
             batch_task_id = task_id[batch_id]
-            batch_loss = self.criterion(predict[batch_id, batch_task_id].unsqueeze(dim=0), target[batch_id])
+            batch_pred = predict[batch_id, batch_task_id].unsqueeze(dim=0)
+            batch_target = target[batch_id]
+            dice_loss = self.dice(batch_pred, batch_target)
+            ce_loss = self.ce(batch_pred, batch_target)
+            batch_loss = dice_loss + ce_loss
             loss_l.append(batch_loss)
         loss = sum(loss_l)
         return loss
 
 
-class CossEntropyFnc(nn.Module):
+class CrossEntropyFnc(nn.Module):
     def __init__(self, smooth=1e-5):
-        super(CossEntropyFnc, self).__init__()
+        super(CrossEntropyFnc, self).__init__()
         self.smooth = smooth
 
     def forward(self, prediction, label):
@@ -221,7 +167,7 @@ class CossEntropyFnc(nn.Module):
 class CELoss(nn.Module):
     def __init__(self):
         super(CELoss, self).__init__()
-        self.criterion = CossEntropyFnc()
+        self.criterion = CrossEntropyFnc()
 
     def forward(self, prediction, label):
         prediction = F.softmax(prediction, dim=1)
