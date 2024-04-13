@@ -38,18 +38,9 @@ class BinaryDataSet(data.Dataset):
         # 50% flip
         image, label = random_flip(image, label)
 
-        # indexing label
-        label = self.add_background(label)
-
         image = image.astype(np.float32)
         label = label.astype(np.float32)
         return image, label, name, self.task_id
-
-    def add_background(self, label):
-        bg = np.ones_like(label)
-        bg -= label
-        stacked_label = np.concatenate([bg, label], axis=0)
-        return stacked_label
 
 
 if __name__ == '__main__':
