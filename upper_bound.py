@@ -68,7 +68,7 @@ def train_upperbound(args):
 
     # loss function
     binary_loss_fn = MaskedLoss()
-    flare_ce_loss_fn = CELoss()
+    # flare_ce_loss_fn = CELoss()
     flare_dice_loss_fn = DiceLoss(num_classes=n_classes)
 
     # data loader
@@ -118,9 +118,9 @@ def train_upperbound(args):
             binary_pred = con_pred[flare_batch_size:]
 
             flare_dice_loss = flare_dice_loss_fn(flare_pred, flare_label)
-            flare_ce_loss = flare_ce_loss_fn(flare_pred, flare_label)
+            # flare_ce_loss = flare_ce_loss_fn(flare_pred, flare_label)
             binary_loss = binary_loss_fn(binary_pred, binary_label, task_id)
-            loss = flare_dice_loss + flare_ce_loss + binary_loss
+            loss = binary_loss + flare_dice_loss  # + flare_ce_loss
             train_loss_meter.update(loss.item())
 
             optimizer.zero_grad()
@@ -147,9 +147,9 @@ def train_upperbound(args):
                 label_val = pack[1].to(device)
                 pred_val = model(img_val)
 
-                val_dice_loss = flare_dice_loss_fn(pred_val, label_val)
-                val_ce_loss = flare_ce_loss_fn(pred_val, label_val)
-                val_loss = val_dice_loss + val_ce_loss
+                val_loss = flare_dice_loss_fn(pred_val, label_val)
+                # val_ce_loss = flare_ce_loss_fn(pred_val, label_val)
+                # val_loss = val_dice_loss + val_ce_loss
                 val_loss_meter.update(val_loss.item())
 
                 iter_dice = metric(pred_val, label_val)

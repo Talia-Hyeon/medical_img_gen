@@ -129,7 +129,7 @@ class MaskedLoss(nn.Module):
         super(MaskedLoss, self).__init__()
         self.num_classes = num_classes
         self.dice = BinaryDiceLoss()
-        self.ce = CrossEntropyFnc()
+        # self.ce = CrossEntropyFnc()
 
     def forward(self, predict, target, task_id):
         # one channel & multi-class
@@ -143,9 +143,9 @@ class MaskedLoss(nn.Module):
             batch_pred = predict[batch_id, batch_task_id].unsqueeze(dim=0)
             batch_target = target[batch_id]
             dice_loss = self.dice(batch_pred, batch_target)
-            ce_loss = self.ce(batch_pred, batch_target)
-            batch_loss = dice_loss + ce_loss
-            loss_l.append(batch_loss)
+            # ce_loss = self.ce(batch_pred, batch_target)
+            # batch_loss = dice_loss + ce_loss
+            loss_l.append(dice_loss)
         loss = sum(loss_l)
         return loss
 
