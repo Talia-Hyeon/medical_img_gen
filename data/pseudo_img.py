@@ -45,16 +45,26 @@ class FAKEDataSet(FLAREDataSet):
         label = label.astype(np.float32)
         return image, label, name
 
+    def make_img_list(self, rootdir=".", suffix=""):
+        return [
+            os.path.join(path, filename)
+            for path, dirs, filenames in os.walk(rootdir)
+            # rootdir: ../sample/di_mask/, img_name: train_002_0, [imgname.png,...]
+            for filename in filenames
+            if filename.endswith(suffix)
+        ]
+
 
 if __name__ == '__main__':
     # train_type = 'hrhf'
     train_type = 'di_mask'
     save_path = f'../fig/gen_img/{train_type}/'
     os.makedirs(save_path, exist_ok=True)
-    val_path = f'../sample/{train_type}'
-    val_data = FAKEDataSet(root=val_path)
-    val_loader = data.DataLoader(dataset=val_data, batch_size=1, shuffle=False, num_workers=4)
-    for val_iter, pack in enumerate(val_loader):
+    npy_path = f'../sample/{train_type}'
+    npy_data = FAKEDataSet(root=npy_path)
+
+    npy_loader = data.DataLoader(dataset=npy_data, batch_size=1, shuffle=False, num_workers=4)
+    for val_iter, pack in enumerate(npy_loader):
         img_ = pack[0]
         label_ = pack[1]
         name = pack[2][0]
