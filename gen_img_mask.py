@@ -19,6 +19,9 @@ from data.flare21_gen import FLARE_Mask
 from loss_functions.score import DiceLoss
 from util import load_model
 
+global gen_loss_weight
+gen_loss_weight = {'dice_loss': 1e-2, 'loss_bn': 1, 'loss_var_l1': 2.5e-5, 'loss_var_l2': 3e-8}
+
 
 def gen_img_mask(args, num, lock):
     # hyper-parameter
@@ -119,7 +122,8 @@ def gen_img(pid, pretrained, fake_x, optimizer, mask, name, loss_fn,
         # dice loss
         dice_loss = loss_fn(output, mask)
         # total loss
-        loss = dice_loss * 1e-2 + loss_bn * 1 + loss_var_l1 * 2.5e-5 + loss_var_l2 * 3e-8
+        loss = dice_loss * gen_loss_weight['dice_loss'] + loss_bn * gen_loss_weight['loss_bn'] + loss_var_l1 * \
+               gen_loss_weight['loss_var_l1'] + loss_var_l2 * gen_loss_weight['loss_var_l2']
 
         pretrained.zero_grad()
         optimizer.zero_grad()
@@ -139,10 +143,10 @@ def gen_img(pid, pretrained, fake_x, optimizer, mask, name, loss_fn,
 
         # log
         loss_report = dict()
-        loss_report['L1'] = loss_var_l1.item()
-        loss_report['L2'] = loss_var_l2.item()
-        loss_report['Batch_Norm'] = loss_bn.item()
-        loss_report['Dice'] = dice_loss.item()
+        loss_report['L1'] = loss_var_l1.item() * gen_loss_weight['loss_var_l1']
+        loss_report['L2'] = loss_var_l2.item() * gen_loss_weight['loss_var_l2']
+        loss_report['Batch_Norm'] = loss_bn.item() * gen_loss_weight['loss_bn']
+        loss_report['Dice'] = dice_loss.item() * gen_loss_weight['dice_loss']
         writer.add_scalars('Loss', loss_report, iter_idx)
 
         organ_report = dict()

@@ -15,6 +15,9 @@ import numpy as np
 from model.deepInversion_3d import DeepInversionFeatureHook, get_image_prior_losses, ClassLoss, save_nyp
 from util import load_model
 
+global gen_loss_weight_vector
+gen_loss_weight_vector = {'class_loss': 1, 'loss_bn': 1, 'loss_var_l1': 2.5e-5, 'loss_var_l2': 3e-8}
+
 
 def gen_img_vector(args, num, lock):
     # hyper-parameter
@@ -116,7 +119,9 @@ def gen_img(pid, pretrained, fake_x, optimizer, img_idx, class_loss_fn,
         class_loss = class_loss_fn(fake_label)
 
         # total loss
-        loss = class_loss * 1 + loss_bn * 1 + loss_var_l1 * 2.5e-5 + loss_var_l2 * 3e-8
+        loss = class_loss * gen_loss_weight_vector['class_loss'] + loss_bn * gen_loss_weight_vector[
+            'loss_bn'] + loss_var_l1 * gen_loss_weight_vector['loss_var_l1'] + loss_var_l2 * gen_loss_weight_vector[
+                   'loss_var_l2']
 
         pretrained.zero_grad()
         optimizer.zero_grad()
@@ -136,10 +141,10 @@ def gen_img(pid, pretrained, fake_x, optimizer, img_idx, class_loss_fn,
 
         # log
         loss_report = dict()
-        loss_report['L1'] = loss_var_l1.item()
-        loss_report['L2'] = loss_var_l2.item()
-        loss_report['Batch_Norm'] = loss_bn.item()
-        loss_report['Class'] = class_loss.item()
+        loss_report['L1'] = loss_var_l1.item() * gen_loss_weight_vector['loss_var_l1']
+        loss_report['L2'] = loss_var_l2.item() * gen_loss_weight_vector['loss_var_l2']
+        loss_report['Batch_Norm'] = loss_bn.item() * gen_loss_weight_vector['loss_bn']
+        loss_report['Class'] = class_loss.item() * gen_loss_weight_vector['class_loss']
         writer.add_scalars('Loss', loss_report, iter_idx)
 
         organ_report = dict()
