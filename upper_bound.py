@@ -51,14 +51,14 @@ def train_upperbound(args):
     # define model, optimizer, lr_scheduler
     model = UNet3D(num_classes=n_classes)
     optimizer = optim.Adam(model.parameters(), lr=3e-4, weight_decay=1e-5, betas=(0.9, 0.99))
-    lr_scheduler = optim.lr_scheduler.MultiStepLR(optimizer, milestones=[60, 120, 180], gamma=0.5)
+    # lr_scheduler = optim.lr_scheduler.MultiStepLR(optimizer, milestones=[60, 120, 180], gamma=0.5)
 
     # check resume & define model
     if args.resume == True:
         model, checkpoint = load_model(n_classes, check_point=True)
         # load define optimizer, lr_scheduler, start_epoch
         optimizer.load_state_dict(checkpoint['optimizer'])
-        lr_scheduler.load_state_dict(checkpoint['scheduler'])
+        # lr_scheduler.load_state_dict(checkpoint['scheduler'])
         start_epoch = checkpoint['epoch']
         print('pretrained model is loaded!')
 
@@ -174,21 +174,21 @@ def train_upperbound(args):
             print('Epoch: {} | Valid loss: {:.4f} | Time: {:.4f}'.format(
                 epoch + 1, val_loss.item(), (val_end - val_start)))
 
-        lr_scheduler.step()
+        # lr_scheduler.step()
         val_loss_meter.reset()
 
         if avg_dice >= best_avg_dice:
             best_avg_dice = avg_dice
             save_model(path=f'./save_model/{train_type}/best_model.pth',
-                       model=model, optim=optimizer, lr_sch=lr_scheduler, epoch=epoch)
+                       model=model, optim=optimizer, epoch=epoch)
 
         elif epoch % 20 == 0:
             save_model(path=f'./save_model/{train_type}/epoch{epoch}_model.pth',
-                       model=model, optim=optimizer, lr_sch=lr_scheduler, epoch=epoch)
+                       model=model, optim=optimizer, epoch=epoch)
 
         elif epoch == num_epochs - 1:
             save_model(path=f'./save_model/{train_type}/last_model.pth',
-                       model=model, optim=optimizer, lr_sch=lr_scheduler, epoch=epoch)
+                       model=model, optim=optimizer, epoch=epoch)
 
         epoch_end = time()
         print('Epoch: {} | Dice: {} | Total Time: {:.4f}'.format(epoch + 1, dice_score, epoch_end - epoch_start))

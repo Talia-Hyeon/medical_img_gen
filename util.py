@@ -12,12 +12,12 @@ from batchgenerators.transforms.abstract_transforms import Compose
 from model.unet3D import UNet3D
 
 
-def save_model(path, model, optim, lr_sch, epoch):
+def save_model(path, model, optim, epoch):
     net_state = model.module.state_dict()
     states = {
         'model': net_state,
         'optimizer': optim.state_dict(),
-        'scheduler': lr_sch.state_dict(),
+        # 'scheduler': lr_sch.state_dict(),
         'epoch': epoch + 1
     }
     torch.save(states, path)
