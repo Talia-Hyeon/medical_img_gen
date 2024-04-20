@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 from torch.utils import data
 
 sys.path.append('..')
-from util import find_best_view, decode_segmap
+from test_unet import find_best_view, decode_segmap
 
 
 class PseudoVis(data.Dataset):
@@ -47,14 +47,20 @@ class PseudoVis(data.Dataset):
         label = np.load(npy_label_path)
 
         image = image.astype(np.float32)
+        m = np.mean(image)
+        s = np.std(image)
+        image = ((image - m) / np.sqrt(0.2 * s) + 0.5).clip(0.0, 1.0)
+        image = (image + 1) / 2.0  # 0-1 float
+        image = image * 255  # 0-255
+        image = np.array(image, dtype='u1')  # uint8
         label = label.astype(np.float32)
 
         self.visualization(image, label, img_iter, img_dir)
 
     def visualization(self, npy_img, npy_label, img_iter, img_dir):
         # remove batch
-        npy_img = np.squeeze(npy_img, axis=0)
-        npy_label = np.squeeze(npy_label, axis=0)
+        npy_img = np.squeeze(npy_img)
+        npy_label = np.squeeze(npy_label)
 
         # slice into the best view
         max_score_idx = find_best_view(npy_label, self.num_classes)
@@ -83,5 +89,6 @@ if __name__ == '__main__':
 
     pseudo_images = PseudoVis(npy_root=npy_path, png_root=save_path, num_classes=5)
 
-    for npy_path in pseudo_images.npy_list:
-        pseudo_images.save_png(npy_path)
+    pseudo_images.save_png(pseudo_images.npy_list[0])
+    # for npy_path in pseudo_images.npy_list:
+    #     pseudo_images.save_png(npy_path)
