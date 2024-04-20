@@ -52,6 +52,10 @@ class PseudoVis(data.Dataset):
         self.visualization(image, label, img_iter, img_dir)
 
     def visualization(self, npy_img, npy_label, img_iter, img_dir):
+        # remove batch
+        npy_img = np.squeeze(npy_img, axis=0)
+        npy_label = np.squeeze(npy_label, axis=0)
+
         # slice into the best view
         max_score_idx = find_best_view(npy_label, self.num_classes)
         img = npy_img[max_score_idx, :, :]
