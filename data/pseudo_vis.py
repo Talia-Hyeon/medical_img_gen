@@ -72,7 +72,7 @@ class PseudoVis(data.Dataset):
 
         plt.figure()
         plt.subplot(1, 2, 1)
-        plt.imshow(img)
+        plt.imshow(img, cmap='gray')
         plt.title('Image')
         plt.subplot(1, 2, 2)
         plt.imshow(col_label)
