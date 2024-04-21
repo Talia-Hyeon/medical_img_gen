@@ -69,18 +69,18 @@ if __name__ == '__main__':
     os.makedirs(save_dir, exist_ok=True)
 
     # dataloader
-    flared_path = './dataset/FLARE_Dataset'
-    flared_test = FLAREDataSet(root=flared_path, split='test', task_id=n_classes - 1)
+    flared_path = '../MOSInversion/dataset/FLARE_Dataset'
+    flared_test = FLAREDataSet(root=flared_path, split='test')
     test_loader = DataLoader(dataset=flared_test, batch_size=batch_size, shuffle=False, num_workers=num_workers)
 
     df = Random_EL(img_size=image_size, grid_size=10, mag=6)
 
     for i, pack in enumerate(test_loader):
-        img = pack['image']
+        img = pack[0]
         img = torch.tensor(img).to(device)
-        label = pack['label']
+        label = pack[1]
         label = torch.tensor(label).to(device)
-        name = pack['name']
+        name = pack[2]
 
         img, label = df(img, label)
 

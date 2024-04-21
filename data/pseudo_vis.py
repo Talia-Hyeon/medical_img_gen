@@ -62,6 +62,7 @@ class PseudoVis(data.Dataset):
         # remove batch
         npy_img = np.squeeze(npy_img)
         npy_label = np.squeeze(npy_label)
+        print(np.max(npy_img), np.min(npy_img))
 
         # slice into the best view
         max_score_idx = find_best_view(npy_label, self.num_classes)
