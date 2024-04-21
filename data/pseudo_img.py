@@ -8,7 +8,7 @@ import torch
 from torch.utils import data
 
 sys.path.append('..')
-from util import visualization
+from util.util import visualization
 from data.flare21 import random_flip, load_data, FLAREDataSet
 
 

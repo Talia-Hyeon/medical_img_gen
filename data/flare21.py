@@ -7,7 +7,7 @@ import numpy as np
 from torch.utils import data
 
 sys.path.append('..')
-from util import visualization
+from util.util import visualization
 
 global index_organs
 index_organs = ['background', 'liver', 'kidney', 'spleen', 'pancreas']

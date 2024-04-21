@@ -5,7 +5,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 import numpy as np
 
-from util import truncate
+from util.util import truncate
 
 
 # code from https://github.com/NVlabs/DeepInversion

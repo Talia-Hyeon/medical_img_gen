@@ -13,10 +13,12 @@ from torch.utils.tensorboard import SummaryWriter
 import numpy as np
 
 from model.deepInversion_3d import DeepInversionFeatureHook, get_image_prior_losses, ClassLoss, save_nyp
-from util import load_model
+from util.util import load_model
 
 global gen_loss_weight_vector
 gen_loss_weight_vector = {'class_loss': 1, 'loss_bn': 1, 'loss_var_l1': 2.5e-5, 'loss_var_l2': 3e-8}
+global image_size
+image_size = (40, 270, 220)
 
 
 def gen_img_vector(args, num, lock):
@@ -30,8 +32,7 @@ def gen_img_vector(args, num, lock):
     n_imgs = args.num_imgs
 
     device_ids = [i for i in range(torch.cuda.device_count())]
-    input_size = (40, 270, 220)
-    pixels = input_size[0] * input_size[1] * input_size[2]
+    pixels = image_size[0] * image_size[1] * image_size[2]
 
     cudnn.benchmark = True
 
@@ -54,7 +55,7 @@ def gen_img_vector(args, num, lock):
         start = timeit.default_timer()
 
         imgs_idx = tot_img_idx[img_idx:img_idx + batch_size]
-        fake_xs = [torch.randn([1, 1] + list(input_size), requires_grad=True, device=device_ids[i]) for i in
+        fake_xs = [torch.randn([1, 1] + list(image_size), requires_grad=True, device=device_ids[i]) for i in
                    range(len(device_ids))]
         optimizers = [torch.optim.Adam([fake_xs[i]], lr=0.1) for i in range(len(device_ids))]
 

@@ -7,7 +7,8 @@ import matplotlib.pyplot as plt
 from torch.utils import data
 
 sys.path.append('..')
-from test_unet import find_best_view, decode_segmap
+from util.util import find_best_view
+from test_unet import decode_segmap
 
 
 class PseudoVis(data.Dataset):

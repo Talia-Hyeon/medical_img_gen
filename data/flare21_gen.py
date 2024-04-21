@@ -10,7 +10,7 @@ from torch.utils import data
 
 sys.path.append('..')
 from data.flare21 import FLAREDataSet
-from util import decode_segmap, find_best_view
+from util.util import decode_segmap, find_best_view
 
 
 class FLARE_Mask(FLAREDataSet):

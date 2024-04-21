@@ -9,7 +9,7 @@ import numpy as np
 from data.flare21 import FLAREDataSet, index_organs
 from model.unet3D import UNet3D
 from loss_functions.score import *
-from util import find_best_view
+from util.util import find_best_view
 
 
 def decode_segmap(base, temp, num_classes):

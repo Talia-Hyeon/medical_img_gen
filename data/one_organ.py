@@ -8,7 +8,7 @@ import numpy as np
 
 sys.path.append('..')
 from data.flare21 import random_flip, load_data
-from util import visualization
+from util.util import visualization
 
 
 class BinaryDataSet(data.Dataset):

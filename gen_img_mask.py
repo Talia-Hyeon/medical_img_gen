@@ -17,7 +17,8 @@ import numpy as np
 from model.deepInversion_3d import DeepInversionFeatureHook, get_image_prior_losses, save_nyp
 from data.flare21_gen import FLARE_Mask
 from loss_functions.score import DiceLoss
-from util import load_model
+from util.util import load_model
+from gen_img_class_vector import image_size
 
 global gen_loss_weight
 gen_loss_weight = {'dice_loss': 1e-2, 'loss_bn': 1, 'loss_var_l1': 2.5e-5, 'loss_var_l2': 3e-8}
@@ -35,8 +36,7 @@ def gen_img_mask(args, num, lock):
     n_imgs = args.num_imgs
 
     device_ids = [i for i in range(torch.cuda.device_count())]
-    input_size = (40, 270, 220)
-    pixels = input_size[0] * input_size[1] * input_size[2]
+    pixels = image_size[0] * image_size[1] * image_size[2]
 
     cudnn.benchmark = True
 
@@ -62,7 +62,7 @@ def gen_img_mask(args, num, lock):
     # generate fake images
     while cnt < n_imgs:
         start = timeit.default_timer()
-        fake_xs = [torch.randn([1, 1] + list(input_size), requires_grad=True, device=device_ids[i]) for i in
+        fake_xs = [torch.randn([1, 1] + list(image_size), requires_grad=True, device=device_ids[i]) for i in
                    range(len(device_ids))]
         optimizers = [torch.optim.Adam([fake_xs[i]], lr=0.1) for i in range(len(device_ids))]
 

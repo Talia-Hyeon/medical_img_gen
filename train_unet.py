@@ -10,10 +10,9 @@ from torch.utils.data import DataLoader
 from torch.utils.tensorboard import SummaryWriter
 
 from data.flare21 import FLAREDataSet, index_organs
-from util import my_collate
 from model.unet3D import UNet3D
 from loss_functions.score import *
-from util import save_model, load_model
+from util.util import my_collate, save_model, load_model
 
 
 def get_args():
