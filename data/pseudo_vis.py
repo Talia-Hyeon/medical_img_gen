@@ -48,13 +48,14 @@ class PseudoVis(data.Dataset):
         label = np.load(npy_label_path)
 
         image = image.astype(np.float32)
-        m = np.mean(image)
-        s = np.std(image)
-        image = ((image - m) / np.sqrt(0.2 * s) + 0.5).clip(0.0, 1.0)
-        image = (image + 1) / 2.0  # 0-1 float
-        image = image * 255  # 0-255
-        image = np.array(image, dtype='u1')  # uint8
         label = label.astype(np.float32)
+
+        # m = np.mean(image)
+        # s = np.std(image)
+        # image = ((image - m) / np.sqrt(0.2 * s) + 0.5).clip(0.0, 1.0)
+        # image = (image + 1) / 2.0  # 0-1 float
+        # image = image * 255  # 0-255
+        # image = np.array(image, dtype='u1')  # uint8
 
         self.visualization(image, label, img_iter, img_dir)
 
