@@ -7,36 +7,57 @@ import matplotlib.pyplot as plt
 
 from data.flare21 import FLAREDataSet
 from test_unet import find_best_view, decode_segmap
-from util.AugGPU import Random_EL, Random_AF
+from util.AugGPU import Compose
 from gen_img_class_vector import image_size
 
 
-def visualization_augmentation(image, label, save_dir, name, num_classes):
+def visualization_augmentation(image, label, image_ag, label_ag, save_dir, name, num_classes):
     # remove batch
     image = torch.squeeze(image)
     label = torch.squeeze(label)
+    image_ag = torch.squeeze(image_ag)
+    label_ag = torch.squeeze(label_ag)
 
     # change binary to multi-class
     gt = torch.argmax(label, dim=0)
+    gt_ag = torch.argmax(label_ag, dim=0)
+
+    # save shape
+    image_shape = image.shape
+    gt_shape = gt.shape
+    image_ag_shape = image.shape
+    gt_ag_shape = gt.shape
 
     #  move to cpu & transform to numpy
     image = image.cpu().numpy()
     gt = gt.cpu().numpy()
+    image_ag = image_ag.cpu().numpy()
+    gt_ag = gt_ag.cpu().numpy()
 
     # slice into the best view
     max_score_idx = find_best_view(gt, num_classes)
     image = image[max_score_idx, :, :]
     gt = gt[max_score_idx, :, :]
+    max_score_idx_ag = find_best_view(gt_ag, num_classes)
+    image_ag = image_ag[max_score_idx_ag, :, :]
+    gt_ag = gt_ag[max_score_idx_ag, :, :]
 
     col_gt = decode_segmap(image, gt, num_classes)
+    col_gt_ag = decode_segmap(image_ag, gt_ag, num_classes)
 
     plt.figure()
-    plt.subplot(1, 2, 1)
-    plt.imshow(image)
-    plt.title('Image')
-    plt.subplot(1, 2, 2)
+    plt.subplot(2, 2, 1)
+    plt.imshow(image, cmap='gray')
+    plt.title(f'Image {image_shape}')
+    plt.subplot(2, 2, 2)
     plt.imshow(col_gt)
-    plt.title('Ground Truth')
+    plt.title(f'GT {gt_shape}')
+    plt.subplot(2, 2, 3)
+    plt.imshow(image_ag, cmap='gray')
+    plt.title(f'Image Augmentation {image_ag_shape}')
+    plt.subplot(2, 2, 4)
+    plt.imshow(col_gt_ag)
+    plt.title(f'GT Augmentation {gt_ag_shape}')
     plt.savefig(f'{save_dir}/{name}.png')
     plt.close()
 
@@ -47,7 +68,7 @@ def get_args():
     parser.add_argument("--num_workers", type=int, default=4)
     parser.add_argument("--batch_size", type=int, default=8)
     parser.add_argument("--gpu", type=str, default='0,1')
-    parser.add_argument("--save_dir", type=str, default='./fig/vis_aug')
+    parser.add_argument("--save_dir", type=str, default='./fig/vis_aug/EL')
     return parser
 
 
@@ -73,7 +94,8 @@ if __name__ == '__main__':
     flared_test = FLAREDataSet(root=flared_path, split='test')
     test_loader = DataLoader(dataset=flared_test, batch_size=batch_size, shuffle=False, num_workers=num_workers)
 
-    df = Random_EL(img_size=image_size, grid_size=10, mag=6)
+    df = Compose(img_size=image_size, types=['E'],
+                 grid_size=10, mag=6)  # types=['F', 'E', 'A']
 
     for i, pack in enumerate(test_loader):
         img = pack[0]
@@ -82,6 +104,7 @@ if __name__ == '__main__':
         label = torch.tensor(label).to(device)
         name = pack[2]
 
-        img, label = df(img, label)
+        img_ag, label_ag = df(img, label)
 
-        visualization_augmentation(image=img, label=label, name=name, save_dir=save_dir, num_classes=5)
+        visualization_augmentation(image=img, label=label, image_ag=img_ag, label_ag=label_ag,
+                                   name=name, save_dir=save_dir, num_classes=5)
