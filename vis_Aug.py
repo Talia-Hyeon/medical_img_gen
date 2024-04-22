@@ -14,9 +14,7 @@ from gen_img_class_vector import image_size
 def visualization_augmentation(image, label, image_ag, label_ag, save_dir, name, num_classes):
     # remove batch
     image = torch.squeeze(image)
-    label = torch.squeeze(label)
     image_ag = torch.squeeze(image_ag)
-    label_ag = torch.squeeze(label_ag)
 
     # change binary to multi-class
     gt = torch.argmax(label, dim=0)
@@ -65,7 +63,7 @@ def get_args():
     parser = argparse.ArgumentParser(description="Visualization for Augmentation")
     parser.add_argument("--num_classes", type=int, default=5)
     parser.add_argument("--num_workers", type=int, default=4)
-    parser.add_argument("--batch_size", type=int, default=1)
+    parser.add_argument("--batch_size", type=int, default=4)
     parser.add_argument("--gpu", type=str, default='0')
     parser.add_argument("--save_dir", type=str, default='./fig/vis_aug/AF_EL_Flip')
     return parser
@@ -89,7 +87,7 @@ if __name__ == '__main__':
     os.makedirs(save_dir, exist_ok=True)
 
     # dataloader
-    flared_path = '../MOSInversion/dataset/FLARE_Dataset'
+    flared_path = './MOSInversion/dataset/FLARE_Dataset'
     flared_test = FLAREDataSet(root=flared_path, split='test')
     test_loader = DataLoader(dataset=flared_test, batch_size=batch_size, shuffle=False, num_workers=num_workers)
 
@@ -97,13 +95,15 @@ if __name__ == '__main__':
                  grid_size=10, mag=6)
 
     for i, pack in enumerate(test_loader):
-        img = pack[0]
-        img = torch.tensor(img).to(device)
-        label = pack[1]
-        label = torch.tensor(label).to(device)
-        name = pack[2][0]
+        imgs = pack[0]
+        imgs = torch.tensor(imgs).to(device)
+        labels = pack[1]
+        labels = torch.tensor(labels).to(device)
+        names = pack[2]
 
-        img_ag, label_ag = df(img, label)
+        imgs_ag, labels_ag = df(imgs, labels)
 
-        visualization_augmentation(image=img, label=label, image_ag=img_ag, label_ag=label_ag,
-                                   name=name, save_dir=save_dir, num_classes=5)
+        for i in range(batch_size):
+            visualization_augmentation(image=imgs[i], label=labels[i],
+                                       image_ag=imgs_ag[i], label_ag=labels_ag[i],
+                                       name=names[i], save_dir=save_dir, num_classes=5)
