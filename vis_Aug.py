@@ -23,10 +23,10 @@ def visualization_augmentation(image, label, image_ag, label_ag, save_dir, name,
     gt_ag = torch.argmax(label_ag, dim=0)
 
     # save shape
-    image_shape = image.shape
-    gt_shape = gt.shape
-    image_ag_shape = image.shape
-    gt_ag_shape = gt.shape
+    image_shape = list(image.shape)
+    gt_shape = list(gt.shape)
+    image_ag_shape = list(image.shape)
+    gt_ag_shape = list(gt.shape)
 
     #  move to cpu & transform to numpy
     image = image.cpu().numpy()
@@ -38,9 +38,8 @@ def visualization_augmentation(image, label, image_ag, label_ag, save_dir, name,
     max_score_idx = find_best_view(gt, num_classes)
     image = image[max_score_idx, :, :]
     gt = gt[max_score_idx, :, :]
-    max_score_idx_ag = find_best_view(gt_ag, num_classes)
-    image_ag = image_ag[max_score_idx_ag, :, :]
-    gt_ag = gt_ag[max_score_idx_ag, :, :]
+    image_ag = image_ag[max_score_idx, :, :]
+    gt_ag = gt_ag[max_score_idx, :, :]
 
     col_gt = decode_segmap(image, gt, num_classes)
     col_gt_ag = decode_segmap(image_ag, gt_ag, num_classes)
@@ -66,9 +65,9 @@ def get_args():
     parser = argparse.ArgumentParser(description="Visualization for Augmentation")
     parser.add_argument("--num_classes", type=int, default=5)
     parser.add_argument("--num_workers", type=int, default=4)
-    parser.add_argument("--batch_size", type=int, default=8)
-    parser.add_argument("--gpu", type=str, default='0,1')
-    parser.add_argument("--save_dir", type=str, default='./fig/vis_aug/EL')
+    parser.add_argument("--batch_size", type=int, default=1)
+    parser.add_argument("--gpu", type=str, default='0')
+    parser.add_argument("--save_dir", type=str, default='./fig/vis_aug/AF_EL_Flip')
     return parser
 
 
@@ -94,15 +93,15 @@ if __name__ == '__main__':
     flared_test = FLAREDataSet(root=flared_path, split='test')
     test_loader = DataLoader(dataset=flared_test, batch_size=batch_size, shuffle=False, num_workers=num_workers)
 
-    df = Compose(img_size=image_size, types=['E'],
-                 grid_size=10, mag=6)  # types=['F', 'E', 'A']
+    df = Compose(img_size=image_size, types=['F', 'E', 'A'],
+                 grid_size=10, mag=6)
 
     for i, pack in enumerate(test_loader):
         img = pack[0]
         img = torch.tensor(img).to(device)
         label = pack[1]
         label = torch.tensor(label).to(device)
-        name = pack[2]
+        name = pack[2][0]
 
         img_ag, label_ag = df(img, label)
 
