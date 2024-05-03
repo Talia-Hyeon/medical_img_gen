@@ -8,7 +8,7 @@ from torch.utils import data
 
 sys.path.append('..')
 from util.util import find_best_view
-from test_unet import decode_segmap
+from util.util import decode_segmap
 
 
 class PseudoVis(data.Dataset):
@@ -50,27 +50,19 @@ class PseudoVis(data.Dataset):
         image = image.astype(np.float32)
         label = label.astype(np.float32)
 
-        # m = np.mean(image)
-        # s = np.std(image)
-        # image = ((image - m) / np.sqrt(0.2 * s) + 0.5).clip(0.0, 1.0)
-        # image = (image + 1) / 2.0  # 0-1 float
-        # image = image * 255  # 0-255
-        # image = np.array(image, dtype='u1')  # uint8
-
         self.visualization(image, label, img_iter, img_dir)
 
     def visualization(self, npy_img, npy_label, img_iter, img_dir):
         # remove batch
         npy_img = np.squeeze(npy_img)
         npy_label = np.squeeze(npy_label)
-        print(np.max(npy_img), np.min(npy_img))
 
         # slice into the best view
         max_score_idx = find_best_view(npy_label, self.num_classes)
         img = npy_img[max_score_idx, :, :]
         label = npy_label[max_score_idx, :, :]
 
-        col_label = decode_segmap(img, label, self.num_classes)
+        col_label = decode_segmap(label, self.num_classes)
 
         plt.figure()
         plt.subplot(1, 2, 1)
@@ -84,7 +76,7 @@ class PseudoVis(data.Dataset):
 
 
 if __name__ == '__main__':
-    train_type = 'di_mask'
+    train_type = 'hrhf'
     save_path = f'../fig/gen_img/{train_type}/'
     os.makedirs(save_path, exist_ok=True)
     npy_path = f'../sample/{train_type}'
@@ -92,6 +84,6 @@ if __name__ == '__main__':
 
     pseudo_images = PseudoVis(npy_root=npy_path, png_root=save_path, num_classes=5)
 
-    pseudo_images.save_png(pseudo_images.npy_list[0])
-    # for npy_path in pseudo_images.npy_list:
-    #     pseudo_images.save_png(npy_path)
+    # pseudo_images.save_png(pseudo_images.npy_list[0])
+    for npy_path in pseudo_images.npy_list:
+        pseudo_images.save_png(npy_path)

@@ -44,16 +44,16 @@ class BinaryDataSet(data.Dataset):
 
 
 if __name__ == '__main__':
-    for task_id in range(1, 5):
-        flare = BinaryDataSet(task_id=task_id)
+    # for task_id in range(1, 5):
+    #     flare = BinaryDataSet(task_id=task_id)
 
-    # task_id = 1
-    # save_path = f'../fig/preprocessed_data/one_organ/{str(task_id)}'
-    # os.makedirs(save_path, exist_ok=True)
-    # one_organ = BinaryDataSet(root='../dataset/OneOrgan_Dataset', task_id=task_id)
-    # train_loader = data.DataLoader(dataset=one_organ, batch_size=1)
-    # for train_iter, pack in enumerate(train_loader):
-    #     img_ = pack[0]
-    #     label_ = pack[1]
-    #     name_ = pack[2][0]
-    #     visualization(img_, label_, save_path, name_, 2)
+    task_id = 1
+    save_path = f'../fig/preprocessed_data/one_organ/{str(task_id)}'
+    os.makedirs(save_path, exist_ok=True)
+    one_organ = BinaryDataSet(root='../../MOSInversion/dataset/OneOrgan_Dataset', task_id=task_id)
+    train_loader = data.DataLoader(dataset=one_organ, batch_size=1)
+    for train_iter, pack in enumerate(train_loader):
+        img_ = pack[0]
+        label_ = pack[1]
+        name_ = pack[2][0]
+        visualization(img_, label_, save_path, name_, 2)
