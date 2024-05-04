@@ -24,17 +24,9 @@ from gen_img_class_vector import image_size
 global gen_loss_weight
 gen_loss_weight = {'dice_loss': 1.0, 'loss_bn': 1.0, 'loss_var_l1': 2.5e-5, 'loss_var_l2': 3e-8}
 
-global gen_l1_loss
-gen_l1_loss = list()
-global gen_l2_loss
-gen_l2_loss = list()
-global gen_bn_loss
-gen_bn_loss = list()
-global gen_dice_loss
-gen_dice_loss = list()
 
-
-def gen_img_mask(args, num, lock):
+def gen_img_mask(args, num, gen_l1_loss, gen_l2_loss, gen_bn_loss,
+                 gen_dice_loss, lock):
     # hyper-parameter
     train_type = args.train_type
     batch_size = args.batch_size
@@ -84,7 +76,8 @@ def gen_img_mask(args, num, lock):
         for pid in range(len(device_ids)):
             child = mp.Process(target=gen_img, args=(
                 pid, pretraineds[pid], fake_xs[pid], optimizers[pid], mask[pid].to(device_ids[pid]), name[pid],
-                loss_fns[pid], root_p, logdir, pixels, n_iters, n_imgs, num, lock))
+                loss_fns[pid], root_p, logdir, pixels, n_iters, n_imgs, num, gen_l1_loss, gen_l2_loss, gen_bn_loss,
+                gen_dice_loss, lock))
             children.append(child)
             child.start()
 
@@ -114,7 +107,8 @@ def gen_img_mask(args, num, lock):
 
 
 def gen_img(pid, pretrained, fake_x, optimizer, mask, name, loss_fn,
-            root_p, logdir, pixels, n_iters, n_imgs, num, lock):
+            root_p, logdir, pixels, n_iters, n_imgs, num, gen_l1_loss, gen_l2_loss, gen_bn_loss,
+            gen_dice_loss, lock):
     # make dirs
     root_p = root_p + '/' + name
     os.makedirs(f'{root_p}/img', exist_ok=True)
@@ -196,15 +190,16 @@ def gen_img(pid, pretrained, fake_x, optimizer, mask, name, loss_fn,
     for mod in loss_r_feature_layers:
         mod.close()
 
+    # save image
+    organ_pixels = torch.count_nonzero(torch.argmax(fake_label, dim=1), dim=(0, 1, 2, 3)).item()
+    lock.acquire()
+
     # log
     gen_l1_loss.append(gen_loss_log['L1'])
     gen_l2_loss.append(gen_loss_log['L2'])
     gen_bn_loss.append(gen_loss_log['Batch_Norm'])
     gen_dice_loss.append(gen_loss_log['Dice'])
 
-    # save image
-    organ_pixels = torch.count_nonzero(torch.argmax(fake_label, dim=1), dim=(0, 1, 2, 3)).item()
-    lock.acquire()
     if num.value < n_imgs:
         img_cnt = num.value
         num.value += 1
@@ -254,5 +249,11 @@ if __name__ == '__main__':
 
     mp.set_start_method('spawn')
     num = mp.Value('i', 0)
+    gen_l1_loss = mp.Manager().list()
+    gen_l2_loss = mp.Manager().list()
+    gen_bn_loss = mp.Manager().list()
+    gen_dice_loss = mp.Manager().list()
+
     lock = mp.Lock()
-    gen_img_mask(args, num=num, lock=lock)
+    gen_img_mask(args, num=num, gen_l1_loss=gen_l1_loss, gen_l2_loss=gen_l2_loss, gen_bn_loss=gen_bn_loss,
+                 gen_dice_loss=gen_dice_loss, lock=lock)
