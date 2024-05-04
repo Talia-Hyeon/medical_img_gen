@@ -115,6 +115,7 @@ def gen_img(pid, pretrained, fake_x, optimizer, mask, name, loss_fn,
     root_p = root_p + '/' + name
     os.makedirs(f'{root_p}/img', exist_ok=True)
     os.makedirs(f'{root_p}/mask', exist_ok=True)
+    os.makedirs(f'{root_p}/label', exist_ok=True)
 
     # log
     logdir = logdir + '/' + name
@@ -208,6 +209,7 @@ def gen_img(pid, pretrained, fake_x, optimizer, mask, name, loss_fn,
         lock.release()
         fake_x = fake_x.detach().cpu().numpy()
         fake_label = fake_label.detach().cpu().numpy()
+        mask = mask.detach().cpu().numpy()
         save_nyp_label(img_cnt, fake_x, fake_label, mask, root_p, 'final')
     else:
         lock.release()
