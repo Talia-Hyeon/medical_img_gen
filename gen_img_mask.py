@@ -13,6 +13,7 @@ import torch.nn.functional as F
 import torch.backends.cudnn as cudnn
 from torch.utils.tensorboard import SummaryWriter
 import numpy as np
+import matplotlib.pyplot as plt
 
 from model.deepInversion_3d import DeepInversionFeatureHook, get_image_prior_losses, save_nyp
 from data.flare21_gen import FLARE_Mask
@@ -21,7 +22,16 @@ from util.util import load_model
 from gen_img_class_vector import image_size
 
 global gen_loss_weight
-gen_loss_weight = {'dice_loss': 1e-2, 'loss_bn': 1, 'loss_var_l1': 2.5e-5, 'loss_var_l2': 3e-8}
+gen_loss_weight = {'dice_loss': 1.0, 'loss_bn': 1.0, 'loss_var_l1': 2.5e-5, 'loss_var_l2': 3e-8}
+
+global gen_l1_loss
+gen_l1_loss = list()
+global gen_l2_loss
+gen_l2_loss = list()
+global gen_bn_loss
+gen_bn_loss = list()
+global gen_dice_loss
+gen_dice_loss = list()
 
 
 def gen_img_mask(args, num, lock):
@@ -43,7 +53,7 @@ def gen_img_mask(args, num, lock):
     # make directory
     root_p = f"./sample/{train_type}/"
     # logger
-    logdir = args.log_dir + f'/{args.train_type}'
+    logdir = args.log_dir + f'/{train_type}'
 
     # load the pretrained model
     pretrained = load_model()
@@ -86,6 +96,22 @@ def gen_img_mask(args, num, lock):
         end = timeit.default_timer()
         print(f'generataion end: {(end - start):.3f} s')
 
+    # save loss of generation in figure
+    l1_log = np.array(gen_l1_loss)
+    l1_log = l1_log.mean(axis=0)
+    l2_log = np.array(gen_l2_loss)
+    l2_log = l2_log.mean(axis=0)
+    bn_log = np.array(gen_bn_loss)
+    bn_log = bn_log.mean(axis=0)
+    dice_log = np.array(gen_dice_loss)
+    dice_log = dice_log.mean(axis=0)
+
+    plt.plot(l1_log, 'r', label='L1')
+    plt.plot(l2_log, 'g', label='L2')
+    plt.plot(bn_log, 'b', label='Batch_Norm')
+    plt.plot(dice_log, 'r', label='Dice')
+    plt.savefig('Log of generating images')
+
 
 def gen_img(pid, pretrained, fake_x, optimizer, mask, name, loss_fn,
             root_p, logdir, pixels, n_iters, n_imgs, num, lock):
@@ -97,6 +123,7 @@ def gen_img(pid, pretrained, fake_x, optimizer, mask, name, loss_fn,
     # log
     logdir = logdir + '/' + name
     writer = SummaryWriter(logdir)
+    gen_loss_log = {'L1': [], 'L2': [], 'Batch_Norm': [], 'Dice': []}
 
     # add batch
     mask = torch.unsqueeze(mask, dim=0)
@@ -142,11 +169,21 @@ def gen_img(pid, pretrained, fake_x, optimizer, mask, name, loss_fn,
             save_nyp(img_cnt, fake_x_iter, fake_label_iter, root_p, 'iter' + str(iter_idx))
 
         # log
+        l1_log = loss_var_l1.item() * gen_loss_weight['loss_var_l1']
+        l2_log = loss_var_l2.item() * gen_loss_weight['loss_var_l2']
+        bn_log = loss_bn.item() * gen_loss_weight['loss_bn']
+        dice_log = dice_loss.item() * gen_loss_weight['dice_loss']
+
+        gen_loss_log['L1'].append(l1_log)
+        gen_loss_log['L2'].append(l2_log)
+        gen_loss_log['Batch_Norm'].append(bn_log)
+        gen_loss_log['Dice'].append(dice_log)
+
         loss_report = dict()
-        loss_report['L1'] = loss_var_l1.item() * gen_loss_weight['loss_var_l1']
-        loss_report['L2'] = loss_var_l2.item() * gen_loss_weight['loss_var_l2']
-        loss_report['Batch_Norm'] = loss_bn.item() * gen_loss_weight['loss_bn']
-        loss_report['Dice'] = dice_loss.item() * gen_loss_weight['dice_loss']
+        loss_report['L1'] = l1_log
+        loss_report['L2'] = l2_log
+        loss_report['Batch_Norm'] = bn_log
+        loss_report['Dice'] = dice_log
         writer.add_scalars('Loss', loss_report, iter_idx)
 
         organ_report = dict()
@@ -158,6 +195,12 @@ def gen_img(pid, pretrained, fake_x, optimizer, mask, name, loss_fn,
     # unhook pretrained model
     for mod in loss_r_feature_layers:
         mod.close()
+
+    # log
+    gen_l1_loss.append(gen_loss_log['L1'])
+    gen_l2_loss.append(gen_loss_log['L2'])
+    gen_bn_loss.append(gen_loss_log['Batch_Norm'])
+    gen_dice_loss.append(gen_loss_log['Dice'])
 
     # save image
     organ_pixels = torch.count_nonzero(torch.argmax(fake_label, dim=1), dim=(0, 1, 2, 3)).item()
@@ -177,7 +220,7 @@ def gen_img(pid, pretrained, fake_x, optimizer, mask, name, loss_fn,
 
 def gen_img_args():
     parser = argparse.ArgumentParser(description="image generation")
-    parser.add_argument("--train_type", type=str, default='di_mask')
+    parser.add_argument("--train_type", type=str, default='di_mask dice_loss_1')
     parser.add_argument("--gpu", type=str, default='0,1,2,3,4,5,6,7')
     parser.add_argument("--gen_epochs", type=int, default=2000)
     parser.add_argument("--cnt", type=int, default=0)
