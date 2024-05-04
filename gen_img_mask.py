@@ -101,10 +101,10 @@ def gen_img_mask(args, num, gen_l1_loss, gen_l2_loss, gen_bn_loss, gen_dice_loss
     dice_log = np.array(gen_dice_loss)
     dice_log = dice_log.mean(axis=0)
 
-    plt.plot(l1_log, 'r', label='L1')
-    plt.plot(l2_log, 'g', label='L2')
-    plt.plot(bn_log, 'b', label='Batch_Norm')
-    plt.plot(dice_log, 'r', label='Dice')
+    plt.plot(l1_log, 'y', label='L1', scaley='log')
+    plt.plot(l2_log, 'g', label='L2', scaley='log')
+    plt.plot(bn_log, 'b', label='Batch_Norm', scaley='log')
+    plt.plot(dice_log, 'r', label='Dice', scaley='log')
     plt.savefig(f'{log_loss}/Log of generating images.png')
 
 
