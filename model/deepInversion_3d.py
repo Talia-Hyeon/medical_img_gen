@@ -118,7 +118,7 @@ def save_nyp(cnt, fake_x, fake_label, root, name):
     print(f"img{cnt} is saved.")
 
 
-def save_nyp_label(cnt, fake_x, fake_label, real_label, root, name):
+def save_nyp_mask(cnt, fake_x, fake_label, real_label, root, name):
     # normalization
     fake_x = truncate(fake_x)
 

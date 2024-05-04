@@ -15,7 +15,7 @@ from torch.utils.tensorboard import SummaryWriter
 import numpy as np
 import matplotlib.pyplot as plt
 
-from model.deepInversion_3d import DeepInversionFeatureHook, get_image_prior_losses, save_nyp, save_nyp_label
+from model.deepInversion_3d import DeepInversionFeatureHook, get_image_prior_losses, save_nyp, save_nyp_mask
 from data.flare21_gen import FLARE_Mask
 from loss_functions.score import DiceLoss
 from util.util import load_model
@@ -196,7 +196,7 @@ def gen_img(pid, pretrained, fake_x, optimizer, mask, name, loss_fn,
         fake_x = fake_x.detach().cpu().numpy()
         fake_label = fake_label.detach().cpu().numpy()
         mask = mask.detach().cpu().numpy()
-        save_nyp_label(img_cnt, fake_x, fake_label, mask, root_p, 'final')
+        save_nyp_mask(img_cnt, fake_x, fake_label, mask, root_p, 'final')
     else:
         lock.release()
 
