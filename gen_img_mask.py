@@ -45,7 +45,6 @@ def gen_img_mask(args, num, gen_l1_loss, gen_l2_loss, gen_bn_loss, gen_dice_loss
     # make directory
     root_p = f"./sample/{train_type}/"
     # logger
-    logdir = args.log_dir + f'/{train_type}'
     log_loss = f'./fig/{train_type}/'
     os.makedirs(log_loss, exist_ok=True)
 
@@ -78,7 +77,7 @@ def gen_img_mask(args, num, gen_l1_loss, gen_l2_loss, gen_bn_loss, gen_dice_loss
         for pid in range(len(device_ids)):
             child = mp.Process(target=gen_img, args=(
                 pid, pretraineds[pid], fake_xs[pid], optimizers[pid], mask[pid].to(device_ids[pid]), name[pid],
-                loss_fns[pid], root_p, logdir, pixels, n_iters, n_imgs, num, gen_l1_loss, gen_l2_loss, gen_bn_loss,
+                loss_fns[pid], root_p, pixels, n_iters, n_imgs, num, gen_l1_loss, gen_l2_loss, gen_bn_loss,
                 gen_dice_loss, lock, dice_weight))
             children.append(child)
             child.start()
@@ -109,7 +108,7 @@ def gen_img_mask(args, num, gen_l1_loss, gen_l2_loss, gen_bn_loss, gen_dice_loss
 
 
 def gen_img(pid, pretrained, fake_x, optimizer, mask, name, loss_fn,
-            root_p, logdir, pixels, n_iters, n_imgs, num, gen_l1_loss, gen_l2_loss, gen_bn_loss,
+            root_p, pixels, n_iters, n_imgs, num, gen_l1_loss, gen_l2_loss, gen_bn_loss,
             gen_dice_loss, lock, dice_weight):
     # make dirs
     root_p = root_p + '/' + name
@@ -118,8 +117,6 @@ def gen_img(pid, pretrained, fake_x, optimizer, mask, name, loss_fn,
     os.makedirs(f'{root_p}/label', exist_ok=True)
 
     # log
-    logdir = logdir + '/' + name
-    writer = SummaryWriter(logdir)
     gen_loss_log = {'L1': [], 'L2': [], 'Batch_Norm': [], 'Dice': []}
 
     # add batch
@@ -176,19 +173,6 @@ def gen_img(pid, pretrained, fake_x, optimizer, mask, name, loss_fn,
         gen_loss_log['Batch_Norm'].append(bn_log)
         gen_loss_log['Dice'].append(dice_log)
 
-        loss_report = dict()
-        loss_report['L1'] = l1_log
-        loss_report['L2'] = l2_log
-        loss_report['Batch_Norm'] = bn_log
-        loss_report['Dice'] = dice_log
-        writer.add_scalars('Loss', loss_report, iter_idx)
-
-        organ_report = dict()
-        organ_pixels = torch.count_nonzero(torch.argmax(fake_label, dim=1), dim=(0, 1, 2, 3)).item()
-        ratio_organ = (organ_pixels / pixels) * 100
-        organ_report['Ratio of Organ'] = ratio_organ
-        writer.add_scalars('Ratio of Organ', organ_report, iter_idx)
-
     # unhook pretrained model
     for mod in loss_r_feature_layers:
         mod.close()
@@ -220,15 +204,14 @@ def gen_img(pid, pretrained, fake_x, optimizer, mask, name, loss_fn,
 def gen_img_args():
     parser = argparse.ArgumentParser(description="image generation")
     parser.add_argument("--train_type", type=str, default='di_mask dice_loss_1')
-    parser.add_argument("--gpu", type=str, default='0,1,2,3,4,5,6,7')
-    parser.add_argument("--gen_epochs", type=int, default=2000)
+    parser.add_argument("--gpu", type=str, default='4,5')
+    parser.add_argument("--gen_epochs", type=int, default=4)
     parser.add_argument("--cnt", type=int, default=0)
-    parser.add_argument("--num_imgs", type=int, default=20)
+    parser.add_argument("--num_imgs", type=int, default=6)
     parser.add_argument("--batch_size", type=int, default=8)
     parser.add_argument("--num_classes", type=int, default=5)
     parser.add_argument("--num_workers", type=int, default=8)
     parser.add_argument("--dice", type=float, default=1.0)
-    parser.add_argument("--log_dir", type=str, default='./log_img')
     parser.add_argument("--random_seed", type=int, default=1234)
     return parser
 
