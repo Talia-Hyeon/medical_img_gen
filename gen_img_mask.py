@@ -25,8 +25,7 @@ global gen_loss_weight
 gen_loss_weight = {'dice_loss': 1.0, 'loss_bn': 1.0, 'loss_var_l1': 2.5e-5, 'loss_var_l2': 3e-8}
 
 
-def gen_img_mask(args, num, gen_l1_loss, gen_l2_loss, gen_bn_loss,
-                 gen_dice_loss, lock):
+def gen_img_mask(args, num, gen_l1_loss, gen_l2_loss, gen_bn_loss, gen_dice_loss, lock):
     # hyper-parameter
     train_type = args.train_type
     batch_size = args.batch_size
@@ -47,6 +46,8 @@ def gen_img_mask(args, num, gen_l1_loss, gen_l2_loss, gen_bn_loss,
     root_p = f"./sample/{train_type}/"
     # logger
     logdir = args.log_dir + f'/{train_type}'
+    log_loss = f'./fig/{train_type}/'
+    os.makedirs(log_loss, exist_ok=True)
 
     # load the pretrained model
     pretrained = load_model()
@@ -104,7 +105,7 @@ def gen_img_mask(args, num, gen_l1_loss, gen_l2_loss, gen_bn_loss,
     plt.plot(l2_log, 'g', label='L2')
     plt.plot(bn_log, 'b', label='Batch_Norm')
     plt.plot(dice_log, 'r', label='Dice')
-    plt.savefig('Log of generating images')
+    plt.savefig(f'{log_loss}/Log of generating images.png')
 
 
 def gen_img(pid, pretrained, fake_x, optimizer, mask, name, loss_fn,
