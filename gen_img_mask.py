@@ -15,7 +15,7 @@ from torch.utils.tensorboard import SummaryWriter
 import numpy as np
 import matplotlib.pyplot as plt
 
-from model.deepInversion_3d import DeepInversionFeatureHook, get_image_prior_losses, save_nyp
+from model.deepInversion_3d import DeepInversionFeatureHook, get_image_prior_losses, save_nyp, save_nyp_label
 from data.flare21_gen import FLARE_Mask
 from loss_functions.score import DiceLoss
 from util.util import load_model
@@ -36,6 +36,7 @@ def gen_img_mask(args, num, gen_l1_loss, gen_l2_loss, gen_bn_loss,
     cnt = args.cnt
     num.value = cnt
     n_imgs = args.num_imgs
+    dice_weight = args.dice
 
     device_ids = [i for i in range(torch.cuda.device_count())]
     pixels = image_size[0] * image_size[1] * image_size[2]
@@ -77,7 +78,7 @@ def gen_img_mask(args, num, gen_l1_loss, gen_l2_loss, gen_bn_loss,
             child = mp.Process(target=gen_img, args=(
                 pid, pretraineds[pid], fake_xs[pid], optimizers[pid], mask[pid].to(device_ids[pid]), name[pid],
                 loss_fns[pid], root_p, logdir, pixels, n_iters, n_imgs, num, gen_l1_loss, gen_l2_loss, gen_bn_loss,
-                gen_dice_loss, lock))
+                gen_dice_loss, lock, dice_weight))
             children.append(child)
             child.start()
 
@@ -108,7 +109,7 @@ def gen_img_mask(args, num, gen_l1_loss, gen_l2_loss, gen_bn_loss,
 
 def gen_img(pid, pretrained, fake_x, optimizer, mask, name, loss_fn,
             root_p, logdir, pixels, n_iters, n_imgs, num, gen_l1_loss, gen_l2_loss, gen_bn_loss,
-            gen_dice_loss, lock):
+            gen_dice_loss, lock, dice_weight):
     # make dirs
     root_p = root_p + '/' + name
     os.makedirs(f'{root_p}/img', exist_ok=True)
@@ -143,7 +144,7 @@ def gen_img(pid, pretrained, fake_x, optimizer, mask, name, loss_fn,
         # dice loss
         dice_loss = loss_fn(output, mask)
         # total loss
-        loss = dice_loss * gen_loss_weight['dice_loss'] + loss_bn * gen_loss_weight['loss_bn'] + loss_var_l1 * \
+        loss = dice_loss * dice_weight + loss_bn * gen_loss_weight['loss_bn'] + loss_var_l1 * \
                gen_loss_weight['loss_var_l1'] + loss_var_l2 * gen_loss_weight['loss_var_l2']
 
         pretrained.zero_grad()
@@ -166,7 +167,7 @@ def gen_img(pid, pretrained, fake_x, optimizer, mask, name, loss_fn,
         l1_log = loss_var_l1.item() * gen_loss_weight['loss_var_l1']
         l2_log = loss_var_l2.item() * gen_loss_weight['loss_var_l2']
         bn_log = loss_bn.item() * gen_loss_weight['loss_bn']
-        dice_log = dice_loss.item() * gen_loss_weight['dice_loss']
+        dice_log = dice_loss.item() * dice_weight
 
         gen_loss_log['L1'].append(l1_log)
         gen_loss_log['L2'].append(l2_log)
@@ -206,7 +207,7 @@ def gen_img(pid, pretrained, fake_x, optimizer, mask, name, loss_fn,
         lock.release()
         fake_x = fake_x.detach().cpu().numpy()
         fake_label = fake_label.detach().cpu().numpy()
-        save_nyp(img_cnt, fake_x, fake_label, root_p, 'final')
+        save_nyp_label(img_cnt, fake_x, fake_label, mask, root_p, 'final')
     else:
         lock.release()
 
@@ -223,6 +224,7 @@ def gen_img_args():
     parser.add_argument("--batch_size", type=int, default=8)
     parser.add_argument("--num_classes", type=int, default=5)
     parser.add_argument("--num_workers", type=int, default=8)
+    parser.add_argument("--dice", type=float, default=1.0)
     parser.add_argument("--log_dir", type=str, default='./log_img')
     parser.add_argument("--random_seed", type=int, default=1234)
     return parser
