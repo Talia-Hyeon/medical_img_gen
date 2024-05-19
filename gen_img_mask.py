@@ -117,6 +117,8 @@ def gen_img(pid, pretrained, fake_x, optimizer, mask, name, loss_fn,
     os.makedirs(f'{root_p}/img', exist_ok=True)
     os.makedirs(f'{root_p}/mask', exist_ok=True)
     os.makedirs(f'{root_p}/label', exist_ok=True)
+    os.makedirs(f'{root_p}/log', exist_ok=True)
+
 
     # log
     gen_loss_log = {'L1': [], 'L2': [], 'Batch_Norm': [], 'Dice': []}
@@ -188,6 +190,16 @@ def gen_img(pid, pretrained, fake_x, optimizer, mask, name, loss_fn,
     gen_l2_loss.append(gen_loss_log['L2'])
     gen_bn_loss.append(gen_loss_log['Batch_Norm'])
     gen_dice_loss.append(gen_loss_log['Dice'])
+
+    gen_log_l1 = np.array(gen_loss_log['L1'])
+    gen_log_l2 = np.array(gen_loss_log['L2'])
+    gen_log_bn = np.array(gen_loss_log['Batch_Norm'])
+    gen_log_dice = np.array(gen_loss_log['Dice'])
+
+    np.save(f'{root_p}/log/l1.npy', gen_log_l1)
+    np.save(f'{root_p}/log/l2.npy', gen_log_l2)
+    np.save(f'{root_p}/log/bn.npy', gen_log_bn)
+    np.save(f'{root_p}/log/dice.npy', gen_log_dice)
 
     if num.value < n_imgs:
         img_cnt = num.value
