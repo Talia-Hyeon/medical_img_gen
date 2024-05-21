@@ -62,8 +62,9 @@ def make_plot(root):
     plt.plot(l2_log, 'g', label='L2')
     plt.plot(bn_log, 'b', label='Batch_Norm')
     plt.plot(dice_log, 'r', label='Dice')
-    plt.legend()
+    plt.legend(loc='upper right')
     plt.yscale('log')
+    plt.ylim(0, 10)
     plt.savefig(f'{root}/Log of generating images.png')
 
 
