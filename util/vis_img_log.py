@@ -71,14 +71,14 @@ def make_plot(root):
 def dice_plot(root):
     dice_list = os.listdir(root)
     for i in dice_list:
-        dice_list[i] = osp.join(root, dice_list[i])
+        path = osp.join(root, dice_list[i])
 
         if dice_list[i].find('1e-2') != -1:
-            dice_em2 = np.load(dice_list[i])
+            dice_em2 = np.load(path)
         elif dice_list[i].find('10') != -1:
-            dice_10 = np.load(dice_list[i])
+            dice_10 = np.load(path)
         else:
-            dice_1 = np.load(dice_list[i])
+            dice_1 = np.load(path)
 
     plt.plot(dice_em2, 'g', label='1e-2')
     plt.plot(dice_1, 'b', label='1.0')
