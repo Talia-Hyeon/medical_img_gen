@@ -68,6 +68,6 @@ def make_plot(root):
 
 
 if __name__ == '__main__':
-    log_root = '../log_img/di_mask dice 1/1'
+    log_root = '../log_img/di_mask dice 1'
     make_tot_log_npy(log_root)
     make_plot(f'{log_root}/mean')

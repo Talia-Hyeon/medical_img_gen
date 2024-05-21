@@ -36,6 +36,7 @@ class PseudoVis(data.Dataset):
         return npy_list
 
     def save_png(self, npy_img_path):
+        npy_img_path = osp.join(self.npy_root, npy_img_path)
         npy_label_path = npy_img_path.replace('img', 'mask')
         # img_dirname = osp.dirname(npy_img_path)
         # target_dirname = img_dirname.replace('img', 'label')
@@ -49,8 +50,7 @@ class PseudoVis(data.Dataset):
         # img_dir = osp.join(self.png_root, img_name)
         # os.makedirs(img_dir, exist_ok=True)
 
-        img_name, ext = osp.splitext(npy_img_path)
-        img_dir = osp.basename(npy_img_path)
+        img_name = osp.basename(npy_img_path)[:-5]
 
         # load numpy array
         image = np.load(npy_img_path)
@@ -61,9 +61,9 @@ class PseudoVis(data.Dataset):
         label = label.astype(np.float32)
         target = target.astype(np.float32)
 
-        self.visualization(image, label, target, img_dir, img_name)  # img_iter
+        self.visualization(image, label, target, img_name)  # img_iter, img_dir
 
-    def visualization(self, npy_img, npy_label, npy_target, img_dir, img_name):  # img_iter
+    def visualization(self, npy_img, npy_label, npy_target, img_name):  # img_iter, img_dir
         # remove batch
         npy_img = np.squeeze(npy_img)
         npy_label = np.squeeze(npy_label)
@@ -88,15 +88,15 @@ class PseudoVis(data.Dataset):
         plt.subplot(1, 3, 3)
         plt.imshow(col_target)
         plt.title('Real GT')
-        plt.savefig(f'{img_dir}/{img_name}.png')
+        plt.savefig(f'{self.png_root}/{img_name}.png')
         plt.close()
 
 
 if __name__ == '__main__':
-    train_type = 'hrhf'
+    train_type = 'di_mask dice 1'
     save_path = f'../fig/gen_img/{train_type}/'
     os.makedirs(save_path, exist_ok=True)
-    npy_path = f'../sample/{train_type}'
+    npy_path = f'../sample/{train_type}/img'
     os.makedirs(npy_path, exist_ok=True)
 
     pseudo_images = PseudoVis(npy_root=npy_path, png_root=save_path, num_classes=5)
