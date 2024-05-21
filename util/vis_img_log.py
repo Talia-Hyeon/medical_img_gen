@@ -70,7 +70,7 @@ def make_plot(root):
 
 def dice_plot(root):
     dice_list = os.listdir(root)
-    for i in len(dice_list):
+    for i in range(len(dice_list)):
         path = osp.join(root, dice_list[i])
 
         if dice_list[i].find('1e-2') != -1:
