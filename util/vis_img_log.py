@@ -68,7 +68,31 @@ def make_plot(root):
     plt.savefig(f'{root}/Log of generating images.png')
 
 
+def dice_plot(root):
+    dice_list = os.listdir(root)
+    for i in dice_list:
+        dice_list[i] = osp.join(root, dice_list[i])
+
+        if dice_list[i].find('1e-2') != -1:
+            dice_em2 = np.load(dice_list[i])
+        elif dice_list[i].find('10') != -1:
+            dice_10 = np.load(dice_list[i])
+        else:
+            dice_1 = np.load(dice_list[i])
+
+    plt.plot(dice_em2, 'g', label='1e-2')
+    plt.plot(dice_1, 'b', label='1.0')
+    plt.plot(dice_10, 'r', label='10.0')
+    plt.legend(loc='upper right')
+    plt.yscale('log')
+    plt.ylim(0, 10)
+    plt.savefig(f'{root}/Log of dice.png')
+
+
 if __name__ == '__main__':
-    log_root = '../log_img/di_mask dice 1'
-    make_tot_log_npy(log_root)
-    make_plot(f'{log_root}/mean')
+    # log_root = '../log_img/di_mask dice 1'
+    # make_tot_log_npy(log_root)
+    # make_plot(f'{log_root}/mean')
+
+    root = '../log_img/dice'
+    dice_plot(root)
