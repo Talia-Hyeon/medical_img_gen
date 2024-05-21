@@ -123,13 +123,13 @@ def save_nyp_mask(cnt, fake_x, fake_label, real_label, root, name):
     fake_x = truncate(fake_x)
 
     # add channel & probability to binary
-    fake_label = np.argmax(fake_label, axis=1)[np.newaxis, :]
-    real_label = np.argmax(real_label, axis=1)[np.newaxis, :]
+    fake_label = np.argmax(fake_label, axis=0)[np.newaxis, :]
+    real_label = np.argmax(real_label, axis=0)[np.newaxis, :]
 
     # save
-    save_img_path = osp.join(root, 'img', name + '.npy')
-    save_label_path = osp.join(root, 'mask', name + '.npy')
-    save_real_label_path = osp.join(root, 'label', name + '.npy')
+    save_img_path = osp.join(root, 'img', name + '_' + str(cnt) + '.npy')
+    save_label_path = osp.join(root, 'mask', name + '_' + str(cnt) + '.npy')
+    save_real_label_path = osp.join(root, 'label', name + '_' + str(cnt) + '.npy')
 
     np.save(save_img_path, fake_x)
     np.save(save_label_path, fake_label)
