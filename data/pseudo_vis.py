@@ -17,7 +17,8 @@ class PseudoVis(data.Dataset):
         self.png_root = png_root
         self.num_classes = num_classes
 
-        self.npy_list = self.make_npy_list()
+        # self.npy_list = self.make_npy_list()
+        self.npy_list = os.listdir(self.npy_root)
 
     def __len__(self):
         return len(self.files)
@@ -36,15 +37,20 @@ class PseudoVis(data.Dataset):
 
     def save_png(self, npy_img_path):
         npy_label_path = npy_img_path.replace('img', 'mask')
-        img_dirname = osp.dirname(npy_img_path)
-        target_dirname = img_dirname.replace('img', 'label')
-        npy_target_path = osp.join(target_dirname, 'final.npy')
+        # img_dirname = osp.dirname(npy_img_path)
+        # target_dirname = img_dirname.replace('img', 'label')
+        # npy_target_path = osp.join(target_dirname, 'final.npy')
 
-        img_path_split = npy_img_path.split(os.sep)
-        img_iter = img_path_split[-1]
-        img_name = img_path_split[-3]
-        img_dir = osp.join(self.png_root, img_name)
-        os.makedirs(img_dir, exist_ok=True)
+        npy_target_path = npy_img_path.replace('img', 'label')
+
+        # img_path_split = npy_img_path.split(os.sep)
+        # img_iter = img_path_split[-1]
+        # img_name = img_path_split[-3]
+        # img_dir = osp.join(self.png_root, img_name)
+        # os.makedirs(img_dir, exist_ok=True)
+
+        img_name, ext = osp.splitext(npy_img_path)
+        img_dir = osp.basename(npy_img_path)
 
         # load numpy array
         image = np.load(npy_img_path)
@@ -55,9 +61,9 @@ class PseudoVis(data.Dataset):
         label = label.astype(np.float32)
         target = target.astype(np.float32)
 
-        self.visualization(image, label, target, img_iter, img_dir)
+        self.visualization(image, label, target, img_dir, img_name)  # img_iter
 
-    def visualization(self, npy_img, npy_label, npy_target, img_iter, img_dir):
+    def visualization(self, npy_img, npy_label, npy_target, img_dir, img_name):  # img_iter
         # remove batch
         npy_img = np.squeeze(npy_img)
         npy_label = np.squeeze(npy_label)
@@ -82,7 +88,7 @@ class PseudoVis(data.Dataset):
         plt.subplot(1, 3, 3)
         plt.imshow(col_target)
         plt.title('Real GT')
-        plt.savefig(f'{img_dir}/{img_iter}.png')
+        plt.savefig(f'{img_dir}/{img_name}.png')
         plt.close()
 
 
