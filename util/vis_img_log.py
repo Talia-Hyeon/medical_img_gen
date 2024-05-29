@@ -75,10 +75,8 @@ def dice_plot(root):
 
         if dice_list[i].find('1e-2') != -1:
             dice_em2 = np.load(path)
-            dice_em2 = dice_em2 * 100.0
         elif dice_list[i].find('10') != -1:
             dice_10 = np.load(path)
-            dice_10 = dice_10 * 0.1
         else:
             dice_1 = np.load(path)
 
@@ -88,7 +86,7 @@ def dice_plot(root):
     plt.legend(loc='upper right')
     plt.yscale('log')
     plt.ylim(0, 10)
-    plt.savefig(f'{root}/Log of dice.png')
+    plt.savefig(f'{root}/Log of l1.png')
 
 
 if __name__ == '__main__':
