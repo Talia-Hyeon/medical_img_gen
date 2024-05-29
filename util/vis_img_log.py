@@ -75,14 +75,16 @@ def dice_plot(root):
 
         if dice_list[i].find('1e-2') != -1:
             dice_em2 = np.load(path)
+            dice_em2 = dice_em2 * 100.0
         elif dice_list[i].find('10') != -1:
             dice_10 = np.load(path)
+            dice_10 = dice_10 * 0.1
         else:
             dice_1 = np.load(path)
 
-    plt.plot(dice_em2, 'g', label='1e-2')
-    plt.plot(dice_1, 'b', label='1.0')
-    plt.plot(dice_10, 'r', label='10.0')
+    plt.plot(dice_em2, 'g', label='Weight of Dice Loss: 1e-2')
+    plt.plot(dice_1, 'b', label='Weight of Dice Loss: 1.0')
+    plt.plot(dice_10, 'r', label='Weight of Dice Loss: 10.0')
     plt.legend(loc='upper right')
     plt.yscale('log')
     plt.ylim(0, 10)
