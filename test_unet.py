@@ -82,8 +82,8 @@ def evaluate(model, test_data_loader, num_class, device, train_type):
     path = f'./fig/prediction_map/{train_type}'
     os.makedirs(path, exist_ok=True)
 
-    metric = ArgmaxDiceScore(num_classes=num_class)
-    dice_list = []
+    dice_fn = ArgmaxDiceScore(num_classes=num_class)
+    dice_list = list()
 
     with torch.no_grad():
         model.eval()
@@ -96,29 +96,89 @@ def evaluate(model, test_data_loader, num_class, device, train_type):
             label = label.to(device)
             pred = model(img)
 
-            iter_dice = metric(pred, label)
+            iter_dice = dice_fn(pred, label)
             dice_list.append(iter_dice)
 
             visualization(img, label, pred, name, path, num_class)
 
     total_dice = torch.cat(dice_list, dim=0)
-    dice_score = torch.mean(total_dice, dim=0)
-    return dice_score
+    mean_dice_score = torch.mean(total_dice, dim=0)
+
+    # std
+    std_list = list()
+    for i in range(num_class - 1):
+        organ_dice = total_dice[:, i]
+        organ_std = torch.std(organ_dice)
+        std_list.append(organ_std.item())
+
+    return mean_dice_score, std_list, total_dice
 
 
-def print_dice(dice_score):
+def additional_evaluate(model, test_data_loader, num_class, device, train_type):
+    path = f'./fig/prediction_map/{train_type}'
+    os.makedirs(path, exist_ok=True)
+
+    spec_fn = ArgmaxScore(mode='specificity', num_classes=num_class)
+    spec_list = list()
+
+    sens_fn = ArgmaxScore(mode='sensitivity', num_classes=num_class)
+    sens_list = list()
+
+    with torch.no_grad():
+        model.eval()
+        for valid_iter, pack in enumerate(test_data_loader):
+            img = pack[0]
+            label = pack[1]
+
+            img = img.to(device)
+            label = label.to(device)
+            pred = model(img)
+
+            iter_spec = spec_fn(pred, label)
+            spec_list.append(iter_spec)
+
+            iter_sens = sens_fn(pred, label)
+            sens_list.append(iter_sens)
+
+    total_spec = torch.cat(spec_list, dim=0)
+    mean_spec_score = torch.mean(total_spec, dim=0)
+
+    total_sens = torch.cat(sens_list, dim=0)
+    mean_sens_score = torch.mean(total_sens, dim=0)
+
+    # std
+    spec_std_list = list()
+    for i in range(num_class - 1):
+        organ_spec = total_spec[:, i]
+        organ_std = torch.std(organ_spec)
+        spec_std_list.append(organ_std.item())
+
+    sens_std_list = list()
+    for i in range(num_class - 1):
+        organ_sens = total_sens[:, i]
+        organ_std = torch.std(organ_sens)
+        sens_std_list.append(organ_std.item())
+
+    return mean_spec_score, spec_std_list, total_spec, mean_sens_score, sens_std_list, total_sens
+
+
+def print_metric(score, std, total_score, type, num_classes):
+    # mean, std of each organ
     label_dict = {}
-    for idx, organ in enumerate(index_organs[1:]):
+    for idx, organ in enumerate(index_organs[1:num_classes]):
         label_dict[idx] = organ
-    dice_dict = {}
+    score_dict = {}
     for i in range(len(label_dict)):
         organ = label_dict[i]
-        dice_dict[organ] = dice_score[i].item()
+        score_dict[organ] = [round(score[i].item() * 100, 2), round(std[i] * 100, 2)]
+    print(score_dict)
 
-    print(dice_dict)
-    avg_dice = torch.mean(dice_score).item()
-    print('Average_Dice_Score: {}'.format(avg_dice))
-    return dice_dict
+    # average
+    avg_score = torch.mean(score).item()
+    total_score.view(-1)
+    all_std = torch.std(total_score)
+    print('Average_{}_Score: {:.2f} ({:.2f})'.format(type, avg_score * 100, all_std * 100))
+    return score_dict
 
 
 def get_args():
@@ -158,5 +218,11 @@ if __name__ == '__main__':
     model = nn.DataParallel(model).to(device)
 
     # evaluation
-    dice = evaluate(model, test_loader, n_classes, device=device, train_type=train_type)
-    print_dice(dice)
+    dice, std, total_dice = evaluate(model, test_loader, n_classes, device=device, train_type=train_type)
+    print_metric(dice, std, total_dice, 'Dice', n_classes)
+    specificity, spec_std, total_spec, sensitivity, sens_std, total_sens = additional_evaluate(model, test_loader,
+                                                                                               n_classes, device=device,
+                                                                                               train_type=train_type)
+    print_metric(specificity, spec_std, total_spec, 'Specificity', n_classes)
+    print_metric(sensitivity, sens_std, total_sens, 'Sensitivity', n_classes)
+

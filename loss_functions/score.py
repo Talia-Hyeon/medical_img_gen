@@ -38,6 +38,60 @@ class averageMeter(object):
         self.avg = self.sum / self.count
 
 
+class sensitivity(nn.Module):
+    # 민감도
+    def __init__(self, smooth=1e-5):
+        super(sensitivity, self).__init__()
+        self.smooth = smooth
+
+    def forward(self, predict, gt):
+        TP = torch.sum(predict * gt)
+        FN = torch.sum((1 - predict) * gt)
+
+        sensitivity = TP / (TP + FN + self.smooth)
+        return sensitivity
+
+
+class specificity(nn.Module):
+    # 특이도
+    def __init__(self, smooth=1e-5):
+        super(specificity, self).__init__()
+        self.smooth = smooth
+
+    def forward(self, predict, gt):
+        TN = torch.sum((1 - predict) * (1 - gt))
+        FP = torch.sum(predict * (1 - gt))
+
+        specificity = TN / (TN + FP + self.smooth)
+        return specificity
+
+
+class ArgmaxScore(nn.Module):
+    def __init__(self, mode='sensitivity', num_classes=5):
+        super(ArgmaxScore, self).__init__()
+        self.num_classes = num_classes
+        if mode == 'sensitivity':
+            self.criterion = sensitivity()
+        elif mode == 'specificity':
+            self.criterion = specificity()
+
+    def forward(self, predict, target):
+        predict = F.softmax(predict, dim=1)
+
+        all_score = []
+        # one channel & multi-class
+        predict = torch.argmax(predict, dim=1, keepdim=True)  # (B, 1, H, W, D)
+        # mutil-channel & binary class
+        predict = extend_channel_classes(predict, num_classes=self.num_classes)  # (B, num_classes, H, W, D)
+        for i in range(1, self.num_classes):  # 1: evaluate score from organs(liver)
+            score = self.criterion(predict[:, i], target[:, i]).view(1, 1)  # (1)
+            all_score.append(score)  # append each organ
+
+        total_score = torch.cat(all_score, dim=1)  # (B, num_classes-1)
+        return total_score
+
+
+
 class BinaryDiceScore(nn.Module):
     def __init__(self, smooth=1e-5):
         super(BinaryDiceScore, self).__init__()
