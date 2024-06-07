@@ -68,6 +68,15 @@ def make_plot(root):
     plt.savefig(f'{root}/Log of generating images.png')
 
 
+def save_tot_loss(root):
+    l1_log = np.load(f'{root}/l1.npy')
+    l2_log = np.load(f'{root}/l2.npy')
+    bn_log = np.load(f'{root}/bn.npy')
+    dice_log = np.load(f'{root}/dice.npy')
+    tot_log = l1_log + l2_log + bn_log + dice_log * 10.0
+    np.save(f'{root}/tot.npy', tot_log)
+
+
 def dice_plot(root):
     dice_list = os.listdir(root)
     for i in range(len(dice_list)):
@@ -84,9 +93,10 @@ def dice_plot(root):
     plt.plot(dice_1, 'b', label='Weight of Dice Loss: 1.0')
     plt.plot(dice_10, 'r', label='Weight of Dice Loss: 10.0')
     plt.legend(loc='upper right')
-    plt.yscale('log')
-    plt.ylim(0, 10)
-    plt.savefig(f'{root}/Log of l1.png')
+    # plt.yscale('log')
+    plt.ylim(0, 0.6)
+    plt.grid(True)
+    plt.savefig(f'{root}/Log of bn.png')
 
 
 if __name__ == '__main__':
@@ -94,5 +104,6 @@ if __name__ == '__main__':
     # make_tot_log_npy(log_root)
     # make_plot(f'{log_root}/mean')
 
-    root = '../log_img/dice'
+    # save_tot_loss('../log_img/di_mask dice 1e-2')
+    root = '../log_img/bn'
     dice_plot(root)
