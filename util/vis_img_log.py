@@ -59,7 +59,7 @@ def save_tot_loss(root, weight):
     l2_log = np.load(f'{root}/l2/{weight}.npy')
     bn_log = np.load(f'{root}/bn/{weight}.npy')
     dice_log = np.load(f'{root}/dice/{weight}.npy')
-    tot_log = l1_log + l2_log + bn_log + dice_log * 10.0
+    tot_log = l1_log + l2_log + bn_log + dice_log
     np.save(f'{root}/tot/{weight}.npy', tot_log)
 
 
@@ -72,6 +72,8 @@ def loss_plot(root, loss_type):
             weight_em2 = np.load(path)
         elif i.find('10') != -1:
             weight_10 = np.load(path)
+            if loss_type == 'dice':
+                weight_10=weight_10 / 10.0
         else:
             weight_1 = np.load(path)
 
