@@ -4,6 +4,7 @@ import sys
 
 import numpy as np
 import matplotlib.pyplot as plt
+import pandas as pd
 
 sys.path.append('..')
 
@@ -73,7 +74,7 @@ def loss_plot(root, loss_type):
         elif i.find('10') != -1:
             weight_10 = np.load(path)
             if loss_type == 'dice':
-                weight_10=weight_10 / 10.0
+                weight_10 = weight_10 / 10.0
         else:
             weight_1 = np.load(path)
 
@@ -88,20 +89,38 @@ def loss_plot(root, loss_type):
     plt.close()
 
 
+def numpy2csv(root, loss_type):
+    loss_path = osp.join(root, loss_type)
+    weight3_list = os.listdir(loss_path)
+    # load loss and save in list
+    loss_list = [np.load(osp.join(loss_path, file)) for file in weight3_list]
+
+    # check shape
+    if not all(loss.shape == loss_list[0].shape for loss in loss_list):
+        raise ValueError("all weights must have same shape.")
+
+    # add first row
+    data = {os.path.splitext(file)[0]: loss.flatten() for file, loss in zip(weight3_list, loss_list)}
+
+    df = pd.DataFrame(data)
+    df.to_csv(f'{root}/{loss_type}.csv', index=False)
+
+
 if __name__ == '__main__':
     root_list = ['1e-2', '1', '10']
     root_dir = '../log_img'
 
-    os.makedirs(f'{root_dir}/l1', exist_ok=True)
-    os.makedirs(f'{root_dir}/l2', exist_ok=True)
-    os.makedirs(f'{root_dir}/bn', exist_ok=True)
-    os.makedirs(f'{root_dir}/dice', exist_ok=True)
-    os.makedirs(f'{root_dir}/tot', exist_ok=True)
-
-    for weight in root_list:
-        make_tot_log_npy(root_dir, weight)
-        save_tot_loss(root_dir, weight)
+    # os.makedirs(f'{root_dir}/l1', exist_ok=True)
+    # os.makedirs(f'{root_dir}/l2', exist_ok=True)
+    # os.makedirs(f'{root_dir}/bn', exist_ok=True)
+    # os.makedirs(f'{root_dir}/dice', exist_ok=True)
+    # os.makedirs(f'{root_dir}/tot', exist_ok=True)
+    #
+    # for weight in root_list:
+    #     make_tot_log_npy(root_dir, weight)
+    #     save_tot_loss(root_dir, weight)
 
     loss_list = ['l1', 'l2', 'bn', 'dice', 'tot']
     for loss_type in loss_list:
-        loss_plot(root_dir, loss_type)
+        # loss_plot(root_dir, loss_type)
+        numpy2csv(root_dir, loss_type)
