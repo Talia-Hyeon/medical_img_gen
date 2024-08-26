@@ -52,6 +52,8 @@ def make_tot_log_npy(root_dir, weight):
     dice_mean = dice_log.mean(axis=0)
     if weight == '1e-2':
         dice_mean = dice_mean * 100.0
+    elif weight == '10':
+        dice_mean = dice_mean / 10.0
     np.save(f'{root_dir}/dice/{weight}.npy', dice_mean)
 
 
@@ -60,6 +62,8 @@ def save_tot_loss(root, weight):
     l2_log = np.load(f'{root}/l2/{weight}.npy')
     bn_log = np.load(f'{root}/bn/{weight}.npy')
     dice_log = np.load(f'{root}/dice/{weight}.npy')
+    if weight == '10':
+        dice_log = dice_log * 10.0
     tot_log = l1_log + l2_log + bn_log + dice_log
     np.save(f'{root}/tot/{weight}.npy', tot_log)
 
@@ -73,8 +77,6 @@ def loss_plot(root, loss_type):
             weight_em2 = np.load(path)
         elif i.find('10') != -1:
             weight_10 = np.load(path)
-            if loss_type == 'dice':
-                weight_10 = weight_10 / 10.0
         else:
             weight_1 = np.load(path)
 
@@ -110,17 +112,17 @@ if __name__ == '__main__':
     root_list = ['1e-2', '1', '10']
     root_dir = '../log_img'
 
-    # os.makedirs(f'{root_dir}/l1', exist_ok=True)
-    # os.makedirs(f'{root_dir}/l2', exist_ok=True)
-    # os.makedirs(f'{root_dir}/bn', exist_ok=True)
-    # os.makedirs(f'{root_dir}/dice', exist_ok=True)
-    # os.makedirs(f'{root_dir}/tot', exist_ok=True)
-    #
-    # for weight in root_list:
-    #     make_tot_log_npy(root_dir, weight)
-    #     save_tot_loss(root_dir, weight)
+    os.makedirs(f'{root_dir}/l1', exist_ok=True)
+    os.makedirs(f'{root_dir}/l2', exist_ok=True)
+    os.makedirs(f'{root_dir}/bn', exist_ok=True)
+    os.makedirs(f'{root_dir}/dice', exist_ok=True)
+    os.makedirs(f'{root_dir}/tot', exist_ok=True)
+
+    for weight in root_list:
+        make_tot_log_npy(root_dir, weight)
+        save_tot_loss(root_dir, weight)
 
     loss_list = ['l1', 'l2', 'bn', 'dice', 'tot']
     for loss_type in loss_list:
-        # loss_plot(root_dir, loss_type)
+        loss_plot(root_dir, loss_type)
         numpy2csv(root_dir, loss_type)
