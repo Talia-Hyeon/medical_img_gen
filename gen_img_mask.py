@@ -135,8 +135,6 @@ def gen_img(pid, pretrained, fake_x, optimizer, mask, name, loss_fn,
         bn_log = loss_bn.item() * 1
         dice_log = dice_loss.item() * dice_weight
 
-
-
         # gen_loss_log['L1'].append(l1_log)
         # gen_loss_log['L2'].append(l2_log)
         # gen_loss_log['Batch_Norm'].append(bn_log)
@@ -152,8 +150,7 @@ def gen_img(pid, pretrained, fake_x, optimizer, mask, name, loss_fn,
                 img_cnt = num.value + pid
                 fake_x_iter = fake_x.detach().cpu().numpy()
                 fake_label_iter = fake_label.detach().cpu().numpy()
-                mask_iter = mask.detach().cpu().numpy()
-                save_nyp_mask(img_cnt, fake_x_iter[i], fake_label_iter[i], mask_iter[i], root_p, name[i], str(iter_idx))
+                save_nyp(img_cnt, fake_x_iter[i], fake_label_iter[i], root_p, name[i] + str(iter_idx))
 
                 loss_log.append({
                     'Iteration': iter_idx,
@@ -182,7 +179,6 @@ def gen_img(pid, pretrained, fake_x, optimizer, mask, name, loss_fn,
         for i in range(num_batch):
             save_nyp_mask(img_cnt, fake_x[i], fake_label[i], mask[i], root_p, name[i])
             img_cnt += 1
-
 
         df = pd.DataFrame(loss_log, columns=['Iteration', 'L1', 'L2', 'BatchNorm', 'Dice'])
         df.to_csv(f'{root_p}/loss_log/{name[i]}.csv', index=False)

@@ -119,7 +119,7 @@ def save_nyp(cnt, fake_x, fake_label, root, name):
     print(f"img{cnt} is saved.")
 
 
-def save_nyp_mask(cnt, fake_x, fake_label, real_label, root, name, iter):
+def save_nyp_mask(cnt, fake_x, fake_label, real_label, root, name):
     # normalization
     fake_x = truncate(fake_x)
 
@@ -128,8 +128,8 @@ def save_nyp_mask(cnt, fake_x, fake_label, real_label, root, name, iter):
     real_label = np.argmax(real_label, axis=0)[np.newaxis, :]
 
     # save
-    save_img_path = osp.join(root, 'img', name + '_' + str(cnt) + '_iter' + iter + '.npy')
-    save_label_path = osp.join(root, 'mask', name + '_' + str(cnt) + '_iter' + iter + '.npy')
+    save_img_path = osp.join(root, 'img', name + '_' + str(cnt) + '.npy')
+    save_label_path = osp.join(root, 'mask', name + '_' + str(cnt) + '.npy')
     save_real_label_path = osp.join(root, 'label', name + '_' + str(cnt) + '.npy')
 
     np.save(save_img_path, fake_x)
