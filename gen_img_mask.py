@@ -150,7 +150,7 @@ def gen_img(pid, pretrained, fake_x, optimizer, mask, name, loss_fn,
                 img_cnt = num.value + pid
                 fake_x_iter = fake_x.detach().cpu().numpy()
                 fake_label_iter = fake_label.detach().cpu().numpy()
-                save_nyp(img_cnt, fake_x_iter[i], fake_label_iter[i], root_p, name[i] + str(iter_idx))
+                save_nyp(img_cnt, fake_x_iter[i], fake_label_iter[i], root_p, f'{name[i]}_iter{str(iter_idx)}')
 
                 loss_log.append({
                     'Iteration': iter_idx,
