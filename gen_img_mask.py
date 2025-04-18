@@ -14,6 +14,7 @@ import torch.backends.cudnn as cudnn
 from torch.utils.tensorboard import SummaryWriter
 import numpy as np
 import matplotlib.pyplot as plt
+import pandas as pd
 
 from model.deepInversion_3d import DeepInversionFeatureHook, get_image_prior_losses, save_nyp, save_nyp_mask
 from data.flare21_gen import FLARE_Mask
@@ -45,7 +46,9 @@ def gen_img_mask(args, num, lock):
     os.makedirs(f'{root_p}/img', exist_ok=True)
     os.makedirs(f'{root_p}/mask', exist_ok=True)
     os.makedirs(f'{root_p}/label', exist_ok=True)
+
     # logger
+    os.makedirs(f'{root_p}/loss_log', exist_ok=True)
     img_log_root = f"./log_img/{train_type}"
 
     # load the pretrained model
@@ -94,14 +97,9 @@ def gen_img_mask(args, num, lock):
 
 def gen_img(pid, pretrained, fake_x, optimizer, mask, name, loss_fn,
             dice_weight, root_p, img_log_root, pixels, num_batch, n_iters, n_imgs, num, lock):
-    # # make dirs
-    # root_p = root_p + '/' + name
-    # os.makedirs(f'{root_p}/img', exist_ok=True)
-    # os.makedirs(f'{root_p}/mask', exist_ok=True)
-    # os.makedirs(f'{root_p}/label', exist_ok=True)
-
     # log
-    gen_loss_log = {'L1': [], 'L2': [], 'Batch_Norm': [], 'Dice': []}
+    # gen_loss_log = {'L1': [], 'L2': [], 'Batch_Norm': [], 'Dice': []}
+    loss_log = []
 
     # hook pretrained model
     loss_r_feature_layers = []
@@ -137,21 +135,33 @@ def gen_img(pid, pretrained, fake_x, optimizer, mask, name, loss_fn,
         bn_log = loss_bn.item() * 1
         dice_log = dice_loss.item() * dice_weight
 
-        gen_loss_log['L1'].append(l1_log)
-        gen_loss_log['L2'].append(l2_log)
-        gen_loss_log['Batch_Norm'].append(bn_log)
-        gen_loss_log['Dice'].append(dice_log)
+
+
+        # gen_loss_log['L1'].append(l1_log)
+        # gen_loss_log['L2'].append(l2_log)
+        # gen_loss_log['Batch_Norm'].append(bn_log)
+        # gen_loss_log['Dice'].append(dice_log)
 
         if pid == 0:
             print(f"process {pid}: {iter_idx + 1}/{n_iters}| L1: {loss_var_l1.item():.2f}|"
                   f" L2: {loss_var_l2.item():.2f}| Batch_Norm:{loss_bn.item():.2f}| dice: {dice_loss.item()}",
                   end='\r')
 
-        # if iter_idx % 100 == 0:
-        #     img_cnt = num.value + pid
-        #     fake_x_iter = fake_x.detach().cpu().numpy()
-        #     fake_label_iter = fake_label.detach().cpu().numpy()
-        #     save_nyp(img_cnt, fake_x_iter, fake_label_iter, root_p, 'iter' + str(iter_idx))
+        if iter_idx % 500 == 0:
+            for i in range(num_batch):
+                img_cnt = num.value + pid
+                fake_x_iter = fake_x.detach().cpu().numpy()
+                fake_label_iter = fake_label.detach().cpu().numpy()
+                mask_iter = mask.detach().cpu().numpy()
+                save_nyp_mask(img_cnt, fake_x_iter[i], fake_label_iter[i], mask_iter[i], root_p, name[i], str(iter_idx))
+
+                loss_log.append({
+                    'Iteration': iter_idx,
+                    'L1': l1_log,
+                    'L2': l2_log,
+                    'BatchNorm': bn_log,
+                    'Dice': dice_log
+                })
 
     # unhook pretrained model
     for mod in loss_r_feature_layers:
@@ -173,18 +183,22 @@ def gen_img(pid, pretrained, fake_x, optimizer, mask, name, loss_fn,
             save_nyp_mask(img_cnt, fake_x[i], fake_label[i], mask[i], root_p, name[i])
             img_cnt += 1
 
-        # log img gen loss
-        save_log_p = f'{img_log_root}/{name[0]}_{img_cnt}'
-        os.makedirs(save_log_p, exist_ok=True)
-        gen_log_l1 = np.array(gen_loss_log['L1'])
-        gen_log_l2 = np.array(gen_loss_log['L2'])
-        gen_log_bn = np.array(gen_loss_log['Batch_Norm'])
-        gen_log_dice = np.array(gen_loss_log['Dice'])
 
-        np.save(f'{save_log_p}/l1.npy', gen_log_l1)
-        np.save(f'{save_log_p}/l2.npy', gen_log_l2)
-        np.save(f'{save_log_p}/bn.npy', gen_log_bn)
-        np.save(f'{save_log_p}/dice.npy', gen_log_dice)
+        df = pd.DataFrame(loss_log, columns=['Iteration', 'L1', 'L2', 'BatchNorm', 'Dice'])
+        df.to_csv(f'{root_p}/loss_log/{name[i]}.csv', index=False)
+
+        # log img gen loss
+        # save_log_p = f'{img_log_root}/{name[0]}_{img_cnt}'
+        # os.makedirs(save_log_p, exist_ok=True)
+        # gen_log_l1 = np.array(gen_loss_log['L1'])
+        # gen_log_l2 = np.array(gen_loss_log['L2'])
+        # gen_log_bn = np.array(gen_loss_log['Batch_Norm'])
+        # gen_log_dice = np.array(gen_loss_log['Dice'])
+
+        # np.save(f'{save_log_p}/l1.npy', gen_log_l1)
+        # np.save(f'{save_log_p}/l2.npy', gen_log_l2)
+        # np.save(f'{save_log_p}/bn.npy', gen_log_bn)
+        # np.save(f'{save_log_p}/dice.npy', gen_log_dice)
 
     else:
         lock.release()
@@ -209,12 +223,12 @@ def item_concat(mask, name, batch_size, num_batch):
 
 def gen_img_args():
     parser = argparse.ArgumentParser(description="image generation")
-    parser.add_argument("--train_type", type=str, default='di_mask dice 1')
+    parser.add_argument("--train_type", type=str, default='di_mask w loss log')
     parser.add_argument("--gpu", type=str, default='0,1,2,3,4,5,6,7')
     parser.add_argument("--gen_epochs", type=int, default=2000)
     parser.add_argument("--cnt", type=int, default=0)
     parser.add_argument("--num_imgs", type=int, default=16)
-    parser.add_argument("--batch_size", type=int, default=16)
+    parser.add_argument("--batch_size", type=int, default=2)
     parser.add_argument("--num_classes", type=int, default=5)
     parser.add_argument("--num_workers", type=int, default=16)
     parser.add_argument("--dice", type=float, default=1.0)

@@ -1,3 +1,4 @@
+import os
 import os.path as osp
 
 import torch
@@ -118,7 +119,7 @@ def save_nyp(cnt, fake_x, fake_label, root, name):
     print(f"img{cnt} is saved.")
 
 
-def save_nyp_mask(cnt, fake_x, fake_label, real_label, root, name):
+def save_nyp_mask(cnt, fake_x, fake_label, real_label, root, name, iter):
     # normalization
     fake_x = truncate(fake_x)
 
@@ -127,11 +128,11 @@ def save_nyp_mask(cnt, fake_x, fake_label, real_label, root, name):
     real_label = np.argmax(real_label, axis=0)[np.newaxis, :]
 
     # save
-    save_img_path = osp.join(root, 'img', name + '_' + str(cnt) + '.npy')
-    save_label_path = osp.join(root, 'mask', name + '_' + str(cnt) + '.npy')
+    save_img_path = osp.join(root, 'img', name + '_' + str(cnt) + '_iter' + iter + '.npy')
+    save_label_path = osp.join(root, 'mask', name + '_' + str(cnt) + '_iter' + iter + '.npy')
     save_real_label_path = osp.join(root, 'label', name + '_' + str(cnt) + '.npy')
 
     np.save(save_img_path, fake_x)
     np.save(save_label_path, fake_label)
     np.save(save_real_label_path, real_label)
-    print(f"img{cnt} is saved.")
+    print(f"img{cnt}_iter{iter} is saved.")
